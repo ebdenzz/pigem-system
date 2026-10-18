@@ -42,12 +42,15 @@ MAX_IMAGE_BYTES = 4 * 1024 * 1024  # 4 MB max upload size
 
 @app.get("/health")
 def health():
-    """MAJOR: Returns which backend tools are installed and ready."""
+    """MAJOR: Returns which backend tools are installed and ready.
+    If Ollama is offline, AI-related APIs (OpenCV, PaddleOCR, Ollama) are also marked offline.
+    """
+    ollama_ok = ai.is_available()
     return {
         "api": True,
-        "opencv": quality.is_available(),
-        "paddleocr": ocr.is_available(),
-        "ollama": ai.is_available(),
+        "ollama": ollama_ok,
+        "opencv": bool(ollama_ok and quality.is_available()),
+        "paddleocr": bool(ollama_ok and ocr.is_available()),
         "resend": mailer.is_configured(),
         "supabase_check": auth.is_configured(),
     }
@@ -61,7 +64,15 @@ async def screen_document(
     id_number: str = Form(""),
     user=Depends(auth.require_login),
 ):
-    """MAJOR: Runs OpenCV -> PaddleOCR -> Field Comparison -> Ollama AI guidance."""
+    """MAJOR: Runs OpenCV -> PaddleOCR -> Field Comparison -> Ollama AI guidance.
+    Requires local Ollama AI to be running.
+    """
+    if not ai.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Local Ollama AI is offline. Related AI screening APIs (OpenCV & PaddleOCR) are disabled while Ollama is offline.",
+        )
+
     image_bytes = await id_front.read()
     if len(image_bytes) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image is larger than 4 MB.")
@@ -117,7 +128,12 @@ class PoliteRemarkRequest(BaseModel):
 
 @app.post("/polite-remark")
 def generate_polite_remark(data: PoliteRemarkRequest, user=Depends(auth.require_login)):
-    """MAJOR: Converts a raw validator/RADIUS remark into a polite customer message."""
+    """MAJOR: Converts a raw validator/RADIUS remark into a polite customer message using local Ollama AI."""
+    if not ai.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Local Ollama AI is offline. Please start Ollama / START-SYSTEM.bat or type the remark manually.",
+        )
     return ai.write_polite_remark(data.raw_remark, data.chosen_field)
 
 

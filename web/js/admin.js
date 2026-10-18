@@ -100,14 +100,29 @@ async function toggleMaintMode() {
 }
 
 // 2. AI Screening Control
+var lastHealthData = null;
+
 async function renderAiState() {
   var on = isAiEnabled();
+  var health = await apiCheckHealth();
+  lastHealthData = health;
+  var ollamaOnline = Boolean(health && health.ollama);
+
+  var stAiEl = document.getElementById("st-ai");
+  if (stAiEl) {
+    stAiEl.textContent = (!on) ? "MAINT" : (ollamaOnline ? "ONLINE" : "OFFLINE");
+  }
+
   var lbl = document.getElementById("ai-status-label");
   var btn = document.getElementById("btn-toggle-ai");
   if (lbl) {
-    lbl.textContent = on
-      ? "Currently ENABLED (OpenCV + PaddleOCR + Ollama screening active)"
-      : "Currently DISABLED (Agent queue shows 'ARTIFICIAL INTELLIGENCE is under maintenance')";
+    if (!on) {
+      lbl.textContent = "Currently DISABLED by Admin (Agent queue shows 'ARTIFICIAL INTELLIGENCE is under maintenance')";
+    } else if (!ollamaOnline) {
+      lbl.textContent = "⚠️ Local AI Server (Ollama / OpenCV / PaddleOCR) is OFFLINE on this device — Related AI APIs are inactive; manual agent review is active.";
+    } else {
+      lbl.textContent = "✅ Local AI Server ONLINE (Ollama qwen2.5:1.5b + OpenCV + PaddleOCR active on 127.0.0.1:8001)";
+    }
   }
   if (btn) {
     btn.textContent = on ? "Disable AI Screening" : "Enable AI Screening";
@@ -140,48 +155,64 @@ async function toggleAiMode() {
   await refreshAdminData();
 }
 
-// 3. APIs Health Check
+// 3. APIs Health Check (If Ollama is offline, AI-related APIs also report Offline)
 async function checkApiHealth() {
   var box = document.getElementById("api-health-list");
   if (!box) return;
 
-  var pyOk = false;
-  var pyNote = "Offline (Using browser fallback)";
-  var apiUrl = CONFIG.API_URL || CONFIG.PYTHON_API_URL || "http://127.0.0.1:8001";
-  try {
-    var res = await fetch(apiUrl + "/health");
-    if (res.ok) {
-      var data = await res.json();
-      pyOk = true;
-      pyNote = "Online at " + apiUrl + " (OpenCV: " + (data.opencv ? "Ready" : "Off") + ")";
-    }
-  } catch (e) {}
-
+  var apiUrl = CONFIG.API_URL || "http://127.0.0.1:8001";
+  var data = await apiCheckHealth();
+  var pyOk = Boolean(data && data.api);
+  var ollamaOk = Boolean(data && data.ollama);
+  var opencvOk = Boolean(ollamaOk && data && data.opencv);
+  var ocrOk = Boolean(ollamaOk && data && data.paddleocr);
+  var resendOk = Boolean(pyOk && data && data.resend);
   var supaOk = !IS_DEMO_MODE;
+
   var items = [
     {
-      name: "Python FastAPI Server (OpenCV + PaddleOCR + Ollama)",
-      status: pyOk ? "Connected" : "Fallback Mode",
-      badge: pyOk ? "badge-green" : "badge-yellow",
-      detail: pyNote
+      name: "Ollama Local AI Engine (qwen2.5:1.5b)",
+      status: ollamaOk ? "Online (Local)" : "Offline",
+      badge: ollamaOk ? "badge-green" : "badge-red",
+      detail: ollamaOk
+        ? "Running locally at http://localhost:11434 (Prototype privacy mode)"
+        : "Offline on this device — AI screening & polite remark generator are disabled when Ollama is not running"
     },
     {
-      name: "Supabase PostgreSQL + Auth + Storage",
+      name: "OpenCV Image Quality API (Blur / Glare / Brightness)",
+      status: opencvOk ? "Online" : "Offline",
+      badge: opencvOk ? "badge-green" : "badge-red",
+      detail: opencvOk
+        ? "Connected via local FastAPI (" + apiUrl + ")"
+        : "Offline — Requires local Python FastAPI & Ollama AI service to be running"
+    },
+    {
+      name: "PaddleOCR ID Text Extraction API",
+      status: ocrOk ? "Online" : "Offline",
+      badge: ocrOk ? "badge-green" : "badge-red",
+      detail: ocrOk
+        ? "Connected via local FastAPI (" + apiUrl + ")"
+        : "Offline — Requires local Python FastAPI & Ollama AI service to be running"
+    },
+    {
+      name: "Resend Transactional Email API (via Local FastAPI)",
+      status: resendOk ? "Online" : "Offline",
+      badge: resendOk ? "badge-green" : "badge-red",
+      detail: resendOk
+        ? "Ready at " + apiUrl + "/notify"
+        : "Offline on this device (In-app Supabase notifications remain active)"
+    },
+    {
+      name: "Supabase Cloud (PostgreSQL + Auth + Storage Buckets)",
       status: supaOk ? "Live Cloud" : "Local Demo Storage",
       badge: supaOk ? "badge-green" : "badge-blue",
-      detail: supaOk ? CONFIG.SUPABASE_URL : "Running in local browser storage (zero setup required)"
+      detail: supaOk ? CONFIG.SUPABASE_URL : "Running in local browser storage"
     },
     {
       name: "Leaflet.js + OpenStreetMap + Nominatim Reverse Geocoding",
-      status: "Active",
+      status: "Online",
       badge: "badge-green",
-      detail: "Grab-style map pinning & automatic address lookup enabled"
-    },
-    {
-      name: "Resend Transactional Email Service",
-      status: pyOk ? "Ready via FastAPI" : "Demo Inbox Preview",
-      badge: pyOk ? "badge-green" : "badge-blue",
-      detail: "Sends Reference Number, 6-Digit Activation OTP, and Status Updates"
+      detail: "Interactive map pinning & automatic address lookup enabled"
     }
   ];
 

@@ -1,12 +1,12 @@
 # PIGEM Web-Based Internet Service Application System
 
-A web-based internet service application, AI-assisted document screening, and multi-portal management system developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite).
+A web-based internet service application, local AI-assisted document screening, and multi-portal management system developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite).
 
 ---
 
-## 🌐 Live Deployment (Vercel)
+## 🌐 Live Web Deployment (Vercel)
 
-The system is separated into **three independent subsystems** with isolated sessions and role-based access control:
+The web interface is deployed on Vercel and connected to **Supabase Cloud** (`PostgreSQL`, `Authentication`, and `Storage`), separated into **three independent subsystems**:
 
 1. **External Customer Subsystem (Public Website, Online Application & Customer Portal)**
    - **Public Home Page:** [https://pigem-system-web.vercel.app/index.html](https://pigem-system-web.vercel.app/index.html)
@@ -27,20 +27,30 @@ The system is separated into **three independent subsystems** with isolated sess
 
 ---
 
+## 🔒 Local-Only AI Architecture (Prototype Data Privacy & Offline Detection)
+
+For data privacy and security of customer government IDs during the prototype stage, the AI screening stack runs **strictly locally** on the authorized workstation (`http://127.0.0.1:8001`):
+
+- **When `START-SYSTEM.bat` (and local `Ollama qwen2.5:1.5b`) is running on the workstation:**
+  - **Ollama (`qwen2.5:1.5b`)**, **OpenCV**, and **PaddleOCR** are **Online**.
+  - Uploaded IDs are screened locally for blur/sharpness, brightness, glare, and OCR field consistency, and Agents can use **`✨ AI Generate Polite Message`** to convert raw RADIUS / Validator remarks into polite customer instructions.
+- **When opened from another location or when local `Ollama` / `START-SYSTEM.bat` is not running:**
+  - The **Technical Admin Console (`admin.html`)** and **Agent Dashboard (`agent.html`)** automatically detect and display that **Ollama AI and its related screening APIs (`OpenCV` and `PaddleOCR`) are OFFLINE**, and the system seamlessly operates in **Manual Agent Verification Mode**.
+- **Future Work / Recommendation:**
+  - Future iterations can transition from local Ollama to a dedicated, custom-trained private cloud AI model engineered specifically for secure telecommunication document screening.
+
+---
+
 ## ✨ Key Features
 
 - **Online Fiber Application & Interactive Map Pinning:** Customers select a Red Fiber plan (`Plan 1000`, `Plan 1400`, `Plan 1900`), pin their exact installation coordinates via **Leaflet + OpenStreetMap + Nominatim**, and upload their valid government ID.
-- **Preliminary AI Document Screening:**
-  - Checks uploaded ID photos for blur/sharpness (Laplacian variance), brightness, glare, and text consistency using **OpenCV + PaddleOCR + Ollama (`qwen2.5:1.5b`)** when the local Python FastAPI service is active, with an automatic **Browser Canvas Image Quality & AI Fallback Engine** so screening and polite messages continue working 24/7 on Vercel even when the local Python server is offline.
-- **Validator / RADIUS Remark $\rightarrow$ AI Polite Customer Message:**
-  - Verification agents paste raw remarks from the provider validator (e.g., duplicate email in RADIUS, duplicate mobile number, or unreadable ID).
-  - The AI engine converts the raw validator remark into a polite customer instruction and highlights the exact field(s) (`Email Address`, `Mobile Number`, `Valid ID Photo`, `ID Number`, or `Address`) in the Customer Portal.
-  - Once the customer updates the flagged field(s), the system automatically verifies the change and returns the application status to **Processing**.
+- **Validator / RADIUS Remark $\rightarrow$ Polite Customer Message & Specific Field Detection:**
+  - Verification agents paste raw remarks from the provider validator (e.g., duplicate email in RADIUS, duplicate mobile number, or unreadable ID) and specify the target field (`Email Address`, `Mobile Number`, `Valid ID Photo`, `ID Number`, or `Address`).
+  - Once the customer updates the highlighted field(s) in `customer.html`, the system automatically verifies the change and returns the application status to **Processing**.
 - **Original vs. Corrected Copy Comparison:** Preserves the customer's original submission alongside the latest corrected submission so agents can compare versions side-by-side.
 - **Manager Content CMS & Supabase Bucket Media Switcher:**
   - Edit the **4 Home Hero Slides** and **4 About Hero Slides**, upload new banners/logos/vehicles/permits directly to the Supabase `website-assets` bucket, and switch between any saved bucket images at any time.
   - Opening Content CMS automatically enables **Maintenance Mode** to protect public pages while edits are in progress, with a live preview bypass for the Manager.
-- **Technical Admin Controls:** Toggle AI Screening Maintenance Mode, Website Maintenance Mode, manage user accounts, and audit system/login logs.
 
 ---
 
@@ -59,10 +69,10 @@ pigem_system/
 │   ├── agent.html              # Agent Verification, AI Log & Encoding Dashboard
 │   ├── manager.html            # Manager Monitoring, Overrides & Content CMS
 │   ├── admin-login.html        # System Administrator Login / Registration
-│   ├── admin.html              # Technical Management (Maintenance, AI Toggle, Logs)
+│   ├── admin.html              # Technical Management (Maintenance, AI Status, Logs)
 │   ├── assets/                 # Stylesheet (style.css) and Image Assets
 │   └── js/                     # Modular Frontend Scripts (config, db, api, portals)
-├── api/                        # Python FastAPI Backend (OpenCV, PaddleOCR, Ollama, Resend)
+├── api/                        # Local Python FastAPI Backend (OpenCV, PaddleOCR, Ollama, Resend)
 │   ├── main.py                 # FastAPI Endpoints (/health, /screen, /polite-remark, /notify)
 │   ├── quality.py              # OpenCV Image Blur, Brightness & Glare Analysis
 │   ├── ocr.py                  # PaddleOCR ID Text Extraction & Field Matching
@@ -71,18 +81,18 @@ pigem_system/
 │   └── requirements.txt        # Python Dependencies
 ├── supabase/
 │   └── schema.sql              # Unified 12-Table PostgreSQL Schema & Storage Buckets
+├── START-SYSTEM.bat            # One-Click Local Launcher (Website + Local Python AI Server)
 └── vercel.json                 # Vercel Static Hosting Configuration
 ```
 
 ---
 
-## 🚀 Running the Local Python AI Backend (Optional Enhancement)
+## 🚀 Starting the Local AI Server (`START-SYSTEM.bat`)
 
-The live Vercel site works **24/7 on its own** using **Supabase Cloud** + the built-in **Browser Canvas Image Quality & AI Engine** in [`web/js/api.js`](web/js/api.js).
-
-When presenting or testing on your local machine, you can also run the **Python FastAPI + OpenCV + PaddleOCR + Ollama (`qwen2.5:1.5b`) + Resend** server:
+To run the local Python FastAPI + OpenCV + PaddleOCR + Ollama (`qwen2.5:1.5b`) service on your workstation:
 
 ```powershell
 cd api
 .\.venv311\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001
 ```
+*(Or double-click `START-SYSTEM.bat` in the project root.)*

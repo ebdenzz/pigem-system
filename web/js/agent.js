@@ -379,6 +379,9 @@ async function convertValidatorToPoliteRemark() {
     }
     lastDetectedFields = res.target_fields || [];
     return res;
+  } catch (err) {
+    showAlert("AI Service Offline", "Local Ollama AI is currently offline on this device. Please start START-SYSTEM.bat on your local machine, or type the customer instruction manually in the box below.");
+    return null;
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -408,35 +411,33 @@ async function saveAgentDecision(newStatus) {
   var isEncoded = document.getElementById("det-encoded-chk").checked || newStatus === "Approved";
   var targetFields = lastDetectedFields || [];
 
-  // If requesting correction, automatically convert raw validator remark via AI if polite message is empty or equals raw remark
+  if (chosenField === "email") targetFields = ["email"];
+  else if (chosenField === "phone") targetFields = ["phone"];
+  else if (chosenField === "email_or_phone") targetFields = ["email", "phone"];
+  else if (chosenField !== "auto") targetFields = [chosenField];
+
+  // If requesting correction, try local AI if remarks are empty
   if (newStatus === "Needs Correction") {
     if (!remarks && (rawValidator || chosenField !== "auto")) {
       var aiGen = await convertValidatorToPoliteRemark();
       if (aiGen) {
         remarks = aiGen.polite_message;
-        targetFields = aiGen.target_fields || [];
+        targetFields = aiGen.target_fields || targetFields;
       }
-    } else if (remarks && targetFields.length === 0) {
-      var aiDetect = await apiGeneratePoliteRemark(rawValidator || remarks, chosenField);
-      if (!rawValidator && remarks.length < 45 && aiDetect.polite_message) {
-        remarks = aiDetect.polite_message;
-      }
-      targetFields = aiDetect.target_fields || [];
     }
     if (!remarks) {
-      showAlert("Validator Remark Required", "Please paste the Validator / RADIUS remark (or select the target field) so AI can generate a polite correction message for the customer.");
+      showAlert("Customer Instruction Required", "Please type the instruction for the customer (or start local Ollama AI to generate it from the Validator remark).");
       return;
     }
   }
 
   if (newStatus === "Rejected") {
     if (!rejectType && !remarks && !rawValidator) {
-      showAlert("Reason Required", "Please select a Rejection Category or paste the Validator remark.");
+      showAlert("Reason Required", "Please select a Rejection Category or write the reason for rejection.");
       return;
     }
     if (!remarks && rawValidator) {
-      var rejAi = await apiGeneratePoliteRemark(rawValidator, chosenField);
-      remarks = rejAi.polite_message || rawValidator;
+      remarks = rawValidator;
     }
     remarks = (rejectType ? "[" + rejectType + "] " : "") + remarks;
   }
