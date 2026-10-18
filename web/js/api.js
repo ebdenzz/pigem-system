@@ -161,26 +161,40 @@ async function apiRunScreening(idFrontFile, customerDetails) {
   }
 }
 
-// MAJOR: Ask the Python FastAPI service (/notify) to send an email via Resend
+// MAJOR: Send email via local Python FastAPI (/notify) OR Vercel Cloud Function (/api/notify)
 async function apiSendEmail(toEmail, subjectText, messageText) {
+  var payload = JSON.stringify({
+    to: toEmail,
+    subject: subjectText,
+    message: messageText
+  });
+  var headers = { "Content-Type": "application/json" };
   try {
-    var headers = { "Content-Type": "application/json" };
     var token = await dbGetToken();
-    if (token) {
-      headers["Authorization"] = "Bearer " + token;
-    }
+    if (token) headers["Authorization"] = "Bearer " + token;
+  } catch (e) {}
 
-    await fetch(CONFIG.API_URL + "/notify", {
+  // 1. If opened on Vercel (not localhost), call Vercel Cloud Email Function (/api/notify) directly
+  var isLocalhost = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!isLocalhost) {
+    try {
+      await fetch("/api/notify", { method: "POST", headers: headers, body: payload });
+      return;
+    } catch (e) {}
+  }
+
+  // 2. Otherwise try local Python FastAPI (/notify), and fall back to /api/notify if .bat is off
+  try {
+    var res = await fetch(CONFIG.API_URL + "/notify", {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({
-        to: toEmail,
-        subject: subjectText,
-        message: messageText
-      })
+      body: payload
     });
+    if (res.ok) return;
   } catch (error) {
-    // When running on Vercel without local Python server, in-app Supabase notifications still work 100%
+    try {
+      await fetch("/api/notify", { method: "POST", headers: headers, body: payload });
+    } catch (e2) {}
   }
 }
 
