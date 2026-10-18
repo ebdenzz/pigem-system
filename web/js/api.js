@@ -174,28 +174,27 @@ async function apiSendEmail(toEmail, subjectText, messageText) {
     if (token) headers["Authorization"] = "Bearer " + token;
   } catch (e) {}
 
-  // 1. If opened on Vercel (not localhost), call Vercel Cloud Email Function (/api/notify) directly
-  var isLocalhost = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  if (!isLocalhost) {
-    try {
-      await fetch("/api/notify", { method: "POST", headers: headers, body: payload });
-      return;
-    } catch (e) {}
-  }
-
-  // 2. Otherwise try local Python FastAPI (/notify), and fall back to /api/notify if .bat is off
+  // 1. Try local Python FastAPI server (127.0.0.1:8001/notify) first (uses api/.env RESEND_API_KEY)
   try {
-    var res = await fetch(CONFIG.API_URL + "/notify", {
+    var localRes = await fetch(CONFIG.API_URL + "/notify", {
       method: "POST",
       headers: headers,
       body: payload
     });
-    if (res.ok) return;
-  } catch (error) {
-    try {
-      await fetch("/api/notify", { method: "POST", headers: headers, body: payload });
-    } catch (e2) {}
-  }
+    if (localRes.ok) {
+      var localData = await localRes.json();
+      if (localData && localData.sent) return;
+    }
+  } catch (e) {}
+
+  // 2. If local Python .bat is not running on this device, call Vercel Cloud Function (/api/notify)
+  try {
+    await fetch("/api/notify", {
+      method: "POST",
+      headers: headers,
+      body: payload
+    });
+  } catch (e2) {}
 }
 
 // MAJOR: Check which Python services (FastAPI, OpenCV, PaddleOCR, Ollama, Resend) are active
