@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Technical Management System — PIGEM Admin Console</title>
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splash" class="splash">
+    <img src="assets/images/logo.png" alt="PIGEM" />
+    <b>Technical Management System</b>
+    <span class="muted" style="font-size:13px">PIGEM System Administration</span>
+  </div>
+
+  <div class="dash-wrap">
+
+    <!-- SIDEBAR -->
+    <aside class="dash-side">
+      <div class="brand">
+        <img src="assets/images/logo.png" alt="PIGEM" />
+        <div>
+          <b>Technical System</b>
+          <span>Admin Console</span>
+        </div>
+      </div>
+
+      <button id="nav-overview" data-nav-label="Overview" data-nav-target="overview" class="active" onclick="showTab('overview')">
+        <span>📊 Overview</span>
+      </button>
+      <button id="nav-maintenance" data-nav-label="Maintenance" data-nav-target="maintenance" onclick="showTab('maintenance')">
+        <span>🛠 Maintenance</span>
+      </button>
+      <button id="nav-ai" data-nav-label="AI Screening Control" data-nav-target="ai" onclick="showTab('ai')">
+        <span>🤖 AI</span>
+      </button>
+      <button id="nav-apis" data-nav-label="APIs & Services" data-nav-target="apis" onclick="showTab('apis')">
+        <span>🔌 APIs</span>
+      </button>
+      <button id="nav-accounts" data-nav-label="Accounts & Roles" data-nav-target="accounts" onclick="showTab('accounts')">
+        <span>👥 Accounts</span>
+      </button>
+      <button id="nav-logs" data-nav-label="Audit & Login Logs" data-nav-target="logs" onclick="showTab('logs')">
+        <span>📜 Logs</span>
+      </button>
+      <button id="nav-calendar" data-nav-label="System Calendar" data-nav-target="calendar" onclick="showTab('calendar')">
+        <span>📅 Calendar</span>
+      </button>
+      <button id="nav-reports" data-nav-label="Reports & Export" data-nav-target="reports" onclick="showTab('reports')">
+        <span>📈 Reports</span>
+      </button>
+      <button type="button" data-nav-label="Settings & Theme" data-nav-target="settings" onclick="toggleProfileDrawer()">
+        <span>⚙️ Settings</span>
+      </button>
+
+      <div class="side-foot">© 2026 All Rights Reserved</div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="dash-main">
+
+      <!-- TOP BAR -->
+      <div class="dash-top">
+        <div>
+          <b style="font-size:16px">Technical Management System</b>
+          <div class="muted" style="font-size:12px">Signed in as <span id="top-user-name">System Admin</span></div>
+        </div>
+
+        <div class="top-search">
+          <input type="text" placeholder="Search admin tools, accounts, or applications..." oninput="onTopSearchInput(this)" />
+          <div id="top-search-results" class="search-drop hidden"></div>
+        </div>
+
+        <div class="top-actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
+            🔔 <span id="notif-count" class="badge badge-red hidden">0</span>
+          </button>
+          <button id="avatar-btn" type="button" class="avatar-btn" onclick="toggleProfileDrawer()" title="Account & Theme">AD</button>
+        </div>
+      </div>
+
+      <!-- TAB: OVERVIEW -->
+      <section id="tab-overview">
+        <div class="grid-4" style="margin-bottom:20px">
+          <div class="stat"><div class="num" id="st-users">0</div><div class="lbl">User Accounts</div></div>
+          <div class="stat"><div class="num" id="st-apps">0</div><div class="lbl">Total Applications</div></div>
+          <div class="stat"><div class="num" id="st-ai">ON</div><div class="lbl">AI Screening Engine</div></div>
+          <div class="stat"><div class="num" id="st-maint">OFF</div><div class="lbl">Maintenance Mode</div></div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:20px">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Accounts by Role</h3>
+            <div id="chart-admin-bars"></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:12px">Application Status Overview</h3>
+            <div id="chart-admin-cols"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:12px">Monthly Activity Calendar</h3>
+          <div id="admin-overview-calendar"></div>
+        </div>
+      </section>
+
+      <!-- TAB: MAINTENANCE -->
+      <section id="tab-maintenance" class="hidden">
+        <div class="card">
+          <h2 style="font-size:20px; margin-bottom:6px">Website &amp; Form Maintenance Mode</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:16px">When Maintenance Mode is enabled, public visitors attempting to submit new applications will see a maintenance notice while internal staff continue working.</p>
+          <div id="maint-msg" class="msg"></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--soft); margin-bottom:14px">
+            <div>
+              <b>Public Application Maintenance Mode</b>
+              <div id="maint-status-label" class="muted" style="font-size:13px">Currently OFF (Public website is accepting applications)</div>
+            </div>
+            <button id="btn-toggle-maint" type="button" class="btn btn-red" onclick="toggleMaintMode()">Enable Maintenance Mode</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: AI SCREENING CONTROL -->
+      <section id="tab-ai" class="hidden">
+        <div class="card" style="margin-bottom:18px">
+          <h2 style="font-size:20px; margin-bottom:6px">Artificial Intelligence (AI) Document Screening Control</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:16px">Control the Python OpenCV + PaddleOCR + Ollama ID screening service. When disabled, the Agent queue displays <b>"ARTIFICIAL INTELLIGENCE is under maintenance"</b> and switches to manual verification.</p>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--soft)">
+            <div>
+              <b>AI ID Readability &amp; OCR Screening</b>
+              <div id="ai-status-label" class="muted" style="font-size:13px">Currently ENABLED</div>
+            </div>
+            <button id="btn-toggle-ai" type="button" class="btn btn-red" onclick="toggleAiMode()">Disable AI Screening</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:12px">Recent AI Screening &amp; Verification Activity</h3>
+          <div id="admin-ai-log-list" class="chat-log"></div>
+        </div>
+      </section>
+
+      <!-- TAB: APIS & SERVICES -->
+      <section id="tab-apis" class="hidden">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
+            <div>
+              <h2 style="font-size:20px">Connected APIs &amp; Backend Services</h2>
+              <p class="muted" style="font-size:13px">Live connection status for Python FastAPI, Supabase, OpenStreetMap, and Resend Email.</p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="checkApiHealth()">↻ Check Live Health</button>
+          </div>
+          <div id="api-health-list" class="grid-2"></div>
+        </div>
+      </section>
+
+      <!-- TAB: ACCOUNTS -->
+      <section id="tab-accounts" class="hidden">
+        <div class="card" style="margin-bottom:18px">
+          <h3 style="margin-bottom:10px">Create New Staff or Customer Account</h3>
+          <div id="acc-msg" class="msg"></div>
+          <div class="grid-4">
+            <div class="field"><label>Full Name</label><input id="new-acc-name" type="text" placeholder="Maria Santos" /></div>
+            <div class="field"><label>Email Address</label><input id="new-acc-email" type="email" placeholder="maria@pigem.com" /></div>
+            <div class="field"><label>Initial Password</label><input id="new-acc-pw" type="text" value="demo123" /></div>
+            <div class="field">
+              <label>System Role</label>
+              <select id="new-acc-role">
+                <option value="agent">Agent (Application Handling)</option>
+                <option value="manager">Manager (Monitoring &amp; Content)</option>
+                <option value="admin">Admin (Technical System)</option>
+                <option value="customer">Customer</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="btn btn-red btn-sm" onclick="adminCreateUser()">+ Create Account</button>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:12px">All Registered Accounts</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: LOGS -->
+      <section id="tab-logs" class="hidden">
+        <div class="grid-2">
+          <div class="card">
+            <h3 style="margin-bottom:12px">System Activity Logs</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Time</th><th>Actor</th><th>Action</th></tr></thead>
+                <tbody id="admin-logs-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:12px">Login &amp; Logout History</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Event</th></tr></thead>
+                <tbody id="admin-login-history-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: CALENDAR -->
+      <section id="tab-calendar" class="hidden">
+        <div class="card">
+          <h2 style="font-size:20px; margin-bottom:12px">System Application Calendar</h2>
+          <div id="admin-full-calendar"></div>
+        </div>
+      </section>
+
+      <!-- TAB: REPORTS -->
+      <section id="tab-reports" class="hidden">
+        <div class="card" style="margin-bottom:18px">
+          <h2 style="font-size:20px; margin-bottom:6px">System Reports &amp; CSV Export</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:14px">Export all application records to CSV (opens in Microsoft Excel or Google Sheets) or print a formatted summary report.</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap">
+            <button type="button" class="btn btn-red" onclick="exportApplicationsCsv()">⬇ Download Applications CSV</button>
+            <button type="button" class="btn btn-outline" onclick="window.print()">🖨 Print Summary Report</button>
+            <button type="button" class="btn btn-outline" style="margin-left:auto" onclick="resetDemoDatabase()">↺ Reset Demo Data to Defaults</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS MODAL -->
+  <div id="notif-modal" class="modal hidden">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <h3>System Notifications</h3>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">Close</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE DRAWER -->
+  <div id="profile-drawer" class="drawer hidden" onclick="if(event.target===this) toggleProfileDrawer()">
+    <div class="drawer-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <b>Admin Account &amp; Theme</b>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleProfileDrawer()">✕</button>
+      </div>
+      <div id="profile-drawer-body"></div>
+    </div>
+  </div>
+
+  <script>window.SYSTEM = "admin";</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/dash-ui.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

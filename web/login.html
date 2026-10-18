@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Login — PIGEM</title>
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a href="index.html" class="brand">
+        <img src="assets/images/logo.png" alt="PIGEM" />
+        <div><b>Combined Facilities Support Services</b></div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="about.html">About PIGEM</a>
+        <a href="apply.html" target="_blank" class="btn btn-red">Apply</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="max-width:460px; padding:48px 20px 64px">
+
+    <!-- SIGN IN BOX -->
+    <div id="box-login" class="card">
+      <div style="text-align:center; margin-bottom:18px">
+        <img src="assets/images/logo.png" alt="PIGEM" style="width:48px; height:48px; margin:0 auto 10px" />
+        <h1 style="font-size:22px; margin-bottom:4px">Customer Account Login</h1>
+        <p class="muted" style="font-size:14px">Sign in with your registered email address to monitor your Red Fiber application status or submit requested updates.</p>
+      </div>
+
+      <div id="login-msg" class="msg"></div>
+
+      <form onsubmit="handleSignIn(event)">
+        <div class="field">
+          <label>Email Address</label>
+          <input id="login-email" type="email" required placeholder="yourname@gmail.com" />
+        </div>
+        <div class="field">
+          <label style="display:flex; justify-content:space-between">
+            <span>Password</span>
+            <a href="#" onclick="showBox('reset'); return false;" style="font-size:12px; color:#c8102e">Forgot password?</a>
+          </label>
+          <input id="login-password" type="password" required placeholder="••••••••" />
+        </div>
+        <button id="btn-login" type="submit" class="btn btn-red" style="width:100%">Sign In to My Account</button>
+      </form>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line); font-size:13px; text-align:center" class="muted">
+        New applicant? <a href="apply.html" target="_blank" style="color:#c8102e; font-weight:700">Submit an application first</a> to receive your one-time account activation link.
+      </div>
+    </div>
+
+    <!-- FORGOT PASSWORD BOX -->
+    <div id="box-reset" class="card hidden">
+      <h2 style="margin-bottom:4px">Reset Customer Password</h2>
+      <p class="muted" style="font-size:14px; margin-bottom:16px">Enter your registered email to receive a 6-digit verification code.</p>
+
+      <div id="reset-msg" class="msg"></div>
+
+      <div id="reset-step-1">
+        <div class="field">
+          <label>Email Address</label>
+          <input id="reset-email" type="email" placeholder="yourname@gmail.com" />
+        </div>
+        <button type="button" class="btn btn-red" style="width:100%" onclick="sendResetCode()">Send Verification Code</button>
+      </div>
+
+      <div id="reset-step-2" class="hidden">
+        <div class="field">
+          <label>6-Digit Verification Code</label>
+          <input id="reset-code" type="text" maxlength="6" placeholder="123456" />
+        </div>
+        <div class="field">
+          <label>New Password (at least 6 characters)</label>
+          <input id="reset-new-pw" type="password" placeholder="••••••••" />
+        </div>
+        <button type="button" class="btn btn-red" style="width:100%" onclick="confirmPasswordReset()">Save New Password</button>
+      </div>
+
+      <p style="margin-top:14px; font-size:13px; text-align:center">
+        <a href="#" onclick="showBox('login'); return false;" style="color:#c8102e; font-weight:700">← Back to Customer Login</a>
+      </p>
+    </div>
+
+  </main>
+
+  <script>window.SYSTEM = "customer";</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

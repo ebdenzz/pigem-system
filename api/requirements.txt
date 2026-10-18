@@ -1,0 +1,13 @@
+# MAJOR: Core packages - enough to start the service and send emails
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+httpx
+
+# MAJOR: Image checking (OpenCV). Needed for the quality checks.
+opencv-python-headless
+numpy
+
+# MAJOR: OCR (PaddleOCR). Big download (~1 GB). Needs Python 3.9 - 3.13 (NOT 3.14 yet).
+# Install later with:  pip install -r requirements-ocr.txt

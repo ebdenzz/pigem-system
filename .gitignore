@@ -1,0 +1,19 @@
+# Python Virtual Environments & Cache
+api/.venv/
+api/.venv311/
+.venv/
+.venv311/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Backend Secrets (Never commit API keys to GitHub)
+api/.env
+.env
+.env.local
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

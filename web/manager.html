@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Application Monitoring Management — PIGEM Manager Dashboard</title>
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splash" class="splash">
+    <img src="assets/images/logo.png" alt="PIGEM" />
+    <b>Application Management System</b>
+    <span class="muted" style="font-size:13px">Application Monitoring Management (Manager)</span>
+  </div>
+
+  <div class="dash-wrap">
+
+    <!-- SIDEBAR -->
+    <aside class="dash-side">
+      <div class="brand">
+        <img src="assets/images/logo.png" alt="PIGEM" />
+        <div>
+          <b>PIGEM Manager</b>
+          <span>Monitoring &amp; Content</span>
+        </div>
+      </div>
+
+      <button id="nav-overview" data-nav-label="Overview" data-nav-target="overview" class="active" onclick="showTab('overview')">
+        <span>📊 Overview</span>
+      </button>
+
+      <!-- 1. EXPANDABLE APPLICATION NAV -->
+      <button type="button" onclick="toggleNavGroup(this)">
+        <span>📋 Application</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="nav-sub">
+        <button id="nav-app-all" data-nav-label="All Applications" data-nav-target="app-all" onclick="showTab('app-all')">
+          <span>All Applications</span>
+        </button>
+        <button id="nav-app-override" data-nav-label="Needs Override / Correction" data-nav-target="app-override" onclick="showTab('app-override')">
+          <span>Needs Override</span>
+        </button>
+        <button id="nav-app-encoded" data-nav-label="Encoded & Approved" data-nav-target="app-encoded" onclick="showTab('app-encoded')">
+          <span>Encoded &amp; Approved</span>
+        </button>
+      </div>
+
+      <!-- 2. EXPANDABLE AGENT NAV -->
+      <button type="button" onclick="toggleNavGroup(this)">
+        <span>👥 Agent</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="nav-sub">
+        <button id="nav-agent-perf" data-nav-label="Agent Workload & Performance" data-nav-target="agent-perf" onclick="showTab('agent-perf')">
+          <span>Workload &amp; Performance</span>
+        </button>
+        <button id="nav-agent-links" data-nav-label="Agent Referral Links" data-nav-target="agent-links" onclick="showTab('agent-links')">
+          <span>Referral Links</span>
+        </button>
+      </div>
+
+      <!-- 3. EXPANDABLE CONTENT CMS NAV -->
+      <button type="button" onclick="toggleNavGroup(this)">
+        <span>🖼 Content</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="nav-sub">
+        <button id="nav-cms-banners" data-nav-label="Hero Banners (Home & About)" data-nav-target="cms-banners" onclick="showTab('cms-banners')">
+          <span>Hero Banners (4 Slides)</span>
+        </button>
+        <button id="nav-cms-assets" data-nav-label="Media & Bucket Assets (Logo, Clients, Vehicles, Permits)" data-nav-target="cms-assets" onclick="showTab('cms-assets')">
+          <span>Media &amp; Bucket Assets</span>
+        </button>
+        <button id="nav-cms-about" data-nav-label="About Company Text" data-nav-target="cms-about" onclick="showTab('cms-about')">
+          <span>About Company</span>
+        </button>
+        <button id="nav-cms-plans" data-nav-label="Internet Plans" data-nav-target="cms-plans" onclick="showTab('cms-plans')">
+          <span>Internet Plans</span>
+        </button>
+        <button id="nav-cms-faqs" data-nav-label="FAQs" data-nav-target="cms-faqs" onclick="showTab('cms-faqs')">
+          <span>FAQs</span>
+        </button>
+      </div>
+
+      <button type="button" data-nav-label="Settings & Theme" data-nav-target="settings" onclick="toggleProfileDrawer()">
+        <span>⚙️ Settings</span>
+      </button>
+
+      <div class="side-foot">© 2026 All Rights Reserved</div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="dash-main">
+
+      <!-- TOP BAR -->
+      <div class="dash-top">
+        <div>
+          <b style="font-size:16px">Application Monitoring Management</b>
+          <div class="muted" style="font-size:12px">Signed in as <span id="top-user-name">Manager</span></div>
+        </div>
+
+        <div class="top-search">
+          <input type="text" placeholder="Search sections, applications, or agents..." oninput="onTopSearchInput(this)" />
+          <div id="top-search-results" class="search-drop hidden"></div>
+        </div>
+
+        <div class="top-actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
+            🔔 <span id="notif-count" class="badge badge-red hidden">0</span>
+          </button>
+          <button id="avatar-btn" type="button" class="avatar-btn" onclick="toggleProfileDrawer()" title="Account & Theme">MG</button>
+        </div>
+      </div>
+
+      <!-- TAB: OVERVIEW -->
+      <section id="tab-overview">
+        <div class="grid-4" style="margin-bottom:20px">
+          <div class="stat"><div class="num" id="st-total">0</div><div class="lbl">Total Applications</div></div>
+          <div class="stat"><div class="num" id="st-pending">0</div><div class="lbl">Pending / In Review</div></div>
+          <div class="stat"><div class="num" id="st-fix">0</div><div class="lbl">Needs Correction</div></div>
+          <div class="stat"><div class="num" id="st-approved">0</div><div class="lbl">Approved &amp; Encoded</div></div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:20px">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Pipeline Status Distribution</h3>
+            <div id="chart-mgr-bars"></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:12px">Applications by Plan</h3>
+            <div id="chart-mgr-cols"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:12px">Monthly Application Calendar</h3>
+          <div id="mgr-calendar"></div>
+        </div>
+      </section>
+
+      <!-- TAB: APPLICATIONS (ALL / OVERRIDE / ENCODED) -->
+      <section id="tab-apps" class="hidden">
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+            <div>
+              <h2 id="mgr-apps-title" style="font-size:20px">All Applications</h2>
+              <p class="muted" style="font-size:13px">Monitor agent assignments, override decisions, or reassign applications.</p>
+            </div>
+            <input id="mgr-filter" type="text" placeholder="Filter by applicant, ref no., or agent..." oninput="renderManagerApps()" style="max-width:260px" />
+          </div>
+        </div>
+        <div id="mgr-apps-list"></div>
+      </section>
+
+      <!-- TAB: AGENT WORKLOAD & PERFORMANCE -->
+      <section id="tab-agent-perf" class="hidden">
+        <div class="card">
+          <h2 style="font-size:20px; margin-bottom:6px">Agent Workload &amp; Performance</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:14px">Live summary of applications claimed, encoded, and pending per verification agent.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent Name</th>
+                  <th>Email</th>
+                  <th>Active Claimed</th>
+                  <th>Needs Correction</th>
+                  <th>Approved / Encoded</th>
+                  <th>Total Handled</th>
+                </tr>
+              </thead>
+              <tbody id="mgr-agent-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: AGENT REFERRAL LINKS -->
+      <section id="tab-agent-links" class="hidden">
+        <div class="card">
+          <h2 style="font-size:20px; margin-bottom:6px">Agent Generated Referral Links</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:14px">All customer referral links created by agents.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Referral Code</th>
+                  <th>Agent Email</th>
+                  <th>Customer / Note</th>
+                  <th>Created Date</th>
+                </tr>
+              </thead>
+              <tbody id="mgr-links-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SHARED CMS MAINTENANCE & LIVE PREVIEW BAR (Shown on all Content CMS tabs) -->
+      <div id="cms-maint-bar" class="card hidden" style="margin-bottom:16px; border-left:4px solid #c8102e; background:#fff8f8">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px">
+              <b>🛠 Content CMS Maintenance Protection</b>
+              <span id="cms-maint-badge" class="badge badge-yellow">Maintenance Mode: ON</span>
+            </div>
+            <p class="muted" style="font-size:12px; margin-top:4px">
+              Opening Content CMS automatically turns ON Maintenance Mode so customers cannot browse or submit applications while you edit. Use <b>Preview Website</b> to inspect your changes, then click <b>Publish &amp; Turn Off Maintenance</b> when done.
+            </p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <a href="index.html?preview_cms=1" target="_blank" class="btn btn-outline btn-sm">👁 Preview Live Website</a>
+            <button type="button" id="cms-maint-toggle-btn" class="btn btn-red btn-sm" onclick="finishCmsAndDisableMaintenance()">✓ Publish &amp; Turn Off Maintenance</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: CONTENT CMS — HERO BANNERS (4 SLIDES + BUCKET LIBRARY) -->
+      <section id="tab-cms-banners" class="hidden">
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+            <div>
+              <h3 style="font-size:16px">📤 Upload New Banner to Supabase Bucket (<code>website-assets/Banners</code>)</h3>
+              <p class="muted" style="font-size:12px">Upload Canva / AI banners here. All uploaded banners stay saved in the bucket library (10+ banners supported) so you can switch any of the 4 slides anytime.</p>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+              <input id="cms-upload-banner-file" type="file" accept="image/*" style="max-width:240px" />
+              <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewBucketAsset('Banners', 'cms-upload-banner-file', 'cms-banners-msg')">Upload Banner to Bucket</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px">
+            <div>
+              <h2 style="font-size:20px">Hero Banner Slider Editor (4 Home Slides &amp; 4 About Slides)</h2>
+              <p class="muted" style="font-size:13px">Select any saved banner from your <code>website-assets/Banners</code> bucket library for each of the 4 slides.</p>
+            </div>
+            <button type="button" class="btn btn-red" onclick="saveBannersCms()">Save All Banner Changes</button>
+          </div>
+          <div id="cms-banners-msg" class="msg"></div>
+          <h3 style="margin:12px 0 8px">Home Page Hero Slides (4 Slides)</h3>
+          <div id="cms-home-slides"></div>
+          <h3 style="margin:18px 0 8px">About PIGEM Page Hero Slides (4 Slides)</h3>
+          <div id="cms-about-slides"></div>
+        </div>
+      </section>
+
+      <!-- TAB: CONTENT CMS — MEDIA & BUCKET ASSETS (LOGO, CLIENTS, VEHICLES, PERMITS) -->
+      <section id="tab-cms-assets" class="hidden">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px">
+            <div>
+              <h2 style="font-size:20px">Media &amp; Bucket Assets Manager (<code>website-assets</code>)</h2>
+              <p class="muted" style="font-size:13px">Upload new images to your Supabase bucket and switch active Website Logo, Client Logos, Service Vehicles, and Permits without losing previous files.</p>
+            </div>
+            <button type="button" class="btn btn-red" onclick="saveMediaAssetsCms()">Save Active Website Assets</button>
+          </div>
+          <div id="cms-assets-msg" class="msg"></div>
+
+          <!-- 1. WEBSITE LOGO -->
+          <div class="card" style="margin-bottom:14px; background:var(--soft)">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+              <div>
+                <h3>1. Active Website Logo</h3>
+                <p class="muted" style="font-size:12px">Choose from saved logos in <code>Logos/</code> or upload a new logo image.</p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center">
+                <input id="cms-upload-logo-file" type="file" accept="image/*" style="max-width:210px" />
+                <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewBucketAsset('Logos', 'cms-upload-logo-file', 'cms-assets-msg')">+ Upload Logo</button>
+              </div>
+            </div>
+            <div style="display:flex; gap:14px; align-items:center; margin-top:10px; flex-wrap:wrap">
+              <img id="cms-logo-preview" src="assets/images/logo.png" alt="Logo" style="height:54px; width:auto; border:1px solid var(--line); border-radius:8px; padding:4px; background:#fff" />
+              <div class="field" style="flex:1; min-width:240px; margin:0">
+                <label>Selected Logo from Bucket</label>
+                <select id="cms-active-logo" onchange="document.getElementById('cms-logo-preview').src = getImageUrl(this.value)"></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. CLIENT & PARTNER LOGOS -->
+          <div class="card" style="margin-bottom:14px; background:var(--soft)">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px">
+              <div>
+                <h3>2. Clients &amp; Partners Logos (<code>Clients/</code>)</h3>
+                <p class="muted" style="font-size:12px">Check which saved client logos in your bucket are displayed on the website.</p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center">
+                <input id="cms-upload-client-file" type="file" accept="image/*" style="max-width:210px" />
+                <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewBucketAsset('Clients', 'cms-upload-client-file', 'cms-assets-msg')">+ Upload Client Logo</button>
+              </div>
+            </div>
+            <div id="cms-clients-gallery" class="grid-3"></div>
+          </div>
+
+          <!-- 3. SERVICE VEHICLES -->
+          <div class="card" style="margin-bottom:14px; background:var(--soft)">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px">
+              <div>
+                <h3>3. Service Vehicles Strip (<code>Vehicles/</code>)</h3>
+                <p class="muted" style="font-size:12px">Check which saved vehicle photos in your bucket are displayed on the About page.</p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center">
+                <input id="cms-upload-vehicle-file" type="file" accept="image/*" style="max-width:210px" />
+                <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewBucketAsset('Vehicles', 'cms-upload-vehicle-file', 'cms-assets-msg')">+ Upload Vehicle Photo</button>
+              </div>
+            </div>
+            <div id="cms-vehicles-gallery" class="grid-3"></div>
+          </div>
+
+          <!-- 4. GOVERNMENT PERMITS -->
+          <div class="card" style="background:var(--soft)">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px">
+              <div>
+                <h3>4. Government Permits Strip (<code>Permits/</code>)</h3>
+                <p class="muted" style="font-size:12px">Check which saved permit images in your bucket are displayed on the About page.</p>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center">
+                <input id="cms-upload-permit-file" type="file" accept="image/*" style="max-width:210px" />
+                <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewBucketAsset('Permits', 'cms-upload-permit-file', 'cms-assets-msg')">+ Upload Permit Image</button>
+              </div>
+            </div>
+            <div id="cms-permits-gallery" class="grid-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: CONTENT CMS — ABOUT COMPANY TEXT -->
+      <section id="tab-cms-about" class="hidden">
+        <div class="card">
+          <h2 style="font-size:20px; margin-bottom:6px">About PIGEM Content Editor</h2>
+          <p class="muted" style="font-size:13px; margin-bottom:14px">Update the company profile text and contact details displayed on the public website.</p>
+          <div id="cms-about-msg" class="msg"></div>
+          <div class="field"><label>About Lead Summary</label><textarea id="cms-about-lead" rows="2"></textarea></div>
+          <div class="field"><label>Company Story (Paragraph 1)</label><textarea id="cms-about-s1" rows="3"></textarea></div>
+          <div class="field"><label>Company Story (Paragraph 2)</label><textarea id="cms-about-s2" rows="3"></textarea></div>
+          <div class="grid-3">
+            <div class="field"><label>Support Email</label><input id="cms-contact-email" type="text" /></div>
+            <div class="field"><label>Contact Phone</label><input id="cms-contact-phone" type="text" /></div>
+            <div class="field"><label>Office Address</label><input id="cms-contact-addr" type="text" /></div>
+          </div>
+          <button type="button" class="btn btn-red" onclick="saveAboutCms()">Save About &amp; Contact Info</button>
+        </div>
+      </section>
+
+      <!-- TAB: CONTENT CMS — INTERNET PLANS -->
+      <section id="tab-cms-plans" class="hidden">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+            <div>
+              <h2 style="font-size:20px">Red Fiber Plans Editor</h2>
+              <p class="muted" style="font-size:13px">Customize plan names, speeds, prices, and features shown on the Home and Application pages.</p>
+            </div>
+            <button type="button" class="btn btn-red" onclick="savePlansCms()">Save Plans</button>
+          </div>
+          <div id="cms-plans-msg" class="msg"></div>
+          <div id="cms-plans-list"></div>
+        </div>
+      </section>
+
+      <!-- TAB: CONTENT CMS — FAQS -->
+      <section id="tab-cms-faqs" class="hidden">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+            <div>
+              <h2 style="font-size:20px">Frequently Asked Questions (FAQ) Editor</h2>
+              <p class="muted" style="font-size:13px">Add or edit FAQ items shown on the public Home page.</p>
+            </div>
+            <div style="display:flex; gap:8px">
+              <button type="button" class="btn btn-outline btn-sm" onclick="addFaqCmsRow()">+ Add FAQ</button>
+              <button type="button" class="btn btn-red btn-sm" onclick="saveFaqsCms()">Save FAQs</button>
+            </div>
+          </div>
+          <div id="cms-faqs-msg" class="msg"></div>
+          <div id="cms-faqs-list"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- MANAGER OVERRIDE / ASSIGN MODAL -->
+  <div id="mgr-modal" class="modal hidden" onclick="if(event.target===this) closeMgrModal()">
+    <div class="modal-box wide">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line)">
+        <h3 id="mgr-modal-title">Application Details &amp; Manager Override</h3>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeMgrModal()">✕ Close</button>
+      </div>
+      <div id="mgr-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS MODAL -->
+  <div id="notif-modal" class="modal hidden">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <h3>Notifications</h3>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">Close</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE DRAWER -->
+  <div id="profile-drawer" class="drawer hidden" onclick="if(event.target===this) toggleProfileDrawer()">
+    <div class="drawer-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <b>Manager Account &amp; Theme</b>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleProfileDrawer()">✕</button>
+      </div>
+      <div id="profile-drawer-body"></div>
+    </div>
+  </div>
+
+  <script>window.SYSTEM = "staff";</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/dash-ui.js"></script>
+  <script src="js/manager.js"></script>
+</body>
+</html>

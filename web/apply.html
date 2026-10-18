@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/images/logo.png">
+  <title>Application Form</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body class="gray-bg public-page">
+
+  <!-- Simple Top Bar: Logo + Application Form only -->
+  <header class="simple-bar">
+    <div class="container">
+      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
+      <b>Application Form</b>
+    </div>
+  </header>
+
+  <main class="form-wrap">
+    <!-- Top Loading / Progress Bar Only -->
+    <div class="progress"><div id="step-bar" style="width:20%"></div></div>
+
+    <form id="apply-form" class="card mt" onsubmit="return false;">
+
+      <!-- PANEL 0: Select Your Plan -->
+      <section class="panel" id="panel-0">
+        <h3>Select Your Plan</h3>
+        <div id="plan-picker" class="plan-choice"></div>
+
+        <div id="selected-plan-card" class="card mt" style="background:var(--bg-soft);"></div>
+      </section>
+
+      <!-- PANEL 1: Personal Information -->
+      <section class="panel" id="panel-1" hidden>
+        <h3>Personal Information</h3>
+        <div class="form-grid three mt">
+          <div>
+            <label for="first_name">First Name <span class="req" onclick="helpTip('First Name', 'Enter your given first name exactly as printed on your primary valid ID.')">*</span></label>
+            <input id="first_name" type="text" placeholder="First Name">
+          </div>
+          <div>
+            <label for="middle_name">Middle Name</label>
+            <input id="middle_name" type="text" placeholder="Middle Name">
+          </div>
+          <div>
+            <label for="last_name">Last Name <span class="req" onclick="helpTip('Last Name', 'Enter your surname/last name exactly as printed on your primary valid ID.')">*</span></label>
+            <input id="last_name" type="text" placeholder="Last Name">
+          </div>
+        </div>
+
+        <div class="form-grid mt">
+          <div>
+            <label for="email">Email Address <span class="req" onclick="helpTip('Email Address', 'Used for your application reference number, status updates, and customer account activation.')">*</span></label>
+            <input id="email" type="email" placeholder="Email Address">
+          </div>
+          <div>
+            <label for="birth_date">Birth Date <span class="req" onclick="helpTip('Birth Date', 'Applicant must be at least 18 years old and birth date must match your valid ID.')">*</span></label>
+            <input id="birth_date" type="date">
+          </div>
+          <div>
+            <label for="id_type">Primary I.D Type <span class="req" onclick="helpTip('Primary I.D Type', 'Select the government or primary ID you are uploading.')">*</span></label>
+            <select id="id_type" onchange="updateIdHint()"></select>
+          </div>
+          <div>
+            <label for="id_number">Primary I.D Number <span class="req" onclick="helpTip('Primary I.D Number', 'Enter the ID number printed on your selected ID. Format is checked based on your chosen ID type.')">*</span></label>
+            <input id="id_number" type="text" placeholder="Primary I.D Number">
+            <p id="id-hint" class="tiny muted mt"></p>
+          </div>
+          <div class="full">
+            <label for="id_front">Primary I.D Upload (Front) <span class="req" onclick="helpTip('Primary I.D Upload', 'Upload a clear, unblurred front photo of your valid ID (JPG or PNG, max 4 MB).')">*</span></label>
+            <input id="id_front" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewIdPhoto()">
+            <img id="preview_front" class="id-preview mt" alt="ID Preview" hidden>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL 2: Contact & Address Details -->
+      <section class="panel" id="panel-2" hidden>
+        <h3>Contact &amp; Address Details</h3>
+        <div class="form-grid mt">
+          <div>
+            <label for="phone">Primary Mobile Number <span class="req" onclick="helpTip('Primary Mobile Number', 'Enter an active 11-digit Philippine mobile number (example: 09171234567).')">*</span></label>
+            <input id="phone" type="text" placeholder="Primary mobile number">
+          </div>
+          <div>
+            <label for="phone_alt">Secondary Mobile Number</label>
+            <input id="phone_alt" type="text" placeholder="Secondary mobile number">
+          </div>
+        </div>
+
+        <h4>Pin Installation Location on Map <span class="req" onclick="helpTip('Installation Location Map', 'Click on the map or drag the pin to your exact house/building. It will automatically fill your address fields below.')">*</span></h4>
+        <div class="row">
+          <input id="map-search" type="text" placeholder="Search street, barangay, or city (example: Burol Main, Dasmarinas)" style="flex:1;">
+          <button type="button" class="btn btn-small" onclick="searchMapAddress()">Find on Map</button>
+          <button type="button" class="btn btn-small" onclick="useCurrentLocation()">Use My Location</button>
+        </div>
+        <div id="map" class="mt"></div>
+        <p id="map-status" class="tiny muted mt">Click on the map or drag the pin to auto-fill your installation address.</p>
+        <input type="hidden" id="lat">
+        <input type="hidden" id="lng">
+
+        <h4>Address</h4>
+        <div class="form-grid three">
+          <div>
+            <label for="house_no">House No.</label>
+            <input id="house_no" type="text" placeholder="House no.">
+          </div>
+          <div>
+            <label for="house_suffix">House No. Suffix</label>
+            <input id="house_suffix" type="text" placeholder="Suffix">
+          </div>
+          <div>
+            <label for="unit_no">Unit No./ Blk and Lot</label>
+            <input id="unit_no" type="text" placeholder="Unit no./ Blk and Lot">
+          </div>
+          <div>
+            <label for="unit_type">Unit Type</label>
+            <select id="unit_type"></select>
+          </div>
+          <div>
+            <label for="floor_no">Floor No.</label>
+            <input id="floor_no" type="text" placeholder="Floor no.">
+          </div>
+          <div>
+            <label for="building_name">Building / Apartment Name <span class="req" onclick="helpTip('Building / Apartment Name', 'Enter the building or apartment name, or type N/A if single house.')">*</span></label>
+            <input id="building_name" type="text" placeholder="Building / Apartment Name" value="N/A">
+          </div>
+          <div>
+            <label for="street">Street Name <span class="req" onclick="helpTip('Street Name', 'Enter your street name.')">*</span></label>
+            <input id="street" type="text" placeholder="Street Name">
+          </div>
+          <div>
+            <label for="subdivision">Subdivision/Village <span class="req" onclick="helpTip('Subdivision / Village', 'Enter your subdivision or village name, or N/A if none.')">*</span></label>
+            <input id="subdivision" type="text" placeholder="Subdivision/Village">
+          </div>
+          <div>
+            <label for="barangay">Barangay <span class="req" onclick="helpTip('Barangay', 'Enter your barangay.')">*</span></label>
+            <input id="barangay" type="text" placeholder="Barangay">
+          </div>
+          <div>
+            <label for="city">City/Municipality <span class="req" onclick="helpTip('City / Municipality', 'Enter your city or municipality.')">*</span></label>
+            <input id="city" type="text" placeholder="City/Municipality">
+          </div>
+          <div>
+            <label for="province">District/Province <span class="req" onclick="helpTip('District / Province', 'Enter your district or province.')">*</span></label>
+            <input id="province" type="text" placeholder="District/Province">
+          </div>
+          <div>
+            <label for="landmark">Nearest Landmark <span class="req" onclick="helpTip('Nearest Landmark', 'Enter a nearby landmark to help our field team locate your address.')">*</span></label>
+            <input id="landmark" type="text" placeholder="Nearest landmark">
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL 3: Subscriber Declaration -->
+      <section class="panel" id="panel-3" hidden>
+        <h3>Subscriber Declaration</h3>
+        <div class="card declaration mt">
+          <p>I confirm that the information I have provided to PLDT Inc. ("PLDT") is true and correct, and I understand that providing false or misleading information may result in the denial, suspension, or termination of my PLDT Service. I also acknowledge that PLDT will collect and process my personal data to evaluate my application and, upon approval, to deliver and maintain my PLDT Service.</p>
+
+          <p class="mt"><b>What PLDT collects</b></p>
+          <ul>
+            <li>My basic details (name, date of birth, ID details, gender, address, contact information).</li>
+            <li>My service usage and transaction records (including billing or top ups, service interactions, and network use).</li>
+          </ul>
+
+          <p><b>How PLDT uses my personal data</b></p>
+          <ul>
+            <li>To process and evaluate my application, including credit checks with TransUnion Information Solutions, Inc. if I am applying for a postpaid PLDT Service.</li>
+            <li>To set up and manage my account, billing, and customer support.</li>
+            <li>To improve services, monitor network quality, and ensure security.</li>
+            <li>To comply with legal and regulatory requirements.</li>
+            <li>To support PLDT's legitimate interests as a business.</li>
+            <li>To send me information about PLDT's products and offers.</li>
+          </ul>
+
+          <p><b>With whom PLDT may share my personal data</b></p>
+          <ul>
+            <li>Service providers and contractors who assist PLDT in delivering its services.</li>
+            <li>PLDT's subsidiary and affiliate companies.</li>
+            <li>Law enforcement or government agencies, when required by law.</li>
+            <li>Credit bureaus and financial institutions for credit checks (postpaid).</li>
+            <li>Debt collection agencies in cases of delinquent accounts.</li>
+          </ul>
+
+          <p><b>My rights</b></p>
+          <p>Under the Data Privacy Act, I have the right to access, correct, or request deletion of my data, to withdraw consent, and to object to certain processing.</p>
+
+          <p class="mt"><b>Retention</b></p>
+          <p>PLDT keeps my information while I am a subscriber, and for up to 10 years after termination of my PLDT Service.</p>
+
+          <p class="mt"><b>Acknowledgment</b></p>
+          <p>By checking below, I confirm that I have read, understood, and agree to the Terms and Conditions of my subscription, including service rates, lock-in period, billing rules, and applicable charges. Bills and notices will be sent by email.</p>
+          <p class="mt">The complete Terms and Conditions and Subscriber Declaration can be viewed at pldthome.com/termsandsubsdec.</p>
+        </div>
+
+        <label class="check mt">
+          <input type="checkbox" id="agree_sub">
+          <span><span class="req" onclick="helpTip('Subscriber Certificate Agreement', 'You must agree to the Subscriber Certificate before submitting your registration.')">*</span> I confirm that I have read, understood and agree to the provisions stated in Subscriber Certificate.</span>
+        </label>
+
+        <label class="check mt">
+          <input type="checkbox" id="agree_tu">
+          <span>I consent to sharing my data with TransUnion Information Solutions, Inc. (TU)</span>
+        </label>
+
+        <div class="mt">
+          <label for="remarks">Remarks or Special Instructions</label>
+          <textarea id="remarks" rows="2" placeholder="Remarks or Special Instructions"></textarea>
+        </div>
+      </section>
+
+      <!-- PANEL 4: Review Summary (Edit Before Submit) -->
+      <section class="panel" id="panel-4" hidden>
+        <h3>Review Your Application</h3>
+        <p class="small muted">Please check all your information below. Click <b>Back</b> if you need to edit any detail before submitting.</p>
+        <div id="review-summary" class="review-block"></div>
+      </section>
+
+      <!-- Bottom Navigation Buttons -->
+      <div class="row between mt-big">
+        <button type="button" id="btn-back" class="btn" onclick="prevPanel()">Back</button>
+        <button type="button" id="btn-next" class="btn btn-red" onclick="nextPanel()">Next</button>
+        <button type="button" id="btn-submit" class="btn btn-red" onclick="submitRegistration()" hidden>Submit Registration</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/apply.js"></script>
+</body>
+</html>

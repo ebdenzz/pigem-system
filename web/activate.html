@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/images/logo.png">
+  <title>Customer Account Activation</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="gray-bg">
+
+  <!-- Simple Top Bar -->
+  <header class="simple-bar">
+    <div class="container">
+      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
+      <b>Customer Account Activation</b>
+    </div>
+  </header>
+
+  <main class="auth-page" style="min-height:calc(100vh - 62px);">
+    <div class="card auth-card">
+      <div class="auth-head">
+        <h2>Activate Your Account</h2>
+        <p>Enter the 6-digit OTP code from your email and create your password. Accounts can only be activated once.</p>
+      </div>
+
+      <div id="already-active-box" class="notice warn mt" hidden>
+        <b>Account Already Activated:</b> This email address has already activated its Customer Account. You can sign in directly to track all your applications.
+        <div class="mt">
+          <a href="login.html" class="btn btn-red btn-full">Go to Customer Login</a>
+        </div>
+      </div>
+
+      <form id="activate-form" class="mt" onsubmit="submitActivation(event)">
+        <div>
+          <label for="act-email">Email Address</label>
+          <input id="act-email" type="email" required placeholder="you@example.com">
+        </div>
+        <div class="mt">
+          <label for="act-code">6-Digit OTP / Activation Code</label>
+          <input id="act-code" type="text" required placeholder="6-digit code">
+        </div>
+        <div class="mt">
+          <label for="act-pass">Create Password</label>
+          <input id="act-pass" type="password" minlength="6" required placeholder="At least 6 characters">
+        </div>
+        <div class="mt">
+          <label for="act-pass2">Confirm Password</label>
+          <input id="act-pass2" type="password" minlength="6" required placeholder="Repeat password">
+        </div>
+        <button type="submit" class="btn btn-red btn-full mt-big">Activate Account</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    async function initActivatePage() {
+      var params = new URLSearchParams(window.location.search);
+      var email = params.get("email") || "";
+      var code = params.get("code") || "";
+
+      if (email) document.getElementById("act-email").value = email;
+      if (code) document.getElementById("act-code").value = code;
+
+      if (email && await dbIsAccountActivated(email)) {
+        document.getElementById("already-active-box").hidden = false;
+        document.getElementById("activate-form").hidden = true;
+      }
+    }
+
+    async function submitActivation(event) {
+      event.preventDefault();
+      var email = document.getElementById("act-email").value.trim();
+      var code = document.getElementById("act-code").value.trim();
+      var pass = document.getElementById("act-pass").value;
+      var pass2 = document.getElementById("act-pass2").value;
+
+      if (pass !== pass2) {
+        showAlert("Password Mismatch", "Your password and confirm password do not match.", "bad");
+        return;
+      }
+
+      try {
+        await dbActivateCustomerAccount(email, code, pass);
+        openPopup(
+          '<h3>Account Activated!</h3>' +
+          '<div class="notice good mt">Your Customer Account is now active. You can now sign in and monitor your internet service application.</div>' +
+          '<div class="row mt" style="justify-content:flex-end">' +
+            '<a class="btn btn-red" href="customer.html">Open My Customer Account</a>' +
+          '</div>'
+        );
+      } catch (err) {
+        showAlert("Activation Error", err.message, "bad");
+      }
+    }
+
+    initActivatePage();
+  </script>
+</body>
+</html>
