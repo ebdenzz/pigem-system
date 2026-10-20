@@ -223,7 +223,7 @@ function renderProfileDrawer(user) {
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Edit Profile</div>' +
       '<div id="prof-msg" class="msg"></div>' +
       '<div class="field"><label>Display Name</label><input id="prof-name" type="text" value="' + escapeHtml(user.full_name || "") + '" /></div>' +
-      '<div class="field"><label>Short Bio / Role Note</label><input id="prof-intro" type="text" value="' + escapeHtml(user.intro || "") + '" placeholder="e.g. Senior Fiber Verification Agent" /></div>' +
+      '<div class="field"><label>' + (user.role === "customer" ? "Short Bio" : "Short Bio / Role Note") + '</label><input id="prof-intro" type="text" value="' + escapeHtml(user.intro || "") + '" placeholder="' + (user.role === "customer" ? "Add a short bio or note" : "e.g. Senior Fiber Verification Agent") + '" /></div>' +
       '<div class="field"><label>Profile Photo</label><input id="prof-photo" type="file" accept="image/*" onchange="onProfilePhotoPick(this)" /></div>' +
       '<button type="button" class="btn btn-dark btn-sm" style="width:100%" onclick="saveProfileChanges()">Save Profile</button>' +
     '</div>' +
@@ -242,8 +242,9 @@ function renderProfileDrawer(user) {
 
     // Sign Out
     '<div style="margin-top:16px">' +
-      '<button type="button" class="btn btn-red" style="width:100%" onclick="signOutAndGoLogin()">Sign Out of This Session</button>' +
+      '<button type="button" class="btn btn-red" style="width:100%" onclick="signOutAndGoLogin()">Sign Out</button>' +
     '</div>';
+  if (typeof initPasswordEyeToggles === "function") initPasswordEyeToggles(box);
 }
 
 var pendingAvatarDataUrl = "";

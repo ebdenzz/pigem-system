@@ -325,6 +325,7 @@ function openPopup(htmlContent, isWide) {
   back.className = "popup-back";
   back.innerHTML = '<div class="popup' + (isWide ? " wide" : "") + '">' + htmlContent + "</div>";
   document.body.appendChild(back);
+  if (typeof initPasswordEyeToggles === "function") initPasswordEyeToggles(back);
 }
 
 function closePopup() {
@@ -408,17 +409,99 @@ function moveSlide(sliderId, step) {
   goToSlide(sliderId, current + step);
 }
 
-// Build a horizontal strip of pictures that scrolls by itself (pictures are listed twice so it loops)
+var stripTimers = {};
+
+// Build a horizontal strip of pictures that scrolls automatically AND allows manual scrolling/dragging
 function buildStrip(stripId, files, titlePrefix) {
   var box = document.getElementById(stripId);
   if (!box) return;
   var html = "";
   for (var round = 0; round < 2; round++) {
     for (var i = 0; i < files.length; i++) {
-      html += '<img src="' + getImageUrl(files[i]) + '" onerror="imageFallback(this, \'' + files[i] + '\')" alt="' + titlePrefix + " " + (i + 1) + '" onclick="previewImage(\'' + files[i] + "', '" + titlePrefix + " " + (i + 1) + '\')">';
+      html += '<img draggable="false" src="' + getImageUrl(files[i]) + '" onerror="imageFallback(this, \'' + files[i] + '\')" alt="' + titlePrefix + " " + (i + 1) + '" onclick="if(!window._stripDragged) previewImage(\'' + files[i] + "', '" + titlePrefix + " " + (i + 1) + '\')">';
     }
   }
   box.innerHTML = '<div class="strip-track">' + html + "</div>";
+
+  var paused = false;
+  var isDown = false;
+  var startX = 0;
+  var scrollStart = 0;
+
+  box.onmouseenter = function () { paused = true; };
+  box.onmouseleave = function () { paused = false; isDown = false; };
+  box.ontouchstart = function () { paused = true; };
+  box.ontouchend = function () {
+    setTimeout(function () { paused = false; }, 1800);
+  };
+
+  box.onmousedown = function (e) {
+    isDown = true;
+    paused = true;
+    window._stripDragged = false;
+    startX = e.pageX - box.offsetLeft;
+    scrollStart = box.scrollLeft;
+  };
+  box.onmousemove = function (e) {
+    if (!isDown) return;
+    e.preventDefault();
+    var x = e.pageX - box.offsetLeft;
+    var walk = x - startX;
+    if (Math.abs(walk) > 6) window._stripDragged = true;
+    box.scrollLeft = scrollStart - walk;
+  };
+  box.onmouseup = function () {
+    isDown = false;
+    setTimeout(function () { window._stripDragged = false; }, 80);
+  };
+
+  if (stripTimers[stripId]) clearInterval(stripTimers[stripId]);
+  stripTimers[stripId] = setInterval(function () {
+    if (paused) return;
+    box.scrollLeft += 1;
+    var half = box.scrollWidth / 2;
+    if (half > 0 && box.scrollLeft >= half) {
+      box.scrollLeft -= half;
+    }
+  }, 25);
+}
+
+// Automatically attach an eye icon toggle button to all password fields
+function initPasswordEyeToggles(rootEl) {
+  var container = rootEl || document;
+  var pwInputs = container.querySelectorAll('input[type="password"]');
+  for (var i = 0; i < pwInputs.length; i++) {
+    var inp = pwInputs[i];
+    if (inp.getAttribute("data-eye-ready") === "1") continue;
+    inp.setAttribute("data-eye-ready", "1");
+
+    var wrap = document.createElement("div");
+    wrap.className = "pw-wrap";
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pw-eye";
+    btn.setAttribute("aria-label", "Show or hide password");
+    btn.title = "Show / Hide Password";
+    btn.innerHTML =
+      '<svg class="eye-open" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+      '<svg class="eye-closed" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+     (function (inputEl, buttonEl) {
+      buttonEl.onclick = function () {
+        var isPw = inputEl.type === "password";
+        inputEl.type = isPw ? "text" : "password";
+        var openIcon = buttonEl.querySelector(".eye-open");
+        var closedIcon = buttonEl.querySelector(".eye-closed");
+        if (openIcon && closedIcon) {
+          openIcon.style.display = isPw ? "none" : "block";
+          closedIcon.style.display = isPw ? "block" : "none";
+        }
+      };
+    })(inp, btn);
+    wrap.appendChild(btn);
+  }
 }
 
 // Change "Customer Login" to "Apply" + "My Account" when a customer is already signed in
@@ -505,6 +588,9 @@ function checkPublicMaintenance() {
 
 // Run on every page after it loads
 window.addEventListener("DOMContentLoaded", async function () {
+  if (typeof initPasswordEyeToggles === "function") {
+    initPasswordEyeToggles();
+  }
   if (typeof dbSyncLiveSettingsAndContent === "function") {
     await dbSyncLiveSettingsAndContent();
   }

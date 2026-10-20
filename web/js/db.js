@@ -133,11 +133,17 @@ async function dbSignIn(email, password) {
       }, { onConflict: "email" });
     }
   } else if (!IS_DEMO_MODE) {
-    // 2. Otherwise sign in via Supabase Authentication
-    var res = await supabaseClient.auth.signInWithPassword({ email: cleanEmail, password: password });
-    if (res.error) throw new Error(res.error.message);
-    user = await dbGetCurrentUser();
-    if (!user) throw new Error("This account is disabled. Please contact PIGEM.");
+    // 2. Check if password was reset/stored in public.users or sign in via Supabase Authentication
+    var dbRow = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
+    if (dbRow.data && dbRow.data.activation_code === ("PW:" + password)) {
+      if (!dbRow.data.active) throw new Error("This account is disabled. Please contact PIGEM.");
+      user = dbRow.data;
+    } else {
+      var res = await supabaseClient.auth.signInWithPassword({ email: cleanEmail, password: password });
+      if (res.error) throw new Error(res.error.message);
+      user = await dbGetCurrentUser();
+      if (!user) throw new Error("This account is disabled. Please contact PIGEM.");
+    }
   } else {
     throw new Error("Wrong email or password.");
   }
@@ -282,10 +288,11 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
   await supabaseClient.from("users").update({
     id: authUserId,
     activated: true,
-    activation_code: ""
+    activation_code: "PW:" + newPassword
   }).eq("email", cleanEmail);
 
   await supabaseClient.auth.signInWithPassword({ email: cleanEmail, password: newPassword });
+  sessionStore.setItem(SESSION_KEY, authUserId);
   var user = await dbGetCurrentUser();
   if (user) await dbAddLoginHistory(user, "account_activated");
   return user || existing.data;
@@ -896,6 +903,32 @@ async function dbStartPasswordReset(email) {
       break;
     }
   }
+
+  if (!IS_DEMO_MODE) {
+    var existing = await supabaseClient.from("users").select("*").eq("email", clean).maybeSingle();
+    if (existing.data) {
+      found = true;
+      await supabaseClient.from("users").update({ activation_code: code }).eq("email", clean);
+    } else {
+      // Check if an application exists under this email
+      var appCheck = await supabaseClient.from("applications").select("*").eq("email", clean).limit(1);
+      if (appCheck.data && appCheck.data.length > 0) {
+        found = true;
+        var a = appCheck.data[0];
+        var newRow = {
+          id: a.customer_id || ("cust-" + Date.now()),
+          email: clean,
+          full_name: a.full_name || [a.first_name, a.last_name].filter(Boolean).join(" ") || clean,
+          role: "customer",
+          active: true,
+          activated: true,
+          activation_code: code
+        };
+        await supabaseClient.from("users").upsert(newRow, { onConflict: "email" });
+      }
+    }
+  }
+
   if (!found) throw new Error("No account found with that email address.");
   writeSaved("pigem_users", users);
   return code;
@@ -904,18 +937,53 @@ async function dbStartPasswordReset(email) {
 async function dbFinishPasswordReset(email, code, newPw) {
   if (!newPw || newPw.length < 6) throw new Error("Password must be at least 6 characters.");
   var clean = String(email || "").trim().toLowerCase();
+  var cleanCode = String(code || "").trim();
   var users = getDemoUsers();
+  var updatedLocal = false;
+
   for (var i = 0; i < users.length; i++) {
     if (users[i].email === clean) {
-      if (users[i].reset_code !== String(code).trim()) {
+      if (users[i].reset_code && users[i].reset_code !== cleanCode) {
         throw new Error("Invalid 6-digit verification code.");
       }
       users[i].password = newPw;
+      users[i].activated = true;
       users[i].reset_code = "";
       writeSaved("pigem_users", users);
+      updatedLocal = true;
+      break;
+    }
+  }
+
+  if (!IS_DEMO_MODE) {
+    var existing = await supabaseClient.from("users").select("*").eq("email", clean).maybeSingle();
+    if (existing.data) {
+      if (!updatedLocal && String(existing.data.activation_code || "").trim() !== cleanCode) {
+        throw new Error("Invalid 6-digit verification code.");
+      }
+      await supabaseClient.from("users").update({
+        activated: true,
+        activation_code: "PW:" + newPw
+      }).eq("email", clean);
+
+      // Sync to local cache as well so sign-in is instant
+      if (!updatedLocal) {
+        users.push({
+          id: existing.data.id,
+          email: clean,
+          password: newPw,
+          full_name: existing.data.full_name || clean,
+          role: existing.data.role || "customer",
+          active: existing.data.active !== false,
+          activated: true
+        });
+        writeSaved("pigem_users", users);
+      }
       return true;
     }
   }
+
+  if (updatedLocal) return true;
   throw new Error("Account not found.");
 }
 
@@ -1232,10 +1300,33 @@ async function apiCheckIdPhoto(file, details) {
 }
 
 async function apiSendOtpEmail(toEmail, code, title) {
-  await apiSendEmail(toEmail, title || "Verification Code", "Your 6-digit verification code is: " + code);
+  var subject = "PIGEM Account Security — " + (title || "Verification Code");
+  var body =
+    "Dear Valued Client,\n\n" +
+    "We received a verification request for your PIGEM Combined Facilities Support Services account (" + toEmail + ").\n\n" +
+    "Your 6-Digit Verification Code is: " + code + "\n\n" +
+    "Please enter this code on the verification screen to complete your request. For your security, do not share this code with anyone.\n\n" +
+    "Sincerely,\n" +
+    "Customer Security & Verification Team\n" +
+    "PIGEM Combined Facilities Support Services";
+  await apiSendEmail(toEmail, subject, body);
 }
 
 async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
-  await apiSendEmail(toEmail, "Application " + status + " (" + refNo + ")", "Hello " + fullName + ", your application " + refNo + " is now " + status + ". " + (remarks || ""));
+  var subject = "PIGEM Application Update — Reference No. " + refNo + " [" + status + "]";
+  var body =
+    "Dear " + (fullName || "Valued Subscriber") + ",\n\n" +
+    "Please be advised that there is an official status update regarding your Red Fiber Internet Service Application with PIGEM Combined Facilities Support Services.\n\n" +
+    "APPLICATION STATUS UPDATE\n" +
+    "• Reference Number: " + refNo + "\n" +
+    "• Current Status: " + status + "\n" +
+    (remarks ? "• Verification Remarks / Instructions:\n" + remarks + "\n\n" : "\n") +
+    "You may sign in to your PIGEM Customer Portal account at any time to view the full details of your application or submit any requested updates.\n\n" +
+    "Thank you for choosing PIGEM Combined Facilities Support Services.\n\n" +
+    "Sincerely,\n" +
+    "Customer Verification & Provisioning Team\n" +
+    "PIGEM Combined Facilities Support Services\n" +
+    "Tel: (046) 458-0908 | Hotline: 101-733 (RED)";
+  await apiSendEmail(toEmail, subject, body);
 }
 

@@ -1,133 +1,53 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Application Management System — PIGEM Staff Login</title>
-  <link rel="icon" type="image/png" href="assets/images/logo.png" />
-  <link rel="stylesheet" href="assets/style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/images/logo.png">
+  <title>Staff Login (Agent &amp; Manager) | PIGEM</title>
+  <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
-  <!-- SPLASH SCREEN -->
-  <div id="splash" class="splash">
-    <img src="assets/images/logo.png" alt="PIGEM" />
-    <b>Application Management System</b>
-    <span class="muted" style="font-size:13px">PIGEM Combined Facilities Support Services</span>
-  </div>
-
-  <!-- TOP BAR -->
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <a href="index.html" class="brand">
-        <img src="assets/images/logo.png" alt="PIGEM" />
-        <div>
-          <b>Application Management System</b>
-          <span>Agent &amp; Manager Workspace</span>
-        </div>
-      </a>
+  <header class="simple-bar">
+    <div class="container">
+      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
+      <b>PIGEM Internal Staff Portal</b>
     </div>
   </header>
 
-  <main class="container" style="max-width:460px; padding:48px 20px 64px">
-
-    <!-- SIGN IN BOX -->
-    <div id="box-login" class="card">
-      <div style="text-align:center; margin-bottom:18px">
-        <img src="assets/images/logo.png" alt="PIGEM" style="width:48px; height:48px; margin:0 auto 10px" />
-        <h1 style="font-size:21px; margin-bottom:4px">Application Management System</h1>
-        <p class="muted" style="font-size:13px">Sign in with your authorized PIGEM Agent or Manager Gmail account.</p>
+  <main class="auth-page">
+    <div class="card auth-card">
+      <div class="center">
+        <span class="tag">Subsystem 2 &mdash; Agent &amp; Manager</span>
+        <h2 class="mt">Staff Sign In</h2>
+        <p class="small muted mt">Sign in with your Agent or Manager account. The system will open your assigned workspace automatically.</p>
       </div>
 
-      <div id="login-msg" class="msg"></div>
+      <form class="mt-big" onsubmit="handleLogin(event)">
+        <div>
+          <label for="email">Staff Email Address</label>
+          <input id="email" type="email" placeholder="agent@pigem.local or manager@pigem.local" required>
+        </div>
 
-      <form onsubmit="handleSignIn(event)">
-        <div class="field">
-          <label>Staff Email Address</label>
-          <input id="login-email" type="email" required placeholder="agent@gmail.com" />
+        <div class="mt">
+          <div class="row between">
+            <label for="password" style="margin:0">Password</label>
+            <a href="#" class="small" style="color:var(--red); font-weight:600;" onclick="openForgotModal(); return false;">Forgot Password?</a>
+          </div>
+          <input id="password" type="password" class="mt" placeholder="Enter your password" required>
         </div>
-        <div class="field">
-          <label style="display:flex; justify-content:space-between">
-            <span>Password</span>
-            <a href="#" onclick="showBox('reset'); return false;" style="font-size:12px; color:#c8102e">Forgot password?</a>
-          </label>
-          <input id="login-password" type="password" required placeholder="••••••••" />
+
+        <!-- Always-Working Captcha Widget -->
+        <div id="login-captcha-box" class="mt"></div>
+
+        <div class="mt-big">
+          <button id="btn-login" type="submit" class="btn btn-red btn-full">Sign In</button>
         </div>
-        <button id="btn-login" type="submit" class="btn btn-red" style="width:100%">Sign In to Workspace</button>
       </form>
-
-      <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--line); text-align:center; font-size:12px" class="muted">
-        Setting up a new Agent or Manager Gmail? <a href="#" onclick="showBox('register'); return false;" style="color:#c8102e; font-weight:700">Register Staff Account</a>
-      </div>
     </div>
-
-    <!-- REGISTER STAFF GMAIL BOX -->
-    <div id="box-register" class="card hidden">
-      <h2 style="font-size:20px; margin-bottom:4px">Register Staff Gmail Account</h2>
-      <p class="muted" style="font-size:13px; margin-bottom:14px">Create your official Agent or Manager account in Supabase.</p>
-      <div id="reg-msg" class="msg"></div>
-      <form onsubmit="handleStaffRegister(event)">
-        <div class="field">
-          <label>Full Name</label>
-          <input id="reg-name" type="text" required placeholder="e.g. Alex Rivera" />
-        </div>
-        <div class="field">
-          <label>Gmail Address</label>
-          <input id="reg-email" type="email" required placeholder="yourstaff@gmail.com" />
-        </div>
-        <div class="field">
-          <label>Password (at least 6 characters)</label>
-          <input id="reg-password" type="password" required minlength="6" placeholder="••••••••" />
-        </div>
-        <div class="field">
-          <label>Staff Role</label>
-          <select id="reg-role">
-            <option value="agent">Agent (Application Handling)</option>
-            <option value="manager">Manager (Application Monitoring &amp; CMS)</option>
-          </select>
-        </div>
-        <button id="btn-reg" type="submit" class="btn btn-red" style="width:100%">Create &amp; Sign In</button>
-      </form>
-      <p style="margin-top:14px; font-size:13px; text-align:center">
-        <a href="#" onclick="showBox('login'); return false;" style="color:#c8102e; font-weight:700">← Back to Staff Login</a>
-      </p>
-    </div>
-
-    <!-- FORGOT PASSWORD BOX -->
-    <div id="box-reset" class="card hidden">
-      <h2 style="margin-bottom:4px">Reset Staff Password</h2>
-      <p class="muted" style="font-size:14px; margin-bottom:16px">Enter your staff email to receive a 6-digit verification code.</p>
-
-      <div id="reset-msg" class="msg"></div>
-
-      <div id="reset-step-1">
-        <div class="field">
-          <label>Staff Email Address</label>
-          <input id="reset-email" type="email" placeholder="agent@gmail.com" />
-        </div>
-        <button type="button" class="btn btn-red" style="width:100%" onclick="sendResetCode()">Send Verification Code</button>
-      </div>
-
-      <div id="reset-step-2" class="hidden">
-        <div class="field">
-          <label>6-Digit Verification Code</label>
-          <input id="reset-code" type="text" maxlength="6" placeholder="123456" />
-        </div>
-        <div class="field">
-          <label>New Password (at least 6 characters)</label>
-          <input id="reset-new-pw" type="password" placeholder="••••••••" />
-        </div>
-        <button type="button" class="btn btn-red" style="width:100%" onclick="confirmPasswordReset()">Save New Password</button>
-      </div>
-
-      <p style="margin-top:14px; font-size:13px; text-align:center">
-        <a href="#" onclick="showBox('login'); return false;" style="color:#c8102e; font-weight:700">← Back to Staff Login</a>
-      </p>
-    </div>
-
   </main>
 
-  <script>window.SYSTEM = "staff";</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

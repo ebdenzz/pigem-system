@@ -205,16 +205,20 @@ body.menu-open .side-menu-back { display: block; }
 
 .area-bar { background: var(--red); color: #fff; text-align: center; padding: 10px 20px; font-size: 15px; font-weight: 600; }
 
-/* Horizontal auto-scrolling picture strip (vehicles, permits) */
-.strip { overflow: hidden; margin-top: 22px; }
-.strip-track { display: flex; gap: 16px; width: max-content; animation: strip-move 40s linear infinite; }
-.strip:hover .strip-track { animation-play-state: paused; }
-.strip img { height: 220px; width: auto; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; background: #fff; }
-.strip.permits img { height: 260px; }
-@keyframes strip-move {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+/* Horizontal auto-scrolling + manually scrollable picture strip (vehicles, permits) */
+.strip {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-top: 22px;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 8px;
 }
+.strip:active { cursor: grabbing; }
+.strip-track { display: flex; gap: 16px; width: max-content; }
+.strip img { height: 220px; width: auto; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; background: #fff; user-select: none; }
+.strip.permits img { height: 260px; }
 
 /* ---------- 6. Features, plans, FAQ, logos, footer ---------- */
 .feature { text-align: center; padding: 24px; }
@@ -872,4 +876,95 @@ body.drawer-open .drawer-back { display: block; }
 
 @media (max-width: 900px) {
   .dash-wrap { grid-template-columns: 1fr; }
+}
+
+/* Password Eye Icon Wrapper */
+.pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.pw-wrap input {
+  padding-right: 42px;
+}
+.pw-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.pw-eye:hover {
+  color: var(--text);
+  background: var(--bg-soft);
+}
+
+/* Inline Tooltip Bubble for Required Asterisk (*) */
+.req {
+  position: relative;
+  display: inline-block;
+  color: var(--red);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 4px;
+  user-select: none;
+}
+.req-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1d1f24;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 8px 11px;
+  border-radius: 8px;
+  width: 230px;
+  z-index: 60;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  text-align: left;
+}
+.req-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1d1f24;
+}
+
+/* Custom Camera / Photos Upload Card */
+.upload-box {
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--bg-soft);
+}
+.upload-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.id-sample-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+@media (max-width: 640px) {
+  .id-sample-grid { grid-template-columns: 1fr; }
 }
