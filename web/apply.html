@@ -14,8 +14,8 @@
   <header class="simple-bar">
     <div class="container" style="justify-content:space-between;">
       <div style="display:flex; align-items:center; gap:12px;">
-        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-        <b>Application Form</b>
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
+        <span style="font-weight:700; font-size:18px; cursor:default; user-select:none;">Application Form</span>
       </div>
       <a href="index.html" class="btn btn-small">&#8592; Back</a>
     </div>
@@ -369,6 +369,20 @@
             I authorize basic credit bureau verification to expedite line provisioning.
           </span>
         </label>
+      </div>
+
+      <!-- Interactive "I'm not a robot" CAPTCHA Widget -->
+      <div class="mt-big">
+        <div id="apply-captcha-card" class="captcha-container" onclick="triggerApplyCaptcha()">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div id="apply-captcha-check" class="captcha-box-inner"></div>
+            <span id="apply-captcha-text" style="font-weight:600;font-size:14px;color:var(--text);">I'm not a robot</span>
+          </div>
+          <div style="text-align:right;line-height:1.2;">
+            <div style="font-size:11px;font-weight:800;color:var(--muted);">CAPTCHA</div>
+            <div style="font-size:10px;color:var(--muted);">Security Verification</div>
+          </div>
+        </div>
       </div>
 
       <div class="row between mt-big">

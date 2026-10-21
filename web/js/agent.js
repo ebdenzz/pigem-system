@@ -25,10 +25,48 @@ var VALIDATOR_PRESETS = [
   { label: "🔍 [RARE] Name Spelling Mismatch on ID", raw: "Applicant name spelling does not match name on valid ID", field: "id_photo", msg: "The spelling of your name does not match the name printed on your valid ID. Please review and update your name." }
 ];
 
-function renderValidatorPresetOptions() {
-  return VALIDATOR_PRESETS.map(function (p, idx) {
-    return "<option value='" + idx + "'>" + escapeHtml(p.label) + "</option>";
-  }).join("");
+function renderValidatorPresetOptions(filterText) {
+  var term = String(filterText || "").toLowerCase().trim();
+  var common = [];
+  var rare = [];
+
+  for (var i = 0; i < VALIDATOR_PRESETS.length; i++) {
+    var p = VALIDATOR_PRESETS[i];
+    if (i === 0) continue;
+    if (term) {
+      var match = (p.label + " " + p.raw + " " + p.msg + " " + p.field).toLowerCase().indexOf(term) !== -1;
+      if (!match) continue;
+    }
+    var opt = "<option value='" + i + "'>" + escapeHtml(p.label) + "</option>";
+    if (p.label.indexOf("[COMMON]") !== -1) {
+      common.push(opt);
+    } else {
+      rare.push(opt);
+    }
+  }
+
+  var html = "<option value=''>-- Select Remark Preset (" + (common.length + rare.length) + " available) --</option>";
+  if (common.length) {
+    html += "<optgroup label='⭐ Common Remarks (Frequent)'>" + common.join("") + "</optgroup>";
+  }
+  if (rare.length) {
+    html += "<optgroup label='🔍 Rare Remarks (Occasional)'>" + rare.join("") + "</optgroup>";
+  }
+  if (!common.length && !rare.length) {
+    html += "<option value='' disabled>No remarks found matching \"" + escapeHtml(term) + "\"</option>";
+  }
+  return html;
+}
+
+function filterValidatorPresets(term) {
+  var sel = document.getElementById("det-preset-select");
+  if (!sel) return;
+  sel.innerHTML = renderValidatorPresetOptions(term);
+  var validOptions = sel.querySelectorAll("option[value]:not([value=''])");
+  if (validOptions.length === 1) {
+    sel.value = validOptions[0].value;
+    onValidatorPresetChange(sel.value);
+  }
 }
 
 function onValidatorPresetChange(val) {
@@ -364,7 +402,8 @@ async function renderDetailModalContent() {
         '</div>' +
 
         '<div class="field" style="margin-bottom:10px">' +
-          '<label>⚡ Common &amp; Rare Validator Presets (Quick Select)</label>' +
+          '<label>⚡ Common &amp; Rare Validator Presets (Quick Select &amp; Search)</label>' +
+          '<input id="det-preset-search" type="text" placeholder="🔍 Type to filter remarks (e.g. email, phone, blur, cut-off, expired)..." oninput="filterValidatorPresets(this.value)" style="margin-bottom:6px; font-size:12px; padding:7px 10px; border-radius:6px; border:1px solid var(--line); width:100%;" />' +
           '<select id="det-preset-select" onchange="onValidatorPresetChange(this.value)">' +
             renderValidatorPresetOptions() +
           '</select>' +

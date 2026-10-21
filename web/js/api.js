@@ -63,7 +63,7 @@ async function apiSendEmail(toEmail, subjectText, messageText) {
       headers["Authorization"] = "Bearer " + token;
     }
 
-    await fetch(CONFIG.API_URL + "/notify", {
+    var res = await fetch(CONFIG.API_URL + "/notify", {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
@@ -72,8 +72,11 @@ async function apiSendEmail(toEmail, subjectText, messageText) {
         message: messageText
       })
     });
+    if (res.ok) return { sent: true };
+    return { sent: false, offline: true };
   } catch (error) {
     // Local Python server is offline; in-app Supabase notifications still work
+    return { sent: false, offline: true };
   }
 }
 
@@ -108,7 +111,7 @@ async function apiGeneratePoliteRemark(rawRemark, chosenField) {
   });
 
   if (!res.ok) {
-    throw new Error("Local AI Service (Ollama) is offline. Please start START-SYSTEM.bat or type the customer instruction manually.");
+    throw new Error("Local AI Service (Ollama) is offline. Please start START-AI.bat or type the customer instruction manually.");
   }
 
   var data = await res.json();

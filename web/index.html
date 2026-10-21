@@ -12,16 +12,20 @@
   <!-- Top Navigation Bar -->
   <header class="site-header">
     <div class="container">
-      <a href="index.html" class="logo" onclick="window.location.reload(); return false;" title="Refresh page">
-        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-        <span>Combined Facilities Support Services</span>
-      </a>
+      <div class="logo">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page">
+        <span style="cursor:default; user-select:none;">Combined Facilities Support Services</span>
+      </div>
       <nav class="menu">
         <a href="index.html" class="active hide-phone">Home</a>
         <a href="about.html" class="hide-phone">About PIGEM</a>
         <a href="customer.html" class="hide-phone customer-only" hidden>My Account</a>
         <a href="login.html" class="btn btn-red btn-small account-btn">Customer Login</a>
-        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Open Menu">&#9776;</button>
+        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Open Menu">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </button>
       </nav>
     </div>
   </header>
@@ -29,12 +33,12 @@
   <!-- Phone Slide-Out Side Menu -->
   <div class="side-menu-back" onclick="toggleMenu()"></div>
   <aside class="side-menu">
-    <div class="row between" style="padding-bottom:10px; border-bottom:1px solid var(--line); align-items:center;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" style="height:28px; width:auto;">
-        <b style="font-size:14px;">Menu</b>
+    <div class="row between" style="padding-bottom:12px; border-bottom:1px solid var(--line); align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="height:32px; width:auto; cursor:pointer;" title="Click logo to refresh page">
+        <b style="font-size:15px; color:var(--text);">PIGEM</b>
       </div>
-      <button class="btn btn-small" onclick="toggleMenu()">&#10005;</button>
+      <button class="btn btn-small" onclick="toggleMenu()" aria-label="Close Menu">&#10005;</button>
     </div>
     <a href="index.html" onclick="toggleMenu()">Home</a>
     <a href="about.html" onclick="toggleMenu()">About PIGEM</a>

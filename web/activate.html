@@ -11,9 +11,9 @@
 
   <!-- Simple Top Bar -->
   <header class="simple-bar">
-    <div class="container">
-      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-      <b>Customer Account Activation</b>
+    <div class="container" style="display:flex; align-items:center; gap:12px;">
+      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
+      <span style="font-weight:700; font-size:16px; cursor:default; user-select:none;">Customer Account Activation</span>
     </div>
   </header>
 
@@ -22,6 +22,15 @@
       <div class="auth-head">
         <h2>Activate Your Account</h2>
         <p>Enter the 6-digit OTP code from your email and create your password. Accounts can only be activated once.</p>
+      </div>
+
+      <div id="no-params-box" class="notice warn mt" hidden>
+        <b style="display:block; margin-bottom:4px;">Access Restricted</b>
+        This one-time account activation portal is only accessible via the unique activation link sent to your registered email upon completing an application.
+        <div class="row mt" style="gap:8px;">
+          <a href="login.html" class="btn btn-red">Customer Login</a>
+          <a href="index.html" class="btn">Back to Home</a>
+        </div>
       </div>
 
       <div id="already-active-box" class="notice warn mt" hidden>
@@ -62,10 +71,16 @@
       var email = params.get("email") || "";
       var code = params.get("code") || "";
 
-      if (email) document.getElementById("act-email").value = email;
-      if (code) document.getElementById("act-code").value = code;
+      if (!email || !code) {
+        document.getElementById("no-params-box").hidden = false;
+        document.getElementById("activate-form").hidden = true;
+        return;
+      }
 
-      if (email && await dbIsAccountActivated(email)) {
+      document.getElementById("act-email").value = email;
+      document.getElementById("act-code").value = code;
+
+      if (await dbIsAccountActivated(email)) {
         document.getElementById("already-active-box").hidden = false;
         document.getElementById("activate-form").hidden = true;
       }

@@ -23,7 +23,7 @@ function initDashUI(user, apps, onSelectAppCallback) {
   if (splash) {
     setTimeout(function () {
       splash.classList.add("hide");
-    }, 550);
+    }, 1200);
   }
 
   // Render avatar button & drawer content
@@ -401,12 +401,12 @@ function renderCalendar(boxId, apps) {
 }
 
 
-// Ensure splash screen always fades out smoothly after 550ms
+// Ensure splash screen always fades out smoothly after 1200ms
 window.addEventListener("DOMContentLoaded", function () {
   var splash = document.getElementById("splash");
   if (splash) {
     setTimeout(function () {
       splash.classList.add("hide");
-    }, 550);
+    }, 1200);
   }
 });

@@ -133,17 +133,33 @@ img { max-width: 100%; display: block; }
 .menu a.active, .menu a:hover { color: var(--red); }
 .menu .btn { color: #fff; }
 
-/* Hamburger button (only shows on phones) */
+/* Hamburger button (solid, high-contrast, non-transparent for phones) */
 .menu-toggle {
   display: none;
-  background: none;
-  border: 1px solid var(--line);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  width: 42px;
+  height: 40px;
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 22px;
-  line-height: 1;
+  padding: 8px;
   cursor: pointer;
-  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+.menu-toggle:active {
+  background: #f1f5f9 !important;
+}
+.menu-toggle .bar {
+  display: block;
+  width: 22px;
+  height: 2.5px;
+  background-color: #0f172a !important;
+  border-radius: 2px;
+  transition: all 0.2s ease-in-out;
 }
 
 /* Slide-in side menu for phones */
@@ -564,7 +580,7 @@ body.drawer-open .drawer-back { display: block; }
   .dash { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   body.sidebar-open .sidebar { display: flex; position: fixed; top: 62px; left: 0; bottom: 0; width: 250px; z-index: 45; overflow-y: auto; }
-  .menu-toggle { display: inline-block; }
+  .menu-toggle { display: flex; }
 }
 
 @media (max-width: 640px) {
@@ -916,8 +932,8 @@ html[data-theme="dark"] .simple-bar img {
   background: var(--bg-soft);
 }
 
-/* Inline Tooltip Bubble for Required Asterisk (*) */
-.req {
+/* Inline Tooltip Bubble for Required Asterisk (*) - No Underline / No Lines on Hover */
+.req, .req:hover, .req:focus, label:hover .req {
   position: relative;
   display: inline-block;
   color: var(--red);
@@ -925,7 +941,10 @@ html[data-theme="dark"] .simple-bar img {
   font-weight: 800;
   padding: 0 4px;
   user-select: none;
-  text-decoration: none;
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  outline: none;
 }
 .req-bubble {
   position: absolute;
@@ -960,6 +979,68 @@ html[data-theme="dark"] .simple-bar img {
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: #1d1f24;
+}
+
+/* Partner and Client Logos - Clean Blending */
+.partner-logo, .logos img, .logo-grid img {
+  mix-blend-mode: multiply;
+  background-color: transparent !important;
+  filter: contrast(105%);
+}
+
+/* Interactive Cloudflare / Turnstile Style CAPTCHA Widget */
+.captcha-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.captcha-container:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.captcha-container.verified {
+  border-color: #16a34a !important;
+  background: #f0fdf4 !important;
+  cursor: default;
+}
+.captcha-box-inner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.captcha-container.verified .captcha-box-inner {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+.captcha-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid #cbd5e1;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Realistic Registration Loading Overlay */

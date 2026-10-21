@@ -9,10 +9,13 @@
 </head>
 <body class="public-page">
 
-  <!-- Simple Top Bar with Back Button Only -->
+  <!-- Top Bar with Back Button and Logo -->
   <header class="site-header">
-    <div class="container" style="display:flex; align-items:center; height:64px;">
+    <div class="container" style="display:flex; align-items:center; justify-content:space-between; height:64px;">
       <a href="index.html" class="btn btn-small">&#8592; Back</a>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
+      </div>
     </div>
   </header>
 

@@ -12,10 +12,10 @@
   <!-- TOP BAR -->
   <header class="topbar">
     <div class="container topbar-inner">
-      <a href="index.html" class="brand">
-        <img src="assets/images/logo.png" alt="PIGEM" />
-        <div><b>Combined Facilities Support Services</b></div>
-      </a>
+      <div class="brand" style="display:flex; align-items:center; gap:10px;">
+        <img src="assets/images/logo.png" alt="PIGEM" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page" />
+        <div><b style="cursor:default; user-select:none;">Combined Facilities Support Services</b></div>
+      </div>
       <nav class="nav-links">
         <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
           🔔 <span id="notif-count" class="badge badge-red hidden">0</span>

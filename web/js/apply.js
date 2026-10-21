@@ -104,7 +104,6 @@ function initApplyPage() {
   renderPlanChoices();
   setupDeviceUploadUI();
   window.addEventListener("resize", setupDeviceUploadUI);
-  showCaptchaPopup();
 }
 
 // Render Red Fiber plans
@@ -132,53 +131,26 @@ function pickPlan(planId) {
 }
 
 // ============================================================
-// Popup 1: Clean Captcha Box Only
+// Interactive In-Page CAPTCHA Widget (Panel 5)
 // ============================================================
-function showCaptchaPopup() {
-  openPopup(
-    '<div id="apply-captcha-card" onclick="onApplyCaptchaClick()" style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg-soft);cursor:pointer;user-select:none;">' +
-      '<div style="display:flex;align-items:center;gap:14px;">' +
-        '<div id="apply-captcha-box" style="width:28px;height:28px;border:2px solid #98a2b3;border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;transition:all 0.15s;"></div>' +
-        '<span style="font-weight:700;font-size:16px;">I\'m not a robot</span>' +
-      '</div>' +
-      '<div style="text-align:right;line-height:1.25;">' +
-        '<div style="font-size:12px;font-weight:800;color:var(--muted);">CAPTCHA</div>' +
-        '<div style="font-size:11px;color:var(--muted);">Security Verification</div>' +
-      '</div>' +
-    '</div>'
-  );
-}
+var applyCaptchaVerified = false;
 
-function onApplyCaptchaClick() {
-  var box = document.getElementById("apply-captcha-box");
+function triggerApplyCaptcha() {
+  if (applyCaptchaVerified) return;
+  var check = document.getElementById("apply-captcha-check");
   var card = document.getElementById("apply-captcha-card");
-  if (box && card) {
-    box.style.background = "#12b76a";
-    box.style.borderColor = "#12b76a";
-    box.innerHTML = "&#10003;";
-    card.style.borderColor = "#12b76a";
-  }
-  setTimeout(function () {
-    showInstructionPopup();
-  }, 320);
-}
+  var text = document.getElementById("apply-captcha-text");
+  if (!check || !card) return;
 
-// ============================================================
-// Popup 2: "Instructions" with "OK" button
-// ============================================================
-function showInstructionPopup() {
-  openPopup(
-    '<h3>Instructions</h3>' +
-    '<p class="small muted mt">Before starting your application, please prepare the following:</p>' +
-    '<ul style="margin:12px 0 0 18px; font-size:15px; line-height:1.7;">' +
-      '<li><b>1 Valid Government-Issued ID (Front &amp; Back):</b> PhilSys National ID, Driver\'s License, Passport, UMID, SSS, PRC, Postal, or Voter\'s ID.</li>' +
-      '<li><b>Active Gmail &amp; Mobile Number:</b> You will verify your contact details with a 6-digit OTP and receive your reference number.</li>' +
-      '<li><b>Exact Installation Location:</b> Pin your house or building on the interactive map so fiber facility availability can be confirmed.</li>' +
-    '</ul>' +
-    '<div class="row mt-big" style="justify-content:flex-end">' +
-      '<button type="button" class="btn btn-red" onclick="closePopup()">OK</button>' +
-    '</div>'
-  );
+  check.innerHTML = '<div class="captcha-spinner"></div>';
+  if (text) text.textContent = "Verifying security credentials...";
+
+  setTimeout(function () {
+    applyCaptchaVerified = true;
+    check.innerHTML = "&#10003;";
+    card.classList.add("verified");
+    if (text) text.textContent = "I'm not a robot";
+  }, 600);
 }
 
 // QR Code Modal for Continuing on Phone
@@ -245,11 +217,21 @@ async function sendContactOtp() {
   if (statusText) {
     statusText.innerHTML =
       "A 6-digit verification code has been sent to <b>" + email + "</b>" +
-      (emailRes && emailRes.sent ? "." : " (Verification Code: <b>" + generatedContactOtp + "</b>).");
+      (emailRes && emailRes.sent ? "." : " (Verification Code: <b>" + generatedContactOtp + "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill</button>).");
   }
 
   btn.disabled = false;
   btn.textContent = "Resend OTP";
+}
+
+function autoFillOtp() {
+  if (generatedContactOtp) {
+    var input = document.getElementById("contact_otp_code");
+    if (input) {
+      input.value = generatedContactOtp;
+      verifyContactOtp();
+    }
+  }
 }
 
 function verifyContactOtp() {
@@ -270,9 +252,12 @@ function verifyContactOtp() {
     badge.className = "badge status-approved";
     badge.textContent = "✓ Verified";
   }
+  var input = document.getElementById("contact_otp_code");
+  if (input) input.disabled = true;
+
   var statusText = document.getElementById("otp-status-text");
   if (statusText) {
-    statusText.innerHTML = "<span style='color:var(--good);font-weight:700;'>✓ Email and Mobile Number successfully verified.</span>";
+    statusText.innerHTML = "<span style='color:var(--good);font-weight:700;'>✓ Email and Mobile Number successfully verified! Click 'Next' to proceed.</span>";
   }
 }
 
@@ -372,8 +357,11 @@ function validateCurrentPanel() {
     var birth = document.getElementById("birth_date").value;
 
     if (!first) markInvalid("first_name", "First Name", "Please enter your first name.");
-    // N/A is explicitly accepted for Middle Name
-    if (!middle) markInvalid("middle_name", "Middle Name", "Please enter middle name or N/A.");
+    // Middle Name is optional; automatically default to N/A if blank
+    if (!middle) {
+      middle = "N/A";
+      document.getElementById("middle_name").value = "N/A";
+    }
     if (!last) markInvalid("last_name", "Last Name", "Please enter your last name.");
     if (!birth) markInvalid("birth_date", "Birth Date", "Please select your birth date.");
 
@@ -438,7 +426,7 @@ function validateCurrentPanel() {
     var idNumber = document.getElementById("id_number").value.trim();
 
     if (!idType) markInvalid("id_type", "Valid ID Type", "Select your government ID type.");
-    if (!idNumber) markInvalid("id_number", "ID Number", "Enter the number on your ID card.");
+    if (!idNumber || idNumber.length < 4) markInvalid("id_number", "ID Number", "Enter the valid number on your ID card.");
     if (!selectedFrontFile) markInvalid("id_front", "Front of Valid ID", "Upload photo of the FRONT of your ID.");
     if (!selectedBackFile) markInvalid("id_back", "Back of Valid ID", "Upload photo of the BACK of your ID.");
 
@@ -454,16 +442,21 @@ function validateCurrentPanel() {
   if (currentPanel === 5) {
     if (!document.getElementById("agree_sub").checked) {
       markInvalid("agree_sub", "Terms Agreement", "Please check to accept the Subscriber Certificate.");
-      if (firstInvalidEl) {
-        firstInvalidEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (!applyCaptchaVerified) {
+      var card = document.getElementById("apply-captcha-card");
+      if (card) {
+        card.style.borderColor = "#c8102e";
+        setTimeout(function () { card.style.borderColor = "#cbd5e1"; }, 1500);
       }
+      markInvalid("agree_sub", "Security Verification", "Please verify the 'I\'m not a robot' CAPTCHA before submitting.");
+    }
+    if (firstInvalidEl) {
+      firstInvalidEl.scrollIntoView({ behavior: "smooth", block: "center" });
       return false;
     }
     return true;
   }
-
-  return true;
-}
 
   return true;
 }
@@ -753,9 +746,10 @@ async function submitRegistration() {
       "• Installation Address: " + formatAddress(addrData) + "\n" +
       "• Status: Under Verification\n\n" +
       (accountInfo.status === "active"
-        ? "CUSTOMER ACCOUNT\nYour application has been added to your existing account (" + email + "). You may log in anytime to monitor progress.\n\n"
-        : "ACCOUNT ACTIVATION\nTo monitor your application online, activate your Customer Account using your one-time activation code:\n" +
-          "• Activation Code: " + accountInfo.code + "\n\n") +
+        ? "CUSTOMER ACCOUNT\nYour application has been linked to your existing account (" + email + "). You may log in anytime to monitor progress.\n\n"
+        : "ACCOUNT ACTIVATION\nTo monitor your application online and track verification status, please activate your Customer Account using the link below:\n" +
+          "• Activation Link: https://pigem-system-web.vercel.app/activate.html?email=" + encodeURIComponent(email) + "&code=" + encodeURIComponent(accountInfo.code) + "\n" +
+          "• One-Time Activation Code: " + accountInfo.code + "\n\n") +
       "Sincerely,\n" +
       "PIGEM Combined Facilities Support Services";
 

@@ -4,43 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Privacy Notice | PIGEM</title>
+  <title>Privacy Policy Notice | PIGEM</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
-<body>
+<body class="gray-bg">
 
+  <!-- Header: Logo Only (Clicking Logo Refreshes Current Page) -->
   <header class="site-header">
-    <div class="container">
-      <a href="index.html" class="logo">
-        <img data-img="logo.png" src="assets/images/logo.png" alt="PIGEM Logo">
-        <div>
-          <b>PIGEM</b>
-          <span>Combined Facilities Support Services</span>
-        </div>
-      </a>
-      <nav class="menu">
-        <a href="index.html">Home</a>
-        <a href="about.html">About PIGEM</a>
-        <a href="login.html" class="btn btn-small">Customer Login</a>
-      </nav>
+    <div class="container" style="display:flex; align-items:center; height:64px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:40px; width:auto;" title="Click logo to refresh">
+      </div>
     </div>
   </header>
 
-  <main class="page-text">
-    <h1>Privacy Notice</h1>
-    <p>PIGEM Combined Facilities Support Services collects the personal details, service location, and valid ID images you submit only to assist with your internet service application.</p>
-    <ul>
-      <li>Uploaded identification documents are stored in private storage for authorized review.</li>
-      <li>Automated document screening (OpenCV, PaddleOCR, and local Ollama AI) is strictly preliminary and runs on our local server. Final review is always performed by a human agent.</li>
-      <li>Application email notifications are sent only for reference numbers, correction notices, and status updates.</li>
-    </ul>
+  <main class="auth-page" style="min-height:calc(100vh - 120px); display:flex; align-items:center; justify-content:center; padding:24px 16px;">
+    <div class="card auth-card" style="text-align:center; max-width:480px; width:100%; padding:36px 24px; box-shadow:0 8px 24px rgba(0,0,0,0.08);">
+      <div style="width:58px; height:58px; border-radius:50%; background:#fee2e2; color:#c8102e; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800; margin:0 auto 16px;">
+        !
+      </div>
+      <h2 style="font-size:22px; color:var(--text); margin-bottom:8px;">Policy Document Unavailable</h2>
+      <p class="muted" style="font-size:14px; line-height:1.6; margin-bottom:24px;">
+        The official Data Privacy Policy and Terms of Notice document is currently undergoing legal compliance review and has not yet been published.
+      </p>
+      <div>
+        <button type="button" class="btn btn-red btn-full" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = 'index.html'; }">
+          &larr; Return to Previous Page
+        </button>
+      </div>
+    </div>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <div><b>PIGEM Combined Facilities Support Services</b></div>
-      <div><a href="index.html">Back to Home</a></div>
-    </div>
+  <footer style="padding:16px 20px; text-align:center; font-size:12px; color:var(--muted); border-top:1px solid var(--line); background:#fff;">
+    <span>All rights reserved &copy; 2026</span>
   </footer>
 
   <script src="js/config.js"></script>
