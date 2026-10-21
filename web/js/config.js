@@ -16,8 +16,8 @@ var CONFIG = {
   // MAJOR: Where website pictures come from: "supabase" (website-assets bucket), "server" (FastAPI), or "local"
   ASSET_SOURCE: "supabase",
 
-  // Google reCAPTCHA v2 test key (replace with your own key when the site has a real domain)
-  RECAPTCHA_SITE_KEY: "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
+  // Google reCAPTCHA v2 Site Key
+  RECAPTCHA_SITE_KEY: "6LdlYRktAAAAAPnkgulv86Iu1HbR4Fo7moj7RKrG",
 
   // Red Fiber plans (the Manager can edit these in Content > Plans)
   PLANS: [
