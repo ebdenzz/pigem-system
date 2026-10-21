@@ -4,91 +4,191 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>System Setup — Register Admin &amp; Manager Accounts | PIGEM</title>
+  <title>System Setup — Provision Primary System Accounts | PIGEM</title>
   <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .preset-pill { display: inline-block; padding: 4px 10px; font-size: 11.5px; font-weight: 600; border-radius: 14px; background: var(--bg-soft); border: 1px solid var(--line); cursor: pointer; margin: 3px 3px 3px 0; transition: all 0.15s; }
+    .preset-pill:hover { background: #c8102e; color: #fff; border-color: #c8102e; }
+  </style>
 </head>
 <body>
 
   <header class="simple-bar">
     <div class="container" style="display:flex; align-items:center; gap:12px;">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
-      <span style="font-weight:700; font-size:16px; cursor:default; user-select:none;">Combined Facilities Support Services &mdash; System Initialization</span>
+      <span style="font-weight:700; font-size:16px; cursor:default; user-select:none;">Combined Facilities Support Services &mdash; System Account Provisioning</span>
     </div>
   </header>
 
-  <main class="form-wrap" style="max-width:760px;">
-    <div class="card">
+  <main class="form-wrap" style="max-width:1100px; padding:24px 16px;">
+    <div class="card" style="margin-bottom:24px;">
       <div class="center" style="margin-bottom:20px;">
-        <span class="tag">System Provisioning Portal</span>
-        <h2 class="mt">Register Primary Staff Accounts</h2>
-        <p class="small muted mt">Use this portal to register the official <b>System Administrator</b> and <b>Operations Manager</b> accounts to initialize the operational system.</p>
+        <span class="tag">Official Account Initialization</span>
+        <h2 class="mt" style="font-size:24px; font-weight:800;">Register System Staff Accounts</h2>
+        <p class="small muted mt" style="max-width:680px; margin:8px auto 0 auto;">
+          Use this portal to register the <b>System Administrator</b>, <b>Operations Manager</b>, and <b>Verification Agents</b> directly into the Supabase authentication database.
+        </p>
       </div>
 
-      <div class="grid-2" style="gap:24px; align-items:start;">
-        <!-- Card 1: System Admin Account -->
+      <div class="role-grid">
+
+        <!-- CARD 1: SYSTEM ADMINISTRATOR -->
         <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span class="badge" style="background:#101828; color:#fff;">1</span>
-            <h3 style="margin:0; font-size:17px;">System Administrator</h3>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge" style="background:#101828; color:#fff; font-weight:700;">ADMIN</span>
+              <h3 style="margin:0; font-size:16.5px;">Technical Administrator</h3>
+            </div>
           </div>
-          <p class="small muted">Full access to technical monitoring, system settings, audit logs, and AI configurations.</p>
-          
+          <p class="small muted" style="margin-bottom:12px;">Technical controls, local AI server monitoring, API health checks, and security audit logs.</p>
+
+          <div style="margin-bottom:8px;">
+            <span class="small muted" style="display:block; margin-bottom:4px; font-weight:600;">One-Click Preset:</span>
+            <button type="button" class="preset-pill" onclick="fillAdminPreset()">Fill Admin Data</button>
+          </div>
+
           <div class="mt">
             <label for="adm-name">Full Legal Name</label>
-            <input id="adm-name" type="text" placeholder="e.g. Juan C. Dela Cruz">
+            <input id="adm-name" type="text" value="Juan C. Dela Cruz" placeholder="Juan C. Dela Cruz">
           </div>
           <div class="mt">
             <label for="adm-email">Admin Email Address</label>
-            <input id="adm-email" type="email" placeholder="admin@pigem.local or gmail">
+            <input id="adm-email" type="email" value="pigem.system.admin@gmail.com" placeholder="pigem.system.admin@gmail.com">
           </div>
           <div class="mt">
-            <label for="adm-age">Age / Designation</label>
-            <input id="adm-age" type="text" placeholder="e.g. 32 / Lead Systems Engineer">
+            <label for="adm-pw">Password (min. 6 characters)</label>
+            <input id="adm-pw" type="text" value="admin123" placeholder="At least 6 characters">
           </div>
           <div class="mt">
-            <label for="adm-pw">Password</label>
-            <input id="adm-pw" type="password" placeholder="At least 6 characters">
+            <label for="adm-age">Designation</label>
+            <input id="adm-age" type="text" value="Lead Systems Engineer" placeholder="e.g. Lead Systems Engineer">
           </div>
-          <button type="button" id="btn-save-admin" class="btn btn-red btn-full mt-big" onclick="registerAdminAccount()">Create Admin Account</button>
+
+          <button type="button" id="btn-save-admin" class="btn btn-dark btn-full mt-big" onclick="registerAdminAccount()">
+            + Create Admin Account
+          </button>
           <div id="adm-status" class="small mt center"></div>
         </div>
 
-        <!-- Card 2: Operations Manager Account -->
+        <!-- CARD 2: OPERATIONS MANAGER -->
         <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span class="badge" style="background:#c8102e; color:#fff;">2</span>
-            <h3 style="margin:0; font-size:17px;">Operations Manager</h3>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge" style="background:#c8102e; color:#fff; font-weight:700;">MANAGER</span>
+              <h3 style="margin:0; font-size:16.5px;">Operations Manager</h3>
+            </div>
           </div>
-          <p class="small muted">Full access to application management, verification agent creation, referral links, and CMS content.</p>
+          <p class="small muted" style="margin-bottom:12px;">Application queues, agent assignment, override management, marketing emails, and CMS content.</p>
+
+          <div style="margin-bottom:8px;">
+            <span class="small muted" style="display:block; margin-bottom:4px; font-weight:600;">One-Click Preset:</span>
+            <button type="button" class="preset-pill" onclick="fillManagerPreset()">Fill Manager Data</button>
+          </div>
 
           <div class="mt">
             <label for="mgr-name">Full Legal Name</label>
-            <input id="mgr-name" type="text" placeholder="e.g. Maria S. Reyes">
+            <input id="mgr-name" type="text" value="Maria Santos Reyes" placeholder="Maria Santos Reyes">
           </div>
           <div class="mt">
             <label for="mgr-email">Manager Email Address</label>
-            <input id="mgr-email" type="email" placeholder="manager@pigem.local or gmail">
+            <input id="mgr-email" type="email" value="pigem.manager.santos@gmail.com" placeholder="pigem.manager.santos@gmail.com">
+          </div>
+          <div class="mt">
+            <label for="mgr-pw">Password (min. 6 characters)</label>
+            <input id="mgr-pw" type="text" value="manager123" placeholder="At least 6 characters">
           </div>
           <div class="mt">
             <label for="mgr-phone">Contact Mobile Number</label>
-            <input id="mgr-phone" type="tel" placeholder="09171234567">
+            <input id="mgr-phone" type="tel" value="09171234567" placeholder="09171234567">
+          </div>
+
+          <button type="button" id="btn-save-manager" class="btn btn-red btn-full mt-big" onclick="registerManagerAccount()">
+            + Create Manager Account
+          </button>
+          <div id="mgr-status" class="small mt center"></div>
+        </div>
+
+        <!-- CARD 3: VERIFICATION AGENT -->
+        <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="badge" style="background:#175cd3; color:#fff; font-weight:700;">AGENT</span>
+              <h3 style="margin:0; font-size:16.5px;">Verification Agents</h3>
+            </div>
+          </div>
+          <p class="small muted" style="margin-bottom:12px;">Applicant ID screening, polite remark generator, corrections review, and provider encoding.</p>
+
+          <div style="margin-bottom:8px;">
+            <span class="small muted" style="display:block; margin-bottom:4px; font-weight:600;">Pick Agent Preset:</span>
+            <button type="button" class="preset-pill" onclick="fillAgentPreset(1)">Agent 1 (Carla)</button>
+            <button type="button" class="preset-pill" onclick="fillAgentPreset(2)">Agent 2 (Mark)</button>
+            <button type="button" class="preset-pill" onclick="fillAgentPreset(3)">Agent 3 (Elena)</button>
+          </div>
+
+          <div class="mt">
+            <label for="agent-name">Agent Full Name</label>
+            <input id="agent-name" type="text" value="Carla M. Reyes" placeholder="Carla M. Reyes">
           </div>
           <div class="mt">
-            <label for="mgr-pw">Password</label>
-            <input id="mgr-pw" type="password" placeholder="At least 6 characters">
+            <label for="agent-email">Agent Email Address</label>
+            <input id="agent-email" type="email" value="pigem.agent.carla@gmail.com" placeholder="pigem.agent.carla@gmail.com">
           </div>
-          <button type="button" id="btn-save-manager" class="btn btn-dark btn-full mt-big" onclick="registerManagerAccount()">Create Manager Account</button>
-          <div id="mgr-status" class="small mt center"></div>
+          <div class="mt">
+            <label for="agent-pw">Password (min. 6 characters)</label>
+            <input id="agent-pw" type="text" value="agent123" placeholder="At least 6 characters">
+          </div>
+          <div class="mt">
+            <label for="agent-area">Assigned Territory / Specialization</label>
+            <input id="agent-area" type="text" value="ID Document Screening Desk" placeholder="e.g. Burol Main & ID Screening">
+          </div>
+
+          <button type="button" id="btn-save-agent" class="btn btn-full mt-big" style="background:#175cd3; color:#fff;" onclick="registerAgentAccount()">
+            + Create Agent Account
+          </button>
+          <div id="agent-status" class="small mt center"></div>
+        </div>
+
+      </div>
+
+      <!-- LIVE DATABASE TABLE -->
+      <div style="margin-top:32px; border-top:1px solid var(--line); padding-top:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <h3 style="font-size:17px; margin:0;">Active Registered Accounts in Database</h3>
+            <span class="small muted">Accounts registered in Supabase PostgreSQL authentication.</span>
+          </div>
+          <button type="button" class="btn btn-small" onclick="loadRegisteredAccounts()">↻ Refresh List</button>
+        </div>
+
+        <div class="table-wrap" style="max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="background:var(--bg-soft); text-align:left; border-bottom:1px solid var(--line);">
+                <th style="padding:10px 14px;">Full Name</th>
+                <th style="padding:10px 14px;">Email Address</th>
+                <th style="padding:10px 14px;">System Role</th>
+                <th style="padding:10px 14px;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr>
+                <td colspan="4" style="padding:20px; text-align:center;" class="muted">Loading registered accounts from Supabase...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div class="row between mt-big" style="border-top:1px solid var(--line); padding-top:16px;">
+      <!-- BOTTOM NAVIGATION -->
+      <div class="row between mt-big" style="border-top:1px solid var(--line); padding-top:18px;">
         <a href="index.html" class="btn btn-small">&larr; Back to Home</a>
-        <div class="row" style="gap:8px;">
-          <a href="staff-login.html" class="btn btn-small">Staff Login</a>
-          <a href="admin-login.html" class="btn btn-small btn-red">Admin Login</a>
+        <div class="row" style="gap:10px;">
+          <a href="staff-login.html" class="btn btn-small" style="font-weight:600;">Staff Login (Agent / Manager) &rarr;</a>
+          <a href="admin-login.html" class="btn btn-small btn-red" style="font-weight:600;">Admin Login &rarr;</a>
         </div>
       </div>
+
     </div>
   </main>
 
@@ -96,6 +196,35 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
+    var agentPresets = {
+      1: { name: "Carla M. Reyes", email: "pigem.agent.carla@gmail.com", area: "ID Screening & OCR Verification Desk" },
+      2: { name: "Mark B. Bautista", email: "pigem.agent.mark@gmail.com", area: "Customer Corrections & Inquiries Desk" },
+      3: { name: "Elena S. Torres", email: "pigem.agent.elena@gmail.com", area: "Barangay Coverage & Encoding Desk" }
+    };
+
+    function fillAdminPreset() {
+      document.getElementById("adm-name").value = "Juan C. Dela Cruz";
+      document.getElementById("adm-email").value = "pigem.system.admin@gmail.com";
+      document.getElementById("adm-pw").value = "admin123";
+      document.getElementById("adm-age").value = "Lead Systems Engineer";
+    }
+
+    function fillManagerPreset() {
+      document.getElementById("mgr-name").value = "Maria Santos Reyes";
+      document.getElementById("mgr-email").value = "pigem.manager.santos@gmail.com";
+      document.getElementById("mgr-pw").value = "manager123";
+      document.getElementById("mgr-phone").value = "09171234567";
+    }
+
+    function fillAgentPreset(id) {
+      var p = agentPresets[id];
+      if (!p) return;
+      document.getElementById("agent-name").value = p.name;
+      document.getElementById("agent-email").value = p.email;
+      document.getElementById("agent-pw").value = "agent123";
+      document.getElementById("agent-area").value = p.area;
+    }
+
     async function registerAdminAccount() {
       var name = document.getElementById("adm-name").value.trim();
       var email = document.getElementById("adm-email").value.trim().toLowerCase();
@@ -105,7 +234,7 @@
       var btn = document.getElementById("btn-save-admin");
 
       if (!name || !email || !pw) {
-        showAlert("Missing Fields", "Please fill in Name, Email, and Password for the Admin account.", "warn");
+        showAlert("Missing Fields", "Please fill in Name, Email, and Password for Admin.", "warn");
         return;
       }
       if (pw.length < 6) {
@@ -114,20 +243,19 @@
       }
 
       btn.disabled = true;
-      btn.textContent = "Creating...";
+      btn.textContent = "Creating in Supabase...";
       try {
         var created = await dbCreateUserAccount(name, email, pw, "admin");
-        if (age) {
-          await dbUpdateProfile(created.id, { intro: age });
-        }
-        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Admin account created successfully!</b>";
-        showAlert("Admin Created", "System Administrator account for " + email + " is ready. You can now log in at admin-login.html.", "good");
+        if (age) await dbUpdateProfile(created.id, { intro: age });
+        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Admin account created!</b>";
+        showAlert("Admin Created", "Admin account (" + email + ") registered successfully.", "good");
+        await loadRegisteredAccounts();
       } catch (err) {
-        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed to create account") + "</b>";
+        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed") + "</b>";
         showAlert("Creation Failed", err.message || "Could not create Admin account.", "bad");
       } finally {
         btn.disabled = false;
-        btn.textContent = "Create Admin Account";
+        btn.textContent = "+ Create Admin Account";
       }
     }
 
@@ -140,7 +268,7 @@
       var btn = document.getElementById("btn-save-manager");
 
       if (!name || !email || !pw) {
-        showAlert("Missing Fields", "Please fill in Name, Email, and Password for the Manager account.", "warn");
+        showAlert("Missing Fields", "Please fill in Name, Email, and Password for Manager.", "warn");
         return;
       }
       if (pw.length < 6) {
@@ -149,22 +277,90 @@
       }
 
       btn.disabled = true;
-      btn.textContent = "Creating...";
+      btn.textContent = "Creating in Supabase...";
       try {
         var created = await dbCreateUserAccount(name, email, pw, "manager");
-        if (phone) {
-          await dbUpdateProfile(created.id, { intro: "Contact: " + phone });
-        }
-        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Manager account created successfully!</b>";
-        showAlert("Manager Created", "Operations Manager account for " + email + " is ready. You can now log in at staff-login.html.", "good");
+        if (phone) await dbUpdateProfile(created.id, { intro: "Contact: " + phone });
+        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Manager account created!</b>";
+        showAlert("Manager Created", "Manager account (" + email + ") registered successfully.", "good");
+        await loadRegisteredAccounts();
       } catch (err) {
-        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed to create account") + "</b>";
+        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed") + "</b>";
         showAlert("Creation Failed", err.message || "Could not create Manager account.", "bad");
       } finally {
         btn.disabled = false;
-        btn.textContent = "Create Manager Account";
+        btn.textContent = "+ Create Manager Account";
       }
     }
+
+    async function registerAgentAccount() {
+      var name = document.getElementById("agent-name").value.trim();
+      var email = document.getElementById("agent-email").value.trim().toLowerCase();
+      var area = document.getElementById("agent-area").value.trim();
+      var pw = document.getElementById("agent-pw").value;
+      var statusEl = document.getElementById("agent-status");
+      var btn = document.getElementById("btn-save-agent");
+
+      if (!name || !email || !pw) {
+        showAlert("Missing Fields", "Please fill in Name, Email, and Password for Agent.", "warn");
+        return;
+      }
+      if (pw.length < 6) {
+        showAlert("Password Short", "Password must be at least 6 characters.", "warn");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating in Supabase...";
+      try {
+        var created = await dbCreateUserAccount(name, email, pw, "agent");
+        if (area) await dbUpdateProfile(created.id, { intro: area });
+        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Agent account created!</b>";
+        showAlert("Agent Created", "Agent account (" + email + ") registered successfully.", "good");
+        await loadRegisteredAccounts();
+      } catch (err) {
+        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed") + "</b>";
+        showAlert("Creation Failed", err.message || "Could not create Agent account.", "bad");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "+ Create Agent Account";
+      }
+    }
+
+    async function loadRegisteredAccounts() {
+      var tbody = document.getElementById("users-table-body");
+      if (!tbody) return;
+      try {
+        var users = await dbGetUsers();
+        if (!users || !users.length) {
+          tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center;" class="muted">No accounts found in Supabase. Register your first account above!</td></tr>';
+          return;
+        }
+        var rows = "";
+        for (var i = 0; i < users.length; i++) {
+          var u = users[i];
+          var roleBadge = '<span class="badge" style="background:#475467; color:#fff;">' + escapeHtml(u.role || "user") + '</span>';
+          if (u.role === "admin") roleBadge = '<span class="badge" style="background:#101828; color:#fff;">Admin</span>';
+          else if (u.role === "manager") roleBadge = '<span class="badge" style="background:#c8102e; color:#fff;">Manager</span>';
+          else if (u.role === "agent") roleBadge = '<span class="badge" style="background:#175cd3; color:#fff;">Agent</span>';
+          else if (u.role === "customer") roleBadge = '<span class="badge" style="background:#027a48; color:#fff;">Customer</span>';
+
+          rows += '<tr style="border-bottom:1px solid var(--line);">' +
+            '<td style="padding:10px 14px; font-weight:600;">' + escapeHtml(u.full_name || "—") + '</td>' +
+            '<td style="padding:10px 14px;">' + escapeHtml(u.email || "—") + '</td>' +
+            '<td style="padding:10px 14px;">' + roleBadge + '</td>' +
+            '<td style="padding:10px 14px;"><span style="color:var(--good); font-weight:600;">✓ Active</span></td>' +
+          '</tr>';
+        }
+        tbody.innerHTML = rows;
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--bad);">Error loading accounts: ' + escapeHtml(e.message) + '</td></tr>';
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      loadRegisteredAccounts();
+    });
   </script>
 </body>
 </html>
