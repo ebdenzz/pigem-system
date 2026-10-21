@@ -1303,7 +1303,7 @@ async function apiCheckIdPhoto(file, details) {
   };
 }
 
-async function apiSendOtpEmail(toEmail, code, title) {
+async function apiSendOtpEmail(toEmail, code, title, recipientName) {
   var subject = "PIGEM Account Security — " + (title || "Verification Code");
   var body =
     "Dear Valued Client,\n\n" +
@@ -1313,11 +1313,22 @@ async function apiSendOtpEmail(toEmail, code, title) {
     "Sincerely,\n" +
     "Customer Security & Verification Team\n" +
     "PIGEM Combined Facilities Support Services";
-  await apiSendEmail(toEmail, subject, body);
+  return await apiSendEmail(toEmail, subject, body, {
+    template_type: "otp",
+    payload: {
+      code: String(code),
+      purpose: title || "Account Verification",
+      customer_name: recipientName || "Valued Client"
+    }
+  });
 }
 
 async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
-  var subject = "PIGEM Application Update — Reference No. " + refNo + " [" + status + "]";
+  var st = (status || "").toLowerCase();
+  var isCorrection = st.indexOf("correction") !== -1 || st.indexOf("need") !== -1;
+  var subject = isCorrection
+    ? "PIGEM Action Required — Update Needed for Reference No. " + refNo
+    : "PIGEM Application Update — Reference No. " + refNo + " [" + status + "]";
   var body =
     "Dear " + (fullName || "Valued Subscriber") + ",\n\n" +
     "Please be advised that there is an official status update regarding your Red Fiber Internet Service Application with PIGEM Combined Facilities Support Services.\n\n" +
@@ -1331,6 +1342,16 @@ async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
     "Customer Verification & Provisioning Team\n" +
     "PIGEM Combined Facilities Support Services\n" +
     "Tel: (046) 458-0908 | Hotline: 101-733 (RED)";
-  await apiSendEmail(toEmail, subject, body);
+
+  return await apiSendEmail(toEmail, subject, body, {
+    template_type: isCorrection ? "correction_notice" : "status_update",
+    payload: {
+      ref_no: refNo,
+      customer_name: fullName,
+      status: status,
+      remarks: remarks || "",
+      portal_link: "https://pigem-system-web.vercel.app/customer.html"
+    }
+  });
 }
 

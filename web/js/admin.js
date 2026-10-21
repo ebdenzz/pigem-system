@@ -356,3 +356,65 @@ function resetDemoDatabase() {
     window.location.reload();
   });
 }
+
+async function adminSendTestEmail() {
+  var btn = document.getElementById("btn-test-email");
+  var to = document.getElementById("test-email-to").value.trim();
+  var type = document.getElementById("test-email-type").value;
+
+  if (!to) {
+    showMsg("test-email-msg", "error", "Please enter a recipient email address.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Sending via Resend...";
+  showMsg("test-email-msg", "info", "Contacting Resend API...");
+
+  try {
+    var res;
+    if (type === "otp") {
+      var sampleOtp = String(Math.floor(100000 + Math.random() * 900000));
+      res = await apiSendOtpEmail(to, sampleOtp, "Admin Security Test", "System Administrator");
+    } else if (type === "application_confirmation") {
+      res = await apiSendApplicationConfirmationEmail(
+        to,
+        "Juan Dela Cruz",
+        "PF-20261021-0001",
+        { name: "Plan 1299", speed: "50", price: 1299 },
+        "Blk 42 Lot 19 Tokya St., Summerwind Village M., Brgy. Burol Main, Dasmariñas City, Cavite",
+        { status: "pending", code: "ACT-789012" }
+      );
+    } else if (type === "correction_notice") {
+      res = await apiSendCorrectionEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "Clarification needed");
+    } else if (type === "status_update") {
+      res = await apiSendStatusEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "Approved & Encoded", "Your documents have been verified and submitted to the Red Fiber provider.");
+    } else if (type === "promotional") {
+      res = await apiSendPromotionalEmail(
+        to,
+        "Juan Dela Cruz",
+        "Exclusive Fiber Speed Boost for Cavite Residents",
+        "Upgrade your plan today and experience seamless fiber internet with zero lock-in period fees.",
+        [
+          { name: "Red Fiber 100", speed: "100 Mbps", price: "₱1,699" },
+          { name: "Red Fiber 200", speed: "200 Mbps", price: "₱2,199" }
+        ]
+      );
+    }
+
+    if (res && res.sent) {
+      showMsg("test-email-msg", "ok", "✓ Email successfully delivered via Resend! (ID: " + (res.id || "OK") + "). Check your inbox.");
+    } else if (res && res.sandbox_restricted) {
+      showMsg("test-email-msg", "error", "Resend Free Sandbox: Can only deliver to account owner (ebdenzzz@gmail.com). To send to other emails, verify a custom domain at resend.com/domains.");
+    } else if (res && res.offline) {
+      showMsg("test-email-msg", "error", "Local FastAPI server is offline (http://127.0.0.1:8001). Please run START-AI.bat to send live emails.");
+    } else {
+      showMsg("test-email-msg", "error", "Delivery failed: " + ((res && res.reason) || "Unknown error"));
+    }
+  } catch (err) {
+    showMsg("test-email-msg", "error", "Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✉️ Send Live Email via Resend";
+  }
+}

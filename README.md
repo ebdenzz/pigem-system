@@ -111,6 +111,33 @@ uvicorn main:app --host 127.0.0.1 --port 8001
 
 ---
 
+## ✉️ Email Notification Module (Powered by Resend)
+
+The system includes an enterprise-grade transactional email notification engine configured with **Resend** (`https://resend.com`) and formatted with official **Red Fiber / PIGEM Combined Facilities Support Services** corporate branding.
+
+### Supported Email Templates & Events:
+1. **Security OTP Verification:** Delivers a large 6-digit verification code with 10-minute validity and anti-fraud advisory for application contact verification and password resets.
+2. **Application Confirmation & Reference:** Prominently displays the generated Reference Number (`PF-YYYYMMDD-XXXX`), subscription plan, speed, address, and one-time account activation link.
+3. **Privacy-Safe Correction Notices (RA 10173):** In compliance with Republic Act No. 10173 (Data Privacy Act of 2012), correction emails notify the subscriber that action is required and direct them to log in to the authenticated Customer Portal rather than exposing raw sensitive PII in open email.
+4. **Application Status Updates:** Real-time updates for *Approved*, *Encoded to Provider* (with 3–5 business day technician dispatch notice), and *Rejected*.
+5. **Agent Operational Alerts:** Alerts agents when applications are assigned or when customers resubmit corrections.
+6. **Manager Operational Summaries:** Governance alerts and application escalation briefings for management.
+7. **Promotional & Marketing Announcements:** Authorized marketing broadcasts for available fiber plan upgrades and community announcements with CAN-SPAM compliant unsubscribe links.
+
+### Recommended Test Accounts (for Live Demo & System Evaluation):
+- **Agent Desk (3 Accounts):**
+  - `pigem.agent.carla@gmail.com` — Verification Agent 1 (Document Screening & ID Verification)
+  - `pigem.agent.mark@gmail.com` — Verification Agent 2 (Customer Clarifications & Corrections)
+  - `pigem.agent.elena@gmail.com` — Verification Agent 3 (Barangay Coverage & Provider Encoding)
+- **Operations Manager (1 Account):**
+  - `pigem.manager.santos@gmail.com` — Operations & Content CMS Manager
+- **Technical Administrator (1 Account):**
+  - `pigem.system.admin@gmail.com` — Technical Administrator (System Health, AI Engine, API Console)
+- **Live Resend Inbox:**
+  - `ebdenzzz@gmail.com` — Registered Resend account owner. Receives live test emails directly in inbox when using the Resend free development domain (`onboarding@resend.dev`). Other test accounts display OTP codes and Auto-Fill buttons seamlessly to prevent evaluation roadblocks.
+
+---
+
 ## 📂 Repository Layout
 
 ```text

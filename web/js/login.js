@@ -153,7 +153,7 @@ async function sendResetCode() {
       "Please enter this verification code on the password reset screen to set your new password.\n\n" +
       "Sincerely,\n" +
       "PIGEM Combined Facilities Support Services";
-    await apiSendEmail(email, subject, body);
+    await apiSendOtpEmail(email, code, "Password Reset", "Subscriber");
     openFinishResetModal(code);
   } catch (err) {
     showAlert("Reset Failed", err.message || "Could not start password reset.", "bad");

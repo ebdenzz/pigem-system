@@ -111,14 +111,24 @@ async def screen_document(
 
 class EmailRequest(BaseModel):
     to: str
-    subject: str
-    message: str
+    subject: str = "Official Notification"
+    message: str = ""
+    template_type: str = "general"
+    payload: dict = None
+    html_content: str = None
 
 
 @app.post("/notify")
 def send_notification_email(data: EmailRequest, user=Depends(auth.require_login)):
     """MAJOR: Sends an application email notification using Resend."""
-    return mailer.send(data.to, data.subject, data.message)
+    return mailer.send(
+        to=data.to,
+        subject=data.subject,
+        message=data.message,
+        html_content=data.html_content,
+        template_type=data.template_type,
+        payload=data.payload,
+    )
 
 
 class PoliteRemarkRequest(BaseModel):

@@ -340,6 +340,18 @@ async function submitCustomerCorrection(appId) {
       fullName + " updated " + changedList.join(", ") + " for " + app.reference_no + ". Status is now back to Processing."
     );
 
+    if (app.assigned_agent && app.assigned_agent.indexOf("@") !== -1) {
+      await apiSendAgentAlertEmail(
+        app.assigned_agent,
+        "Correction Resubmitted by Customer",
+        app.reference_no,
+        fullName,
+        app.plan_name || "Red Fiber",
+        app.barangay || "Dasmariñas City",
+        "Customer updated: " + changedList.join(", ") + ". Status automatically returned to Processing."
+      );
+    }
+
     await dbAddLog(currentCustomer.email, "Customer resubmitted correction (" + changedList.join(", ") + ") for " + app.reference_no);
     showAlert("Status Returned to Processing", "Thank you! We detected your updates (" + changedList.join(", ") + ") and automatically changed your application status back to Processing.");
     await loadMyApplications();

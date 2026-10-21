@@ -281,30 +281,38 @@ async function sendContactOtp() {
 
   var btn = document.getElementById("btn-send-otp");
   btn.disabled = true;
-  btn.textContent = "Sending...";
+  btn.textContent = "Sending OTP...";
 
   generatedContactOtp = String(Math.floor(100000 + Math.random() * 900000));
   isContactOtpVerified = false;
 
-  var subject = "PIGEM Application Security — Your 6-Digit Contact Verification Code";
-  var body =
-    "Dear Applicant,\n\n" +
-    "Thank you for choosing PIGEM Combined Facilities Support Services.\n\n" +
-    "Your 6-Digit Contact Verification Code (OTP) is: " + generatedContactOtp + "\n\n" +
-    "Please enter this code on the Application Form to verify your email address (" + email + ") and mobile number (" + phone + ").\n\n" +
-    "Sincerely,\n" +
-    "PIGEM Combined Facilities Support Services";
-
-  var emailRes = await apiSendEmail(email, subject, body);
+  var emailRes = await apiSendOtpEmail(email, generatedContactOtp, "Contact Verification", "Applicant");
 
   var row = document.getElementById("otp-Verify-row");
   if (row) row.hidden = false;
 
   var statusText = document.getElementById("otp-status-text");
   if (statusText) {
-    statusText.innerHTML =
-      "A 6-digit verification code has been sent to <b>" + email + "</b>" +
-      (emailRes && emailRes.sent ? "." : " (Verification Code: <b>" + generatedContactOtp + "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill</button>).");
+    if (emailRes && emailRes.sent) {
+      statusText.innerHTML =
+        "<span style='color:var(--good);font-weight:700;'>✓ 6-Digit OTP sent via Resend!</span> Please check your inbox at <b>" +
+        escapeHtml(email) +
+        "</b> (or spam folder) and enter the code below.";
+    } else if (emailRes && emailRes.sandbox_restricted) {
+      statusText.innerHTML =
+        "Verification code generated for <b>" +
+        escapeHtml(email) +
+        "</b> <span style='font-size:11px;color:#d97706;'>(Resend Sandbox: Delivery restricted to account owner)</span> &bull; Code: <b>" +
+        generatedContactOtp +
+        "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill Code</button>";
+    } else {
+      statusText.innerHTML =
+        "Verification code generated for <b>" +
+        escapeHtml(email) +
+        "</b> &bull; Code: <b>" +
+        generatedContactOtp +
+        "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill Code</button>";
+    }
   }
 
   btn.disabled = false;
@@ -842,7 +850,8 @@ async function submitRegistration() {
 
     await dbAddNotification({ user_id: accountInfo.user.id, email: email, subject: subject, body: body });
     await dbAddNotification({ role: "agent", subject: "New Application " + saved.ref_no, body: fullName + " submitted " + saved.ref_no });
-    await apiSendEmail(email, subject, body);
+    await dbAddNotification({ role: "manager", subject: "New Application " + saved.ref_no, body: fullName + " submitted " + saved.ref_no + " (" + p.name + ")" });
+    await apiSendApplicationConfirmationEmail(email, fullName, saved.ref_no, p, formatAddress(addrData), accountInfo);
     await dbAddActivity("application_submitted", saved.ref_no + " (" + email + ")");
 
     // Complete all step icons

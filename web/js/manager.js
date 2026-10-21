@@ -67,7 +67,8 @@ function showTab(tab) {
     "overview",
     "app-all", "app-override", "app-encoded",
     "agent-perf", "agent-links",
-    "cms-banners", "cms-assets", "cms-about", "cms-plans", "cms-faqs"
+    "cms-banners", "cms-assets", "cms-about", "cms-plans", "cms-faqs",
+    "promo-broadcast"
   ];
   for (var i = 0; i < allNavs.length; i++) {
     var btn = document.getElementById("nav-" + allNavs[i]);
@@ -87,6 +88,8 @@ function showTab(tab) {
   document.getElementById("tab-cms-about").classList.toggle("hidden", tab !== "cms-about");
   document.getElementById("tab-cms-plans").classList.toggle("hidden", tab !== "cms-plans");
   document.getElementById("tab-cms-faqs").classList.toggle("hidden", tab !== "cms-faqs");
+  var tabPromo = document.getElementById("tab-promo-broadcast");
+  if (tabPromo) tabPromo.classList.toggle("hidden", tab !== "promo-broadcast");
 
   // Auto-enable Maintenance Mode whenever the Manager opens any Content CMS tab
   var maintBar = document.getElementById("cms-maint-bar");
@@ -259,6 +262,36 @@ async function saveMgrOverride() {
 
   await dbAddAiLog(app.id, app.reference_no, "Manager (" + currentManager.full_name + ")", "Manager set status to " + newStatus + " (Agent: " + (agentEmail || "Unassigned") + ")");
   await dbAddLog(currentManager.email, "Manager updated " + app.reference_no + " -> " + newStatus);
+
+  // Notify assigned agent via Email & in-app
+  if (agentEmail && agentEmail !== app.assigned_agent) {
+    await dbAddNotification(
+      agentEmail,
+      "agent",
+      "Application Assigned: " + app.reference_no,
+      "Manager " + currentManager.full_name + " assigned application " + app.reference_no + " to you."
+    );
+    await apiSendAgentAlertEmail(
+      agentEmail,
+      "Application Assigned by Manager",
+      app.reference_no,
+      app.full_name,
+      app.plan_name || "Red Fiber",
+      app.city || "Dasmariñas City",
+      "Assigned by Manager " + currentManager.full_name + (remarks ? " — Remarks: " + remarks : "")
+    );
+  }
+
+  // Notify customer if status was changed
+  if (newStatus !== app.status) {
+    await dbAddNotification(
+      app.email,
+      "customer",
+      "Application " + newStatus + " (" + app.reference_no + ")",
+      remarks || ("Manager updated application status to " + newStatus)
+    );
+    await apiSendStatusEmail(app.email, app.full_name, app.reference_no, newStatus, remarks);
+  }
   closeMgrModal();
   await refreshManagerData();
   showAlert("Saved", "Application " + app.reference_no + " has been updated.");
@@ -605,3 +638,73 @@ function saveFaqsCms() {
   showMsg("cms-faqs-msg", "ok", "FAQs saved to Supabase!");
 }
 
+
+function togglePromoTarget() {
+  var t = document.getElementById("promo-target").value;
+  var wrap = document.getElementById("promo-test-email-wrap");
+  if (wrap) wrap.style.display = (t === "test") ? "block" : "none";
+}
+
+async function sendManagerPromoBroadcast() {
+  var btn = document.getElementById("btn-send-promo");
+  var headline = document.getElementById("promo-headline").value.trim();
+  var target = document.getElementById("promo-target").value;
+  var body = document.getElementById("promo-body").value.trim();
+  var recipient = document.getElementById("promo-recipient").value.trim();
+
+  if (!headline || !body) {
+    showMsg("promo-msg", "error", "Please provide both a campaign headline and promotional message.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Broadcasting via Resend...";
+  showMsg("promo-msg", "info", "Sending promotional communication...");
+
+  try {
+    var plans = [
+      { name: "Red Fiber 50", speed: "50 Mbps", price: "₱1,299" },
+      { name: "Red Fiber 100", speed: "100 Mbps", price: "₱1,699" },
+      { name: "Red Fiber 200", speed: "200 Mbps", price: "₱2,199" }
+    ];
+
+    if (target === "test") {
+      if (!recipient) {
+        showMsg("promo-msg", "error", "Please specify a recipient email address.");
+        btn.disabled = false;
+        btn.textContent = "✉️ Send Promotional Campaign Email";
+        return;
+      }
+      var res = await apiSendPromotionalEmail(recipient, "Valued Customer", headline, body, plans);
+      if (res && res.sent) {
+        showMsg("promo-msg", "ok", "✓ Promotional email sent successfully to " + recipient + " via Resend!");
+      } else if (res && res.sandbox_restricted) {
+        showMsg("promo-msg", "error", "Resend Free Sandbox: Can only deliver to registered account owner (" + recipient + "). To deliver to other emails, verify a domain in Resend.");
+      } else if (res && res.offline) {
+        showMsg("promo-msg", "error", "Local FastAPI server is offline. Please start START-AI.bat to enable live emailing.");
+      } else {
+        showMsg("promo-msg", "error", "Delivery failed: " + ((res && res.reason) || "Error sending email"));
+      }
+    } else {
+      var sentCount = 0;
+      for (var i = 0; i < mgrUsers.length; i++) {
+        var u = mgrUsers[i];
+        if (u.role === "customer" && u.email) {
+          await apiSendPromotionalEmail(u.email, u.full_name || "Subscriber", headline, body, plans);
+          await dbAddNotification(u.email, "customer", headline, body);
+          sentCount++;
+        }
+      }
+      showMsg("promo-msg", "ok", "✓ Campaign broadcasted to " + sentCount + " customer accounts!");
+    }
+
+    if (currentManager) {
+      await dbAddLog(currentManager.email, "Dispatched Promotional Campaign: '" + headline + "'");
+    }
+  } catch (err) {
+    showMsg("promo-msg", "error", "Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✉️ Send Promotional Campaign Email";
+  }
+}
