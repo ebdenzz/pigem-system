@@ -42,11 +42,13 @@ function showGoogleCaptchaPopup() {
 
   if (typeof grecaptcha !== "undefined" && grecaptcha.render) {
     try {
-      var fb = document.getElementById("captcha-fallback-box");
-      if (fb) fb.style.display = "none";
       grecaptcha.render("g-recaptcha-box", {
         sitekey: CONFIG.RECAPTCHA_SITE_KEY,
-        callback: onGoogleCaptchaPassed
+        callback: onGoogleCaptchaPassed,
+        'error-callback': function () {
+          var fb = document.getElementById("captcha-fallback-box");
+          if (fb) fb.style.display = "block";
+        }
       });
     } catch (e) {
       // Fallback is available

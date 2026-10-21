@@ -148,11 +148,13 @@ function showApplySecurityCaptchaModal() {
 
   if (typeof grecaptcha !== "undefined" && grecaptcha.render) {
     try {
-      var fb = document.getElementById("apply-captcha-fallback-box");
-      if (fb) fb.style.display = "none";
       grecaptcha.render("g-apply-recaptcha-box", {
         sitekey: CONFIG.RECAPTCHA_SITE_KEY,
-        callback: onApplyCaptchaVerified
+        callback: onApplyCaptchaVerified,
+        'error-callback': function () {
+          var fb = document.getElementById("apply-captcha-fallback-box");
+          if (fb) fb.style.display = "block";
+        }
       });
     } catch (e) {
       // Fallback is available
