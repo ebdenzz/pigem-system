@@ -1,14 +1,16 @@
 // ============================================================
 // APPLICATION FORM SCRIPT (apply.html)
-// Clean 4-Panel Flow (No "Step" Words):
-//   1. Select Your Plan & Personal Information
-//   2. Contact Information (with OTP) & Installation Location Map
-//   3. Valid ID Documents (Front & Back) — Responsive Camera / QR Code
-//   4. Subscriber Declaration & Terms
+// Clean 6-Panel Flow (No "Step" Words):
+//   Panel 0: Select Your Plan
+//   Panel 1: Personal Information
+//   Panel 2: Contact Information (with OTP)
+//   Panel 3: Installation Location Map & Address
+//   Panel 4: Valid ID Documents (Front & Back) — Responsive Camera / QR Code
+//   Panel 5: Subscriber Declaration & Consent
 // ============================================================
 
 var currentPanel = 0;
-var TOTAL_PANELS = 4;
+var TOTAL_PANELS = 6;
 var selectedPlanId = "1000";
 var referralAgentId = "";
 var leafletMap = null;
@@ -23,8 +25,10 @@ var verifiedEmailAddress = "";
 
 var SECTION_TITLES = [
   "Select Your Plan",
-  "Contact Information & Location Map",
-  "Valid ID Documents (Front & Back)",
+  "Personal Information",
+  "Contact Information",
+  "Installation Location",
+  "Valid ID Documents",
   "Subscriber Declaration & Consent"
 ];
 
@@ -334,7 +338,7 @@ function showPanel(index) {
   document.getElementById("section-pct").textContent = pct + "%";
   document.getElementById("section-bar").style.width = pct + "%";
 
-  if (index === 1) {
+  if (index === 3) {
     setTimeout(initMapPin, 180);
   }
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -351,8 +355,17 @@ function validateCurrentPanel() {
     }
   }
 
-  // Panel 0: Plan Selection & Personal Information
+  // Panel 0: Plan Selection
   if (currentPanel === 0) {
+    if (!selectedPlanId) {
+      markInvalid("plan", "Plan Selection", "Please pick an internet plan.");
+      return false;
+    }
+    return true;
+  }
+
+  // Panel 1: Personal Information
+  if (currentPanel === 1) {
     var first = document.getElementById("first_name").value.trim();
     var middle = document.getElementById("middle_name").value.trim();
     var last = document.getElementById("last_name").value.trim();
@@ -372,10 +385,27 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 1: Contact Information (with OTP) & Location Map
-  if (currentPanel === 1) {
+  // Panel 2: Contact Information (with OTP)
+  if (currentPanel === 2) {
     var email = document.getElementById("email").value.trim().toLowerCase();
     var phone = document.getElementById("phone").value.trim();
+
+    if (!email || email.indexOf("@") === -1) markInvalid("email", "Email Address", "Enter a valid Gmail address.");
+    if (!phone || phone.replace(/\D/g, "").length < 10) markInvalid("phone", "Mobile Number", "Enter an 11-digit mobile number.");
+    if (!isContactOtpVerified || verifiedEmailAddress !== email) {
+      markInvalid("contact_otp", "Contact OTP", "Please send and verify your 6-digit OTP code.", document.getElementById("btn-send-otp"));
+    }
+
+    if (firstInvalidEl) {
+      firstInvalidEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstInvalidEl.focus();
+      return false;
+    }
+    return true;
+  }
+
+  // Panel 3: Installation Location Map & Address
+  if (currentPanel === 3) {
     var house = document.getElementById("house_no").value.trim();
     var bldg = document.getElementById("building_name").value.trim();
     var street = document.getElementById("street").value.trim();
@@ -385,11 +415,6 @@ function validateCurrentPanel() {
     var prov = document.getElementById("province").value.trim();
     var landmark = document.getElementById("landmark").value.trim();
 
-    if (!email || email.indexOf("@") === -1) markInvalid("email", "Email Address", "Enter a valid Gmail address.");
-    if (!phone || phone.replace(/\D/g, "").length < 10) markInvalid("phone", "Mobile Number", "Enter an 11-digit mobile number.");
-    if (!isContactOtpVerified || verifiedEmailAddress !== email) {
-      markInvalid("contact_otp", "Contact OTP", "Please send and verify your 6-digit OTP code.", document.getElementById("btn-send-otp"));
-    }
     if (!house) markInvalid("house_no", "House No.", "Enter house, block, or lot number.");
     if (!bldg) markInvalid("building_name", "Building Name", "Enter building name or N/A.");
     if (!street) markInvalid("street", "Street Name", "Enter your street name.");
@@ -407,8 +432,8 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 2: Valid ID Documents (Front & Back)
-  if (currentPanel === 2) {
+  // Panel 4: Valid ID Documents (Front & Back)
+  if (currentPanel === 4) {
     var idType = document.getElementById("id_type").value;
     var idNumber = document.getElementById("id_number").value.trim();
 
@@ -425,8 +450,8 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 3: Subscriber Certificate & Terms
-  if (currentPanel === 3) {
+  // Panel 5: Subscriber Certificate & Terms
+  if (currentPanel === 5) {
     if (!document.getElementById("agree_sub").checked) {
       markInvalid("agree_sub", "Terms Agreement", "Please check to accept the Subscriber Certificate.");
       if (firstInvalidEl) {
@@ -436,6 +461,9 @@ function validateCurrentPanel() {
     }
     return true;
   }
+
+  return true;
+}
 
   return true;
 }
@@ -781,7 +809,7 @@ async function submitRegistration() {
     }
   } catch (err) {
     if (loadingScreen) loadingScreen.hidden = true;
-    showPanel(3);
+    showPanel(5);
     showAlert("Submission Error", err.message || "Could not submit application.", "bad");
   }
 }

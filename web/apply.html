@@ -26,46 +26,22 @@
     <div class="card" style="margin-bottom:18px;">
       <div class="row between">
         <b id="section-title">Select Your Plan</b>
-        <span id="section-pct" class="small muted">25%</span>
+        <span id="section-pct" class="small muted">17%</span>
       </div>
       <div class="progress mt">
-        <div id="section-bar" style="width:25%"></div>
+        <div id="section-bar" style="width:17%"></div>
       </div>
       <div id="agent-ref-banner" class="notice good mt" hidden></div>
     </div>
 
     <!-- =======================================================
-         PANEL 0: Plan Selection and Personal Information
+         PANEL 0: Plan Selection
          ======================================================= -->
     <section id="panel-0" class="card panel">
       <h3>Select Your Plan</h3>
       <p class="small muted">Choose the monthly Red Fiber internet plan for your home.</p>
 
       <div id="plan-choice-box" class="plan-choice mt"></div>
-
-      <div style="margin-top:28px; padding-top:20px; border-top:1px solid var(--line);">
-        <h3>Personal Information</h3>
-        <p class="small muted">Enter your legal name as printed on your valid government ID.</p>
-
-        <div class="form-grid mt">
-          <div>
-            <label for="first_name">First Name <span class="req" data-req-for="first_name" onmouseenter="showReqTip(this, 'First Name', 'Enter your legal first name.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="first_name" type="text" placeholder="Juan">
-          </div>
-          <div>
-            <label for="middle_name">Middle Name <span class="req" data-req-for="middle_name" onmouseenter="showReqTip(this, 'Middle Name', 'Enter your middle name or type N/A if none.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="middle_name" type="text" placeholder="Santos (or N/A)">
-          </div>
-          <div>
-            <label for="last_name">Last Name <span class="req" data-req-for="last_name" onmouseenter="showReqTip(this, 'Last Name', 'Enter your family surname.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="last_name" type="text" placeholder="Dela Cruz">
-          </div>
-          <div>
-            <label for="birth_date">Birth Date <span class="req" data-req-for="birth_date" onmouseenter="showReqTip(this, 'Birth Date', 'Applicant must be at least 18 years old.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="birth_date" type="date">
-          </div>
-        </div>
-      </div>
 
       <div class="row between mt-big">
         <span></span>
@@ -74,9 +50,41 @@
     </section>
 
     <!-- =======================================================
-         PANEL 1: Contact Information (with OTP) & Location Map
+         PANEL 1: Personal Information
          ======================================================= -->
     <section id="panel-1" class="card panel" hidden>
+      <h3>Personal Information</h3>
+      <p class="small muted">Enter your legal name as printed on your valid government ID.</p>
+
+      <div class="form-grid mt">
+        <div>
+          <label for="first_name">First Name <span class="req" data-req-for="first_name" onmouseenter="showReqTip(this, 'First Name', 'Enter your legal first name.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="first_name" type="text" placeholder="Juan">
+        </div>
+        <div>
+          <label for="middle_name">Middle Name <span class="req" data-req-for="middle_name" onmouseenter="showReqTip(this, 'Middle Name', 'Enter your middle name or type N/A if none.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="middle_name" type="text" placeholder="Santos (or N/A)">
+        </div>
+        <div>
+          <label for="last_name">Last Name <span class="req" data-req-for="last_name" onmouseenter="showReqTip(this, 'Last Name', 'Enter your family surname.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="last_name" type="text" placeholder="Dela Cruz">
+        </div>
+        <div>
+          <label for="birth_date">Birth Date <span class="req" data-req-for="birth_date" onmouseenter="showReqTip(this, 'Birth Date', 'Applicant must be at least 18 years old.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="birth_date" type="date">
+        </div>
+      </div>
+
+      <div class="row between mt-big">
+        <button type="button" class="btn" onclick="prevPanel()">&larr; Back</button>
+        <button type="button" class="btn btn-red" onclick="nextPanel()">Next</button>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         PANEL 2: Contact Information (with OTP)
+         ======================================================= -->
+    <section id="panel-2" class="card panel" hidden>
       <h3>Contact Information</h3>
       <p class="small muted">Provide your active Gmail and primary mobile number for application updates and OTP verification.</p>
 
@@ -113,83 +121,91 @@
         </div>
       </div>
 
-      <div style="margin-top:28px; padding-top:20px; border-top:1px solid var(--line);">
-        <h3>Installation Location</h3>
-        <p class="small muted">Pin your exact house or building on the interactive map so our installation team can verify fiber facility coverage.</p>
+      <div class="row between mt-big">
+        <button type="button" class="btn" onclick="prevPanel()">&larr; Back</button>
+        <button type="button" class="btn btn-red" onclick="nextPanel()">Next</button>
+      </div>
+    </section>
 
-        <div class="row mt" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-          <input id="map-search" type="text" placeholder="Search street, barangay, or city (e.g. Burol Main, Dasmariñas)" style="flex:1; min-width:210px;">
-          <button type="button" class="btn btn-small" onclick="searchMapAddress()">Search Map</button>
-          <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()">&#128205; Use My Location</button>
+    <!-- =======================================================
+         PANEL 3: Installation Location Map & Address
+         ======================================================= -->
+    <section id="panel-3" class="card panel" hidden>
+      <h3>Installation Location</h3>
+      <p class="small muted">Pin your exact house or building on the interactive map so our installation team can verify fiber facility coverage.</p>
+
+      <div class="row mt" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <input id="map-search" type="text" placeholder="Search street, barangay, or city (e.g. Burol Main, Dasmariñas)" style="flex:1; min-width:210px;">
+        <button type="button" class="btn btn-small" onclick="searchMapAddress()">Search Map</button>
+        <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()">&#128205; Use My Location</button>
+      </div>
+
+      <div id="map"></div>
+      <p id="map-status" class="small muted mt">Click anywhere on the map or drag the marker to auto-fill your address below.</p>
+      <input id="lat" type="hidden" value="14.3294">
+      <input id="lng" type="hidden" value="120.9367">
+
+      <h4 class="mt-big">Installation Address Details</h4>
+      <div class="form-grid three mt">
+        <div>
+          <label for="house_no">House / Lot No. <span class="req" data-req-for="house_no" onmouseenter="showReqTip(this, 'House No.', 'Enter house, block, or lot number.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="house_no" type="text" placeholder="Blk 42 Lot 19">
         </div>
-
-        <div id="map"></div>
-        <p id="map-status" class="small muted mt">Click anywhere on the map or drag the marker to auto-fill your address below.</p>
-        <input id="lat" type="hidden" value="14.3294">
-        <input id="lng" type="hidden" value="120.9367">
-
-        <h4 class="mt-big">Installation Address Details</h4>
-        <div class="form-grid three mt">
-          <div>
-            <label for="house_no">House / Lot No. <span class="req" data-req-for="house_no" onmouseenter="showReqTip(this, 'House No.', 'Enter house, block, or lot number.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="house_no" type="text" placeholder="Blk 42 Lot 19">
-          </div>
-          <div>
-            <label for="house_suffix">House Suffix</label>
-            <input id="house_suffix" type="text" placeholder="e.g. A, B (Optional)">
-          </div>
-          <div>
-            <label for="unit_no">Unit / Room No.</label>
-            <input id="unit_no" type="text" placeholder="Optional">
-          </div>
-          <div>
-            <label for="unit_type">Unit Type <span class="req" data-req-for="unit_type" onmouseenter="showReqTip(this, 'Unit Type', 'Select property type.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <select id="unit_type">
-              <option value="Residential">Residential House</option>
-              <option value="Apartment / Townhouse">Apartment / Townhouse</option>
-              <option value="Condominium">Condominium</option>
-              <option value="Commercial / Office">Commercial / Office</option>
-            </select>
-          </div>
-          <div>
-            <label for="floor_no">Floor No.</label>
-            <input id="floor_no" type="text" placeholder="e.g. 1st, 2nd (Optional)">
-          </div>
-          <div>
-            <label for="building_name">Building / Apartment Name <span class="req" data-req-for="building_name" onmouseenter="showReqTip(this, 'Building Name', 'Enter building name or N/A.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="building_name" type="text" value="N/A">
-          </div>
+        <div>
+          <label for="house_suffix">House Suffix</label>
+          <input id="house_suffix" type="text" placeholder="e.g. A, B (Optional)">
         </div>
+        <div>
+          <label for="unit_no">Unit / Room No.</label>
+          <input id="unit_no" type="text" placeholder="Optional">
+        </div>
+        <div>
+          <label for="unit_type">Unit Type <span class="req" data-req-for="unit_type" onmouseenter="showReqTip(this, 'Unit Type', 'Select property type.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <select id="unit_type">
+            <option value="Residential">Residential House</option>
+            <option value="Apartment / Townhouse">Apartment / Townhouse</option>
+            <option value="Condominium">Condominium</option>
+            <option value="Commercial / Office">Commercial / Office</option>
+          </select>
+        </div>
+        <div>
+          <label for="floor_no">Floor No.</label>
+          <input id="floor_no" type="text" placeholder="e.g. 1st, 2nd (Optional)">
+        </div>
+        <div>
+          <label for="building_name">Building / Apartment Name <span class="req" data-req-for="building_name" onmouseenter="showReqTip(this, 'Building Name', 'Enter building name or N/A.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="building_name" type="text" value="N/A">
+        </div>
+      </div>
 
-        <div class="form-grid mt">
-          <div>
-            <label for="street">Street Name <span class="req" data-req-for="street" onmouseenter="showReqTip(this, 'Street Name', 'Enter street name.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="street" type="text" placeholder="Tokya St.">
-          </div>
-          <div>
-            <label for="subdivision">Subdivision / Village <span class="req" data-req-for="subdivision" onmouseenter="showReqTip(this, 'Subdivision', 'Enter village or subdivision name.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="subdivision" type="text" placeholder="Summerwind Village">
-          </div>
-          <div>
-            <label for="barangay">Barangay <span class="req" data-req-for="barangay" onmouseenter="showReqTip(this, 'Barangay', 'Enter barangay.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="barangay" type="text" placeholder="Brgy. Burol Main">
-          </div>
-          <div>
-            <label for="city">City / Municipality <span class="req" data-req-for="city" onmouseenter="showReqTip(this, 'City', 'Enter city or municipality.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="city" type="text" placeholder="Dasmariñas City">
-          </div>
-          <div>
-            <label for="province">District / Province <span class="req" data-req-for="province" onmouseenter="showReqTip(this, 'Province', 'Enter province.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="province" type="text" placeholder="Cavite">
-          </div>
-          <div>
-            <label for="landmark">Nearest Landmark <span class="req" data-req-for="landmark" onmouseenter="showReqTip(this, 'Landmark', 'Provide nearby store, gate, or school.')" onmouseleave="hideReqTip(this)">*</span></label>
-            <input id="landmark" type="text" placeholder="Near Subdivision Gate / Clubhouse">
-          </div>
-          <div class="full">
-            <label for="remarks">Remarks / Special Instructions</label>
-            <input id="remarks" type="text" placeholder="Optional gate pass or installation schedule notes">
-          </div>
+      <div class="form-grid mt">
+        <div>
+          <label for="street">Street Name <span class="req" data-req-for="street" onmouseenter="showReqTip(this, 'Street Name', 'Enter street name.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="street" type="text" placeholder="Tokya St.">
+        </div>
+        <div>
+          <label for="subdivision">Subdivision / Village <span class="req" data-req-for="subdivision" onmouseenter="showReqTip(this, 'Subdivision', 'Enter village or subdivision name.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="subdivision" type="text" placeholder="Summerwind Village">
+        </div>
+        <div>
+          <label for="barangay">Barangay <span class="req" data-req-for="barangay" onmouseenter="showReqTip(this, 'Barangay', 'Enter barangay.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="barangay" type="text" placeholder="Brgy. Burol Main">
+        </div>
+        <div>
+          <label for="city">City / Municipality <span class="req" data-req-for="city" onmouseenter="showReqTip(this, 'City', 'Enter city or municipality.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="city" type="text" placeholder="Dasmariñas City">
+        </div>
+        <div>
+          <label for="province">District / Province <span class="req" data-req-for="province" onmouseenter="showReqTip(this, 'Province', 'Enter province.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="province" type="text" placeholder="Cavite">
+        </div>
+        <div>
+          <label for="landmark">Nearest Landmark <span class="req" data-req-for="landmark" onmouseenter="showReqTip(this, 'Landmark', 'Provide nearby store, gate, or school.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <input id="landmark" type="text" placeholder="Near Subdivision Gate / Clubhouse">
+        </div>
+        <div class="full">
+          <label for="remarks">Remarks / Special Instructions</label>
+          <input id="remarks" type="text" placeholder="Optional gate pass or installation schedule notes">
         </div>
       </div>
 
@@ -200,9 +216,9 @@
     </section>
 
     <!-- =======================================================
-         PANEL 2: Valid ID Documents (Front & Back)
+         PANEL 4: Valid ID Documents (Front & Back)
          ======================================================= -->
-    <section id="panel-2" class="card panel" hidden>
+    <section id="panel-4" class="card panel" hidden>
       <div class="row between" style="align-items:flex-start; flex-wrap:wrap; gap:10px;">
         <div>
           <h3>Valid Government ID Upload (Front &amp; Back)</h3>
@@ -324,9 +340,9 @@
     </section>
 
     <!-- =======================================================
-         PANEL 3: Detailed Subscriber Declaration & Consent
+         PANEL 5: Detailed Subscriber Declaration & Consent
          ======================================================= -->
-    <section id="panel-3" class="card panel" hidden>
+    <section id="panel-5" class="card panel" hidden>
       <h3>Subscriber Declaration &amp; Consent</h3>
       <p class="small muted">Please review the official Red Fiber subscriber declarations and terms before completing your registration.</p>
 
@@ -362,7 +378,7 @@
     </section>
 
     <!-- =======================================================
-         PANEL 4: Realistic Animated Registration Loading Screen
+         REALISTIC ANIMATED REGISTRATION LOADING SCREEN
          ======================================================= -->
     <section id="panel-loading" class="card panel" hidden>
       <div class="reg-loading-overlay">
