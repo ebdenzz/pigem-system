@@ -466,7 +466,15 @@ function buildStrip(stripId, files, titlePrefix) {
   }, 25);
 }
 
-// Automatically attach an eye icon toggle button to all password fields
+// Role landing pages
+function getHomeForRole(role) {
+  if (role === "admin") return ROOT + "admin.html";
+  if (role === "manager") return ROOT + "manager.html";
+  if (role === "agent") return ROOT + "agent.html";
+  return ROOT + "customer.html";
+}
+
+// Global password eye toggle helper
 function initPasswordEyeToggles(rootEl) {
   var container = rootEl || document;
   var pwInputs = container.querySelectorAll('input[type="password"]');

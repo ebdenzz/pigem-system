@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/images/logo.png">
+  <title>System Setup — Register Admin &amp; Manager Accounts | PIGEM</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+  <header class="simple-bar">
+    <div class="container">
+      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
+      <b>Combined Facilities Support Services — System Initialization</b>
+    </div>
+  </header>
+
+  <main class="form-wrap" style="max-width:760px;">
+    <div class="card">
+      <div class="center" style="margin-bottom:20px;">
+        <span class="tag">System Provisioning Portal</span>
+        <h2 class="mt">Register Primary Staff Accounts</h2>
+        <p class="small muted mt">Use this portal to register the official <b>System Administrator</b> and <b>Operations Manager</b> accounts to initialize the operational system.</p>
+      </div>
+
+      <div class="grid-2" style="gap:24px; align-items:start;">
+        <!-- Card 1: System Admin Account -->
+        <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <span class="badge" style="background:#101828; color:#fff;">1</span>
+            <h3 style="margin:0; font-size:17px;">System Administrator</h3>
+          </div>
+          <p class="small muted">Full access to technical monitoring, system settings, audit logs, and AI configurations.</p>
+          
+          <div class="mt">
+            <label for="adm-name">Full Legal Name</label>
+            <input id="adm-name" type="text" placeholder="e.g. Juan C. Dela Cruz">
+          </div>
+          <div class="mt">
+            <label for="adm-email">Admin Email Address</label>
+            <input id="adm-email" type="email" placeholder="admin@pigem.local or gmail">
+          </div>
+          <div class="mt">
+            <label for="adm-age">Age / Designation</label>
+            <input id="adm-age" type="text" placeholder="e.g. 32 / Lead Systems Engineer">
+          </div>
+          <div class="mt">
+            <label for="adm-pw">Password</label>
+            <input id="adm-pw" type="password" placeholder="At least 6 characters">
+          </div>
+          <button type="button" id="btn-save-admin" class="btn btn-red btn-full mt-big" onclick="registerAdminAccount()">Create Admin Account</button>
+          <div id="adm-status" class="small mt center"></div>
+        </div>
+
+        <!-- Card 2: Operations Manager Account -->
+        <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <span class="badge" style="background:#c8102e; color:#fff;">2</span>
+            <h3 style="margin:0; font-size:17px;">Operations Manager</h3>
+          </div>
+          <p class="small muted">Full access to application management, verification agent creation, referral links, and CMS content.</p>
+
+          <div class="mt">
+            <label for="mgr-name">Full Legal Name</label>
+            <input id="mgr-name" type="text" placeholder="e.g. Maria S. Reyes">
+          </div>
+          <div class="mt">
+            <label for="mgr-email">Manager Email Address</label>
+            <input id="mgr-email" type="email" placeholder="manager@pigem.local or gmail">
+          </div>
+          <div class="mt">
+            <label for="mgr-phone">Contact Mobile Number</label>
+            <input id="mgr-phone" type="tel" placeholder="09171234567">
+          </div>
+          <div class="mt">
+            <label for="mgr-pw">Password</label>
+            <input id="mgr-pw" type="password" placeholder="At least 6 characters">
+          </div>
+          <button type="button" id="btn-save-manager" class="btn btn-dark btn-full mt-big" onclick="registerManagerAccount()">Create Manager Account</button>
+          <div id="mgr-status" class="small mt center"></div>
+        </div>
+      </div>
+
+      <div class="row between mt-big" style="border-top:1px solid var(--line); padding-top:16px;">
+        <a href="index.html" class="btn btn-small">&larr; Back to Home</a>
+        <div class="row" style="gap:8px;">
+          <a href="staff-login.html" class="btn btn-small">Staff Login</a>
+          <a href="admin-login.html" class="btn btn-small btn-red">Admin Login</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    async function registerAdminAccount() {
+      var name = document.getElementById("adm-name").value.trim();
+      var email = document.getElementById("adm-email").value.trim().toLowerCase();
+      var age = document.getElementById("adm-age").value.trim();
+      var pw = document.getElementById("adm-pw").value;
+      var statusEl = document.getElementById("adm-status");
+      var btn = document.getElementById("btn-save-admin");
+
+      if (!name || !email || !pw) {
+        showAlert("Missing Fields", "Please fill in Name, Email, and Password for the Admin account.", "warn");
+        return;
+      }
+      if (pw.length < 6) {
+        showAlert("Password Short", "Password must be at least 6 characters.", "warn");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating...";
+      try {
+        var created = await dbCreateUserAccount(name, email, pw, "admin");
+        if (age) {
+          await dbUpdateProfile(created.id, { intro: age });
+        }
+        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Admin account created successfully!</b>";
+        showAlert("Admin Created", "System Administrator account for " + email + " is ready. You can now log in at admin-login.html.", "good");
+      } catch (err) {
+        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed to create account") + "</b>";
+        showAlert("Creation Failed", err.message || "Could not create Admin account.", "bad");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Create Admin Account";
+      }
+    }
+
+    async function registerManagerAccount() {
+      var name = document.getElementById("mgr-name").value.trim();
+      var email = document.getElementById("mgr-email").value.trim().toLowerCase();
+      var phone = document.getElementById("mgr-phone").value.trim();
+      var pw = document.getElementById("mgr-pw").value;
+      var statusEl = document.getElementById("mgr-status");
+      var btn = document.getElementById("btn-save-manager");
+
+      if (!name || !email || !pw) {
+        showAlert("Missing Fields", "Please fill in Name, Email, and Password for the Manager account.", "warn");
+        return;
+      }
+      if (pw.length < 6) {
+        showAlert("Password Short", "Password must be at least 6 characters.", "warn");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating...";
+      try {
+        var created = await dbCreateUserAccount(name, email, pw, "manager");
+        if (phone) {
+          await dbUpdateProfile(created.id, { intro: "Contact: " + phone });
+        }
+        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Manager account created successfully!</b>";
+        showAlert("Manager Created", "Operations Manager account for " + email + " is ready. You can now log in at staff-login.html.", "good");
+      } catch (err) {
+        statusEl.innerHTML = "<b style='color:var(--bad);'>" + (err.message || "Failed to create account") + "</b>";
+        showAlert("Creation Failed", err.message || "Could not create Manager account.", "bad");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Create Manager Account";
+      }
+    }
+  </script>
+</body>
+</html>

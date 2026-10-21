@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Staff Login (Agent &amp; Manager) | PIGEM</title>
+  <title>Internal Login | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -12,22 +12,20 @@
   <header class="simple-bar">
     <div class="container">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-      <b>PIGEM Internal Staff Portal</b>
+      <b>Combined Facilities Support Services</b>
     </div>
   </header>
 
   <main class="auth-page">
     <div class="card auth-card">
       <div class="center">
-        <span class="tag">Subsystem 2 &mdash; Agent &amp; Manager</span>
-        <h2 class="mt">Staff Sign In</h2>
-        <p class="small muted mt">Sign in with your Agent or Manager account. The system will open your assigned workspace automatically.</p>
+        <h2>Internal Login</h2>
       </div>
 
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Staff Email Address</label>
-          <input id="email" type="email" placeholder="agent@pigem.local or manager@pigem.local" required>
+          <label for="email">Email Address</label>
+          <input id="email" type="email" placeholder="Enter your email" required>
         </div>
 
         <div class="mt">
@@ -48,6 +46,7 @@
     </div>
   </main>
 
+  <script>window.SYSTEM = "staff";</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

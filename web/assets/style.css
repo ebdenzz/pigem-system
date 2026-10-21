@@ -322,9 +322,9 @@ input[type="checkbox"], input[type="radio"] { width: auto; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; font-size: 15px; }
 .check input { margin-top: 4px; }
 
-/* Clickable red star on required fields (opens a help popup) */
-.req { color: var(--red); cursor: pointer; font-weight: 800; padding: 0 3px; }
-.req:hover { text-decoration: underline; }
+/* Clickable/hoverable red star on required fields */
+.req { color: var(--red); cursor: pointer; font-weight: 800; padding: 0 3px; text-decoration: none; }
+.req:hover { text-decoration: none; opacity: 0.85; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 16px; }
 .form-grid.three { grid-template-columns: repeat(3, 1fr); }
@@ -878,6 +878,14 @@ body.drawer-open .drawer-back { display: block; }
   .dash-wrap { grid-template-columns: 1fr; }
 }
 
+/* Black & White Logo for Dark Theme */
+html[data-theme="dark"] .brand img,
+html[data-theme="dark"] .logo img,
+html[data-theme="dark"] .topbar img,
+html[data-theme="dark"] .simple-bar img {
+  filter: grayscale(100%) brightness(1.15);
+}
+
 /* Password Eye Icon Wrapper */
 .pw-wrap {
   position: relative;
@@ -917,6 +925,7 @@ body.drawer-open .drawer-back { display: block; }
   font-weight: 800;
   padding: 0 4px;
   user-select: none;
+  text-decoration: none;
 }
 .req-bubble {
   position: absolute;
@@ -936,6 +945,13 @@ body.drawer-open .drawer-back { display: block; }
   pointer-events: none;
   text-align: left;
 }
+.req-bubble.error-pop {
+  background: #c8102e;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+}
+.req-bubble.error-pop::after {
+  border-top-color: #c8102e;
+}
 .req-bubble::after {
   content: "";
   position: absolute;
@@ -944,6 +960,67 @@ body.drawer-open .drawer-back { display: block; }
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: #1d1f24;
+}
+
+/* Realistic Registration Loading Overlay */
+.reg-loading-overlay {
+  text-align: center;
+  padding: 32px 16px;
+}
+.reg-spinner {
+  width: 52px;
+  height: 52px;
+  border: 4px solid var(--line);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.reg-step-list {
+  max-width: 380px;
+  margin: 20px auto 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.reg-step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  transition: all 0.3s;
+}
+.reg-step-item.active {
+  color: var(--text);
+  font-weight: 700;
+}
+.reg-step-item.done {
+  color: var(--good);
+  font-weight: 600;
+}
+.reg-step-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.reg-step-item.active .reg-step-icon {
+  border-color: var(--red);
+  color: var(--red);
+}
+.reg-step-item.done .reg-step-icon {
+  border-color: var(--good);
+  background: var(--good);
+  color: #fff;
 }
 
 /* Custom Camera / Photos Upload Card */

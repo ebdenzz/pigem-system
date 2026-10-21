@@ -1,98 +1,94 @@
 # PIGEM Web-Based Internet Service Application System
 
-A web-based internet service application, local AI-assisted document screening, and multi-portal management system developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite).
+A web-based fiber internet application, local AI-assisted document screening, and multi-portal management system developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite).
 
 ---
 
-## 🌐 Live Web Deployment (Vercel)
+## 🌐 Live System Subsystems & Portals (Vercel)
 
-The web interface is deployed on Vercel and connected to **Supabase Cloud** (`PostgreSQL`, `Authentication`, and `Storage`), separated into **three independent subsystems**:
+The system is deployed on Vercel and backed by **Supabase Cloud** (`PostgreSQL`, `Auth`, and `Storage`), divided into **three independent subsystems**:
 
-1. **External Customer Subsystem (Public Website, Online Application & Customer Portal)**
-   - **Public Home Page:** [https://pigem-system-web.vercel.app/index.html](https://pigem-system-web.vercel.app/index.html)
-   - **About PIGEM Page:** [https://pigem-system-web.vercel.app/about.html](https://pigem-system-web.vercel.app/about.html)
-   - **Online Application Form:** [https://pigem-system-web.vercel.app/apply.html](https://pigem-system-web.vercel.app/apply.html)
-   - **One-Time Account Activation:** [https://pigem-system-web.vercel.app/activate.html](https://pigem-system-web.vercel.app/activate.html)
-   - **Customer Login:** [https://pigem-system-web.vercel.app/login.html](https://pigem-system-web.vercel.app/login.html)
-   - **Customer Application Monitoring Portal:** [https://pigem-system-web.vercel.app/customer.html](https://pigem-system-web.vercel.app/customer.html)
+### 1. External Customer Subsystem (Public Website, Application & Customer Portal)
+- **Public Home Page:** [https://pigem-system-web.vercel.app/index.html](https://pigem-system-web.vercel.app/index.html)
+- **About PIGEM Page:** [https://pigem-system-web.vercel.app/about.html](https://pigem-system-web.vercel.app/about.html)
+- **Online Application Form:** [https://pigem-system-web.vercel.app/apply.html](https://pigem-system-web.vercel.app/apply.html)
+- **One-Time Account Activation:** [https://pigem-system-web.vercel.app/activate.html](https://pigem-system-web.vercel.app/activate.html)
+- **Customer Login:** [https://pigem-system-web.vercel.app/login.html](https://pigem-system-web.vercel.app/login.html)
+- **Customer Application Monitoring Portal:** [https://pigem-system-web.vercel.app/customer.html](https://pigem-system-web.vercel.app/customer.html)
 
-2. **Internal Application Management Subsystem (Verification Agents & Manager)**
-   - **Staff Login & Registration (Agent / Manager):** [https://pigem-system-web.vercel.app/staff-login.html](https://pigem-system-web.vercel.app/staff-login.html)
-   - **Agent Verification & Encoding Dashboard:** [https://pigem-system-web.vercel.app/agent.html](https://pigem-system-web.vercel.app/agent.html)
-   - **Manager Monitoring & Content CMS Dashboard:** [https://pigem-system-web.vercel.app/manager.html](https://pigem-system-web.vercel.app/manager.html)
+### 2. Internal Application Management Subsystem (Verification Agents & Manager)
+- **Internal Staff Login:** [https://pigem-system-web.vercel.app/staff-login.html](https://pigem-system-web.vercel.app/staff-login.html)
+- **Agent Verification & Encoding Workspace:** [https://pigem-system-web.vercel.app/agent.html](https://pigem-system-web.vercel.app/agent.html)
+- **Manager Monitoring & Content CMS Workspace:** [https://pigem-system-web.vercel.app/manager.html](https://pigem-system-web.vercel.app/manager.html)
 
-3. **Internal Technical Management Subsystem (System Administrator)**
-   - **Admin Login & Registration:** [https://pigem-system-web.vercel.app/admin-login.html](https://pigem-system-web.vercel.app/admin-login.html)
-   - **Technical Management Dashboard:** [https://pigem-system-web.vercel.app/admin.html](https://pigem-system-web.vercel.app/admin.html)
-
----
-
-## 🔒 Local-Only AI Architecture (Prototype Data Privacy & Offline Detection)
-
-For data privacy and security of customer government IDs during the prototype stage, the AI screening stack runs **strictly locally** on the authorized workstation (`http://127.0.0.1:8001`):
-
-- **When `START-SYSTEM.bat` (and local `Ollama qwen2.5:1.5b`) is running on the workstation:**
-  - **Ollama (`qwen2.5:1.5b`)**, **OpenCV**, and **PaddleOCR** are **Online**.
-  - Uploaded IDs are screened locally for blur/sharpness, brightness, glare, and OCR field consistency, and Agents can use **`✨ AI Generate Polite Message`** to convert raw RADIUS / Validator remarks into polite customer instructions.
-- **When opened from another location or when local `Ollama` / `START-SYSTEM.bat` is not running:**
-  - The **Technical Admin Console (`admin.html`)** and **Agent Dashboard (`agent.html`)** automatically detect and display that **Ollama AI and its related screening APIs (`OpenCV` and `PaddleOCR`) are OFFLINE**, and the system seamlessly operates in **Manual Agent Verification Mode**.
-- **Future Work / Recommendation:**
-  - Future iterations can transition from local Ollama to a dedicated, custom-trained private cloud AI model engineered specifically for secure telecommunication document screening.
+### 3. Internal Technical Management Subsystem (System Administrator)
+- **Admin Login:** [https://pigem-system-web.vercel.app/admin-login.html](https://pigem-system-web.vercel.app/admin-login.html)
+- **Technical Management Dashboard:** [https://pigem-system-web.vercel.app/admin.html](https://pigem-system-web.vercel.app/admin.html)
+- **Initial Admin & Manager Account Setup Portal:** [https://pigem-system-web.vercel.app/setup-accounts.html](https://pigem-system-web.vercel.app/setup-accounts.html)
 
 ---
 
-## ✨ Key Features
+## 🤖 Bakit Ollama at Local AI ang Ginamit? (Defense Guide & Rationale)
 
-- **Online Fiber Application & Interactive Map Pinning:** Customers select a Red Fiber plan (`Plan 1000`, `Plan 1400`, `Plan 1900`), pin their exact installation coordinates via **Leaflet + OpenStreetMap + Nominatim**, and upload their valid government ID.
-- **Validator / RADIUS Remark $\rightarrow$ Polite Customer Message & Specific Field Detection:**
-  - Verification agents paste raw remarks from the provider validator (e.g., duplicate email in RADIUS, duplicate mobile number, or unreadable ID) and specify the target field (`Email Address`, `Mobile Number`, `Valid ID Photo`, `ID Number`, or `Address`).
-  - Once the customer updates the highlighted field(s) in `customer.html`, the system automatically verifies the change and returns the application status to **Processing**.
-- **Original vs. Corrected Copy Comparison:** Preserves the customer's original submission alongside the latest corrected submission so agents can compare versions side-by-side.
-- **Manager Content CMS & Supabase Bucket Media Switcher:**
-  - Edit the **4 Home Hero Slides** and **4 About Hero Slides**, upload new banners/logos/vehicles/permits directly to the Supabase `website-assets` bucket, and switch between any saved bucket images at any time.
-  - Opening Content CMS automatically enables **Maintenance Mode** to protect public pages while edits are in progress, with a live preview bypass for the Manager.
+Madalas itanong sa defense: *"Bakit hindi na lang nag-host ng sariling AI sa cloud o gumawa ng sariling AI model mula sa umpisa?"*
+
+Narito ang malinaw na paliwanag (Defense Points):
+
+1. **Proteksyon sa Data Privacy (RA 10173 - Data Privacy Act of 2012):**
+   - Ang mga aplikante ay nag-a-upload ng maselang **Government-Issued IDs** (PhilSys National ID, Driver's License, Passport).
+   - Kung gagamit ng public third-party cloud AI (tulad ng standard cloud APIs), maaaring magkaroon ng risk na ma-expose o ma-log ang private IDs sa servers ng ibang kumpanya.
+   - Dahil **Local ang Ollama (`qwen2.5:1.5b`)**, **OpenCV**, at **PaddleOCR**, ang image analysis at text verification ay tumatakbo **sa sariling authorized machine lamang**. Walang picture ng ID na ipinapadala sa labas.
+
+2. **Walang Monthly API Costs (Zero Recurring Cloud Bill):**
+   - Ang training at hosting ng custom cloud neural network ay nagkakahalaga ng libu-libong piso buwan-buwan para sa high-end GPU cloud instances (AWS/GCP).
+   - Sa paggamit ng **Ollama**, libre at open-source ang AI runtime, kayang patakbuhin sa normal na computer o workstation nang walang dagdag na bayad.
+
+3. **Graceful Offline Fallback (Hindi Babagsak ang System kahit Walang AI):**
+   - Kapag naka-off ang local AI server (halimbawa kung offline ang workstation), **100% pa ring gumagana ang website sa Vercel at Supabase**.
+   - Ang status sa Agent at Admin portal ay awtomatikong magiging **"AI Offline (Manual Review)"**. Ang ahente ay puwedeng mag-verify nang manu-mano gamit ang mga **Quick Select Presets** sa dropdown!
+
+4. **Future Roadmap (In-House Dedicated Private Cloud Server):**
+   - Para sa susunod na scale-up phase ng enterprise, ang local pipeline ay puwedeng ilipat sa isang **private dedicated on-premise cloud server** na eksklusibo lamang para sa kumpanya.
 
 ---
 
-## 🗂 Project Structure
+## 🚀 Paano Patakbuhin ang Local AI Server
 
+Isang simpleng utos lamang ang kailangan para maging online ang AI document screening:
+
+### Option A: Double-Click ang Batch File
+I-double-click lamang ang:
 ```text
-pigem_system/
-├── web/                        # Frontend Web Application (Deployed on Vercel)
-│   ├── index.html              # Public Home Page (Hero Slider, Plans, FAQs)
-│   ├── about.html              # Company Profile, Clients, Vehicles, Permits
-│   ├── apply.html              # Online Service Application Form + Leaflet Map
-│   ├── activate.html           # One-Time Customer Account Activation
-│   ├── login.html              # Customer Login
-│   ├── customer.html           # Customer Application Monitoring & Correction Portal
-│   ├── staff-login.html        # Agent & Manager Login / Registration
-│   ├── agent.html              # Agent Verification, AI Log & Encoding Dashboard
-│   ├── manager.html            # Manager Monitoring, Overrides & Content CMS
-│   ├── admin-login.html        # System Administrator Login / Registration
-│   ├── admin.html              # Technical Management (Maintenance, AI Status, Logs)
-│   ├── assets/                 # Stylesheet (style.css) and Image Assets
-│   └── js/                     # Modular Frontend Scripts (config, db, api, portals)
-├── api/                        # Local Python FastAPI Backend (OpenCV, PaddleOCR, Ollama, Resend)
-│   ├── main.py                 # FastAPI Endpoints (/health, /screen, /polite-remark, /notify)
-│   ├── quality.py              # OpenCV Image Blur, Brightness & Glare Analysis
-│   ├── ocr.py                  # PaddleOCR ID Text Extraction & Field Matching
-│   ├── ai.py                   # Ollama (qwen2.5:1.5b) Screening Summary & Polite Remarks
-│   ├── mailer.py               # Resend Transactional Email Service
-│   └── requirements.txt        # Python Dependencies
-├── supabase/
-│   └── schema.sql              # Unified 12-Table PostgreSQL Schema & Storage Buckets
-├── START-SYSTEM.bat            # One-Click Local Launcher (Website + Local Python AI Server)
-└── vercel.json                 # Vercel Static Hosting Configuration
+START-AI.bat
 ```
 
----
-
-## 🚀 Starting the Local AI Server (`START-SYSTEM.bat`)
-
-To run the local Python FastAPI + OpenCV + PaddleOCR + Ollama (`qwen2.5:1.5b`) service on your workstation:
-
+### Option B: Terminal Command (PowerShell / Command Prompt)
 ```powershell
 cd api
 .\.venv311\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001
 ```
-*(Or double-click `START-SYSTEM.bat` in the project root.)*
+
+*(Siguraduhing bukas din ang Ollama sa background sa port 11434 sa pamamagitan ng pag-type ng `ollama run qwen2.5:1.5b`.)*
+
+---
+
+## 🎨 Paano Gawing Transparent ang Background ng Client / Partner Logos
+
+Para maging malinis at transparent ang mga logo sa About page (hindi lumalabas na may puti o gray na box):
+
+1. **Step 1:** Buksan ang libreng background removal tool: [remove.bg](https://www.remove.bg) o [tinypng.com](https://tinypng.com).
+2. **Step 2:** I-upload ang logo image (hal. `client-infus8.png`, `client-radius.png`, o `client-maxcyc.png`).
+3. **Step 3:** Awtomatikong aalisin ng tool ang puti o gray na background. I-download ang **Transparent PNG** file.
+4. **Step 4:** Palitan ang file sa folder na:
+   ```text
+   web/assets/images/Clients/
+   ```
+   *(O i-upload ito gamit ang Manager CMS Dashboard sa `manager.html` sa ilalim ng **Clients** section!)*
+
+---
+
+## 🛠 Tech Stack Overview
+
+- **Frontend & Deployment:** HTML5, CSS3, Vanilla JavaScript, Leaflet.js, OpenStreetMap, Vercel Static Hosting.
+- **Backend & Cloud Database:** Supabase (`PostgreSQL`, `Storage Buckets`, `Authentication`, `Row-Level Security`).
+- **Local AI Pipeline:** Python 3.11, FastAPI, OpenCV (Blur/Glare Detection), PaddleOCR (Text Extraction), Ollama (`qwen2.5:1.5b`), Resend API (Transactional Corporate Email).

@@ -137,6 +137,11 @@ function jumpToApp(appId) {
   }
 }
 
+function autoLinkUrls(text) {
+  var escaped = escapeHtml(text || "");
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:var(--red); text-decoration:underline; word-break:break-all;">$1</a>');
+}
+
 // 5. Notifications Bell
 async function refreshNotifBell(user) {
   if (!user) return;
@@ -154,10 +159,10 @@ async function refreshNotifBell(user) {
       var h = "";
       for (var i = 0; i < Math.min(list.length, 12); i++) {
         var n = list[i];
-        h += '<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:12px">' +
-          '<b>' + escapeHtml(n.title) + '</b>' +
-          '<div>' + escapeHtml(n.message) + '</div>' +
-          '<div class="muted" style="font-size:11px">' + formatDate(n.created_at) + '</div>' +
+        h += '<div style="padding:10px 0; border-bottom:1px solid var(--line); font-size:12px">' +
+          '<b style="display:block; margin-bottom:3px;">' + escapeHtml(n.title) + '</b>' +
+          '<div style="line-height:1.5;">' + autoLinkUrls(n.message) + '</div>' +
+          '<div class="muted" style="font-size:11px; margin-top:4px">' + formatDate(n.created_at) + '</div>' +
           '</div>';
       }
       bodyEl.innerHTML = h;

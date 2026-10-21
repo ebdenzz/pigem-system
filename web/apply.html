@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Internet Service Application Form | Combined Facilities Support Services</title>
+  <title>Application Form | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -12,58 +12,64 @@
 
   <!-- Simple Top Bar -->
   <header class="simple-bar">
-    <div class="container">
-      <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-      <b>Internet Service Application Form</b>
+    <div class="container" style="justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
+        <b>Application Form</b>
+      </div>
+      <a href="index.html" class="btn btn-small">&#8592; Back</a>
     </div>
   </header>
 
   <main class="form-wrap">
-    <!-- Step Progress Header -->
+    <!-- Progress Header (Clean, No "Step" Words) -->
     <div class="card" style="margin-bottom:18px;">
       <div class="row between">
-        <b id="step-title">Step 1 of 4: Plan &amp; Personal Information</b>
-        <span id="step-count" class="small muted">25%</span>
+        <b id="section-title">Select Your Plan</b>
+        <span id="section-pct" class="small muted">25%</span>
       </div>
       <div class="progress mt">
-        <div id="step-bar" style="width:25%"></div>
+        <div id="section-bar" style="width:25%"></div>
       </div>
       <div id="agent-ref-banner" class="notice good mt" hidden></div>
     </div>
 
     <!-- =======================================================
-         PANEL 0: Select Your Plan & Personal Information
+         PANEL 0: Plan Selection and Personal Information
          ======================================================= -->
     <section id="panel-0" class="card panel">
-      <h3>Select Your Plan &amp; Personal Information</h3>
-      <p class="small muted">Choose your Red Fiber plan and enter your full legal name as shown on your government ID.</p>
+      <h3>Select Your Plan</h3>
+      <p class="small muted">Choose the monthly Red Fiber internet plan for your home.</p>
 
-      <h4>Internet Plan <span class="req" onclick="helpTip('Internet Plan', 'Select the monthly Red Fiber speed plan you want installed.', event)">*</span></h4>
-      <div id="plan-choice-box" class="plan-choice"></div>
+      <div id="plan-choice-box" class="plan-choice mt"></div>
 
-      <h4>Personal Information</h4>
-      <div class="form-grid">
-        <div>
-          <label for="first_name">First Name <span class="req" onclick="helpTip('First Name', 'Enter your legal given name exactly as printed on your valid ID.', event)">*</span></label>
-          <input id="first_name" type="text" placeholder="Juan">
-        </div>
-        <div>
-          <label for="middle_name">Middle Name <span class="req" onclick="helpTip('Middle Name', 'Enter your middle name, or type N/A if you have no middle name.', event)">*</span></label>
-          <input id="middle_name" type="text" placeholder="Santos (or N/A)">
-        </div>
-        <div>
-          <label for="last_name">Last Name <span class="req" onclick="helpTip('Last Name', 'Enter your family name / surname as printed on your valid ID.', event)">*</span></label>
-          <input id="last_name" type="text" placeholder="Dela Cruz">
-        </div>
-        <div>
-          <label for="birth_date">Birth Date <span class="req" onclick="helpTip('Birth Date', 'Select your date of birth. Applicants must be at least 18 years old.', event)">*</span></label>
-          <input id="birth_date" type="date">
+      <div style="margin-top:28px; padding-top:20px; border-top:1px solid var(--line);">
+        <h3>Personal Information</h3>
+        <p class="small muted">Enter your legal name as printed on your valid government ID.</p>
+
+        <div class="form-grid mt">
+          <div>
+            <label for="first_name">First Name <span class="req" data-req-for="first_name" onmouseenter="showReqTip(this, 'First Name', 'Enter your legal first name.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="first_name" type="text" placeholder="Juan">
+          </div>
+          <div>
+            <label for="middle_name">Middle Name <span class="req" data-req-for="middle_name" onmouseenter="showReqTip(this, 'Middle Name', 'Enter your middle name or type N/A if none.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="middle_name" type="text" placeholder="Santos (or N/A)">
+          </div>
+          <div>
+            <label for="last_name">Last Name <span class="req" data-req-for="last_name" onmouseenter="showReqTip(this, 'Last Name', 'Enter your family surname.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="last_name" type="text" placeholder="Dela Cruz">
+          </div>
+          <div>
+            <label for="birth_date">Birth Date <span class="req" data-req-for="birth_date" onmouseenter="showReqTip(this, 'Birth Date', 'Applicant must be at least 18 years old.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="birth_date" type="date">
+          </div>
         </div>
       </div>
 
       <div class="row between mt-big">
         <span></span>
-        <button type="button" class="btn btn-red" onclick="nextPanel()">Next Step &rarr;</button>
+        <button type="button" class="btn btn-red" onclick="nextPanel()">Next</button>
       </div>
     </section>
 
@@ -71,17 +77,16 @@
          PANEL 1: Contact Information (with OTP) & Location Map
          ======================================================= -->
     <section id="panel-1" class="card panel" hidden>
-      <h3>Contact Information &amp; Installation Location</h3>
-      <p class="small muted">Provide your active Gmail and mobile number for OTP verification, then pin your exact installation address on the map.</p>
+      <h3>Contact Information</h3>
+      <p class="small muted">Provide your active Gmail and primary mobile number for application updates and OTP verification.</p>
 
-      <h4>Contact Information</h4>
-      <div class="form-grid">
+      <div class="form-grid mt">
         <div class="full">
-          <label for="email">Email Address (Gmail) <span class="req" onclick="helpTip('Email Address', 'Enter an active Gmail address where your OTP, Reference Number, and Account Activation will be sent.', event)">*</span></label>
+          <label for="email">Email Address (Gmail) <span class="req" data-req-for="email" onmouseenter="showReqTip(this, 'Email Address', 'Enter your active Gmail address.')" onmouseleave="hideReqTip(this)">*</span></label>
           <input id="email" type="email" placeholder="juandelacruz@gmail.com">
         </div>
         <div>
-          <label for="phone">Primary Mobile Number <span class="req" onclick="helpTip('Primary Mobile Number', 'Enter your active 11-digit Philippine mobile number (e.g. 09171234567).', event)">*</span></label>
+          <label for="phone">Primary Mobile Number <span class="req" data-req-for="phone" onmouseenter="showReqTip(this, 'Mobile Number', 'Enter active 11-digit mobile number (e.g. 09171234567).')" onmouseleave="hideReqTip(this)">*</span></label>
           <input id="phone" type="tel" placeholder="09171234567">
         </div>
         <div>
@@ -89,12 +94,12 @@
           <input id="phone_alt" type="tel" placeholder="Optional alternate number">
         </div>
 
-        <!-- OTP Verification Box -->
+        <!-- Contact Verification Box -->
         <div class="full">
           <div class="upload-box" style="background:var(--bg-soft);">
             <div class="row between" style="align-items:center; flex-wrap:wrap; gap:10px;">
               <div>
-                <b style="font-size:14px;">Contact Verification (OTP) <span class="req" onclick="helpTip('Contact OTP', 'Click Send OTP to receive a 6-digit verification code via email/SMS and verify your contact details.', event)">*</span></b>
+                <b style="font-size:14px;">Contact Verification (OTP) <span class="req" data-req-for="contact_otp" onmouseenter="showReqTip(this, 'Contact OTP', 'Verify your contact details with a 6-digit code.')" onmouseleave="hideReqTip(this)">*</span></b>
                 <p id="otp-status-text" class="small muted">Send a 6-digit OTP code to verify your Gmail and mobile number.</p>
               </div>
               <button type="button" id="btn-send-otp" class="btn btn-small btn-red" onclick="sendContactOtp()">Send OTP</button>
@@ -108,101 +113,110 @@
         </div>
       </div>
 
-      <h4>Pin Your Installation Location <span class="req" onclick="helpTip('Location Pin', 'Click on the map or drag the blue pin to your exact house/building. Address fields below will auto-fill.', event)">*</span></h4>
-      <div class="row" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <input id="map-search" type="text" placeholder="Search street, barangay, or city (e.g. Burol Main, Dasmariñas)" style="flex:1; min-width:210px;">
-        <button type="button" class="btn btn-small" onclick="searchMapAddress()">Search Map</button>
-        <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()">&#128205; Use My Location</button>
-      </div>
+      <div style="margin-top:28px; padding-top:20px; border-top:1px solid var(--line);">
+        <h3>Installation Location</h3>
+        <p class="small muted">Pin your exact house or building on the interactive map so our installation team can verify fiber facility coverage.</p>
 
-      <div id="map"></div>
-      <p id="map-status" class="small muted mt">Click anywhere on the map or drag the marker to auto-fill your address below.</p>
-      <input id="lat" type="hidden" value="14.3294">
-      <input id="lng" type="hidden" value="120.9367">
+        <div class="row mt" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <input id="map-search" type="text" placeholder="Search street, barangay, or city (e.g. Burol Main, Dasmariñas)" style="flex:1; min-width:210px;">
+          <button type="button" class="btn btn-small" onclick="searchMapAddress()">Search Map</button>
+          <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()">&#128205; Use My Location</button>
+        </div>
 
-      <h4>Installation Address</h4>
-      <div class="form-grid three">
-        <div>
-          <label for="house_no">House / Lot No. <span class="req" onclick="helpTip('House / Lot No.', 'Enter your house, block, or lot number.', event)">*</span></label>
-          <input id="house_no" type="text" placeholder="Blk 42 Lot 19">
-        </div>
-        <div>
-          <label for="house_suffix">House No. Suffix</label>
-          <input id="house_suffix" type="text" placeholder="e.g. A, B (Optional)">
-        </div>
-        <div>
-          <label for="unit_no">Unit / Room No.</label>
-          <input id="unit_no" type="text" placeholder="Optional">
-        </div>
-        <div>
-          <label for="unit_type">Unit Type <span class="req" onclick="helpTip('Unit Type', 'Select Residential House, Apartment, Condominium, or Commercial.', event)">*</span></label>
-          <select id="unit_type">
-            <option value="Residential">Residential House</option>
-            <option value="Apartment / Townhouse">Apartment / Townhouse</option>
-            <option value="Condominium">Condominium</option>
-            <option value="Commercial / Office">Commercial / Office</option>
-          </select>
-        </div>
-        <div>
-          <label for="floor_no">Floor No.</label>
-          <input id="floor_no" type="text" placeholder="e.g. 1st, 2nd (Optional)">
-        </div>
-        <div>
-          <label for="building_name">Building / Apartment Name <span class="req" onclick="helpTip('Building Name', 'Enter the building name, or type N/A for a standalone house.', event)">*</span></label>
-          <input id="building_name" type="text" value="N/A">
-        </div>
-      </div>
+        <div id="map"></div>
+        <p id="map-status" class="small muted mt">Click anywhere on the map or drag the marker to auto-fill your address below.</p>
+        <input id="lat" type="hidden" value="14.3294">
+        <input id="lng" type="hidden" value="120.9367">
 
-      <div class="form-grid mt">
-        <div>
-          <label for="street">Street Name <span class="req" onclick="helpTip('Street Name', 'Auto-filled from map pin or type your street name.', event)">*</span></label>
-          <input id="street" type="text" placeholder="Tokya St.">
+        <h4 class="mt-big">Installation Address Details</h4>
+        <div class="form-grid three mt">
+          <div>
+            <label for="house_no">House / Lot No. <span class="req" data-req-for="house_no" onmouseenter="showReqTip(this, 'House No.', 'Enter house, block, or lot number.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="house_no" type="text" placeholder="Blk 42 Lot 19">
+          </div>
+          <div>
+            <label for="house_suffix">House Suffix</label>
+            <input id="house_suffix" type="text" placeholder="e.g. A, B (Optional)">
+          </div>
+          <div>
+            <label for="unit_no">Unit / Room No.</label>
+            <input id="unit_no" type="text" placeholder="Optional">
+          </div>
+          <div>
+            <label for="unit_type">Unit Type <span class="req" data-req-for="unit_type" onmouseenter="showReqTip(this, 'Unit Type', 'Select property type.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <select id="unit_type">
+              <option value="Residential">Residential House</option>
+              <option value="Apartment / Townhouse">Apartment / Townhouse</option>
+              <option value="Condominium">Condominium</option>
+              <option value="Commercial / Office">Commercial / Office</option>
+            </select>
+          </div>
+          <div>
+            <label for="floor_no">Floor No.</label>
+            <input id="floor_no" type="text" placeholder="e.g. 1st, 2nd (Optional)">
+          </div>
+          <div>
+            <label for="building_name">Building / Apartment Name <span class="req" data-req-for="building_name" onmouseenter="showReqTip(this, 'Building Name', 'Enter building name or N/A.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="building_name" type="text" value="N/A">
+          </div>
         </div>
-        <div>
-          <label for="subdivision">Subdivision / Village <span class="req" onclick="helpTip('Subdivision / Village', 'Enter your village or subdivision, or N/A if none.', event)">*</span></label>
-          <input id="subdivision" type="text" placeholder="Summerwind Village">
-        </div>
-        <div>
-          <label for="barangay">Barangay <span class="req" onclick="helpTip('Barangay', 'Enter your barangay name.', event)">*</span></label>
-          <input id="barangay" type="text" placeholder="Brgy. Burol Main">
-        </div>
-        <div>
-          <label for="city">City / Municipality <span class="req" onclick="helpTip('City / Municipality', 'Enter your city or municipality.', event)">*</span></label>
-          <input id="city" type="text" placeholder="Dasmariñas City">
-        </div>
-        <div>
-          <label for="province">District / Province <span class="req" onclick="helpTip('District / Province', 'Enter your province or Metro Manila district.', event)">*</span></label>
-          <input id="province" type="text" placeholder="Cavite">
-        </div>
-        <div>
-          <label for="landmark">Nearest Landmark <span class="req" onclick="helpTip('Nearest Landmark', 'Provide a nearby store, gate, church, or school to guide the installation team.', event)">*</span></label>
-          <input id="landmark" type="text" placeholder="Near Subdivision Clubhouse / Gate">
-        </div>
-        <div class="full">
-          <label for="remarks">Remarks / Special Instructions</label>
-          <input id="remarks" type="text" placeholder="Optional gate pass or preferred installation schedule notes">
+
+        <div class="form-grid mt">
+          <div>
+            <label for="street">Street Name <span class="req" data-req-for="street" onmouseenter="showReqTip(this, 'Street Name', 'Enter street name.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="street" type="text" placeholder="Tokya St.">
+          </div>
+          <div>
+            <label for="subdivision">Subdivision / Village <span class="req" data-req-for="subdivision" onmouseenter="showReqTip(this, 'Subdivision', 'Enter village or subdivision name.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="subdivision" type="text" placeholder="Summerwind Village">
+          </div>
+          <div>
+            <label for="barangay">Barangay <span class="req" data-req-for="barangay" onmouseenter="showReqTip(this, 'Barangay', 'Enter barangay.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="barangay" type="text" placeholder="Brgy. Burol Main">
+          </div>
+          <div>
+            <label for="city">City / Municipality <span class="req" data-req-for="city" onmouseenter="showReqTip(this, 'City', 'Enter city or municipality.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="city" type="text" placeholder="Dasmariñas City">
+          </div>
+          <div>
+            <label for="province">District / Province <span class="req" data-req-for="province" onmouseenter="showReqTip(this, 'Province', 'Enter province.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="province" type="text" placeholder="Cavite">
+          </div>
+          <div>
+            <label for="landmark">Nearest Landmark <span class="req" data-req-for="landmark" onmouseenter="showReqTip(this, 'Landmark', 'Provide nearby store, gate, or school.')" onmouseleave="hideReqTip(this)">*</span></label>
+            <input id="landmark" type="text" placeholder="Near Subdivision Gate / Clubhouse">
+          </div>
+          <div class="full">
+            <label for="remarks">Remarks / Special Instructions</label>
+            <input id="remarks" type="text" placeholder="Optional gate pass or installation schedule notes">
+          </div>
         </div>
       </div>
 
       <div class="row between mt-big">
         <button type="button" class="btn" onclick="prevPanel()">&larr; Back</button>
-        <button type="button" class="btn btn-red" onclick="nextPanel()">Next Step &rarr;</button>
+        <button type="button" class="btn btn-red" onclick="nextPanel()">Next</button>
       </div>
     </section>
 
     <!-- =======================================================
-         PANEL 2: Valid ID Documents (Back-to-Back Upload + In-Card Guide)
+         PANEL 2: Valid ID Documents (Front & Back)
          ======================================================= -->
     <section id="panel-2" class="card panel" hidden>
-      <h3>Valid Government ID Upload (Front &amp; Back)</h3>
-      <p class="small muted">Upload clear photos of both the <b>Front</b> and <b>Back</b> of your valid government-issued ID.</p>
+      <div class="row between" style="align-items:flex-start; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h3>Valid Government ID Upload (Front &amp; Back)</h3>
+          <p class="small muted">Upload clear photos of both the <b>Front</b> and <b>Back</b> of your valid government-issued ID.</p>
+        </div>
+        <button type="button" id="btn-phone-qr" class="btn btn-small btn-outline" onclick="openPhoneQrModal()">&#128242; Continue on Phone (QR Code)</button>
+      </div>
 
-      <!-- In-Card Document Instructions & Sample Photos (Part of the Panel, No Popup) -->
+      <!-- In-Card Document Instructions & Sample Photos -->
       <div class="notice mt" style="background:var(--bg-soft); border:1px solid var(--line);">
-        <b>Document Upload Instructions &amp; Sample Guide</b>
+        <b>Document Upload Instructions &amp; Quality Guide</b>
         <ul style="margin:8px 0 10px 18px; font-size:13.5px; color:var(--muted); line-height:1.5;">
-          <li>Place your physical ID flat on a well-lit surface. Do not upload screenshots or photocopies.</li>
-          <li>Make sure your <b>Full Name, Birth Date, ID Number, Photo, and Signature/Barcode</b> are sharp and readable.</li>
+          <li>Place your physical ID flat on a well-lit surface. Do not upload photocopies or digital screenshots.</li>
+          <li>Make sure your <b>Full Name, Birth Date, ID Number, Photo, and Barcode/Signature</b> are sharp and readable.</li>
           <li>Keep all 4 corners of the ID inside the frame with no flash glare or fingers covering the text.</li>
         </ul>
         <div class="id-sample-grid">
@@ -210,7 +224,6 @@
           <div style="border:2px solid #12b76a; border-radius:10px; padding:10px; background:#fff;">
             <div style="font-size:12px; font-weight:700; color:#027a48; margin-bottom:6px;">&#10003; GOOD SAMPLE (CLEAR FRONT &amp; BACK)</div>
             <svg viewBox="0 0 320 96" width="100%" height="84" style="display:block; background:#f8fafc; border-radius:6px; border:1px solid #d0d5dd;">
-              <!-- Front ID Sample -->
               <rect x="8" y="10" width="142" height="76" rx="6" fill="#ffffff" stroke="#12b76a" stroke-width="2"/>
               <rect x="16" y="22" width="34" height="42" rx="4" fill="#e2e8f0"/>
               <circle cx="33" cy="36" r="7" fill="#64748b"/>
@@ -219,7 +232,6 @@
               <rect x="58" y="35" width="64" height="6" rx="3" fill="#64748b"/>
               <rect x="58" y="47" width="72" height="6" rx="3" fill="#64748b"/>
               <text x="58" y="74" font-size="8" font-family="sans-serif" fill="#027a48" font-weight="bold">FRONT: CLEAR &amp; FULL</text>
-              <!-- Back ID Sample -->
               <rect x="168" y="10" width="142" height="76" rx="6" fill="#ffffff" stroke="#12b76a" stroke-width="2"/>
               <rect x="176" y="20" width="126" height="12" fill="#1e293b"/>
               <rect x="176" y="40" width="96" height="6" rx="3" fill="#64748b"/>
@@ -232,14 +244,12 @@
           <div style="border:2px solid #f04438; border-radius:10px; padding:10px; background:#fff;">
             <div style="font-size:12px; font-weight:700; color:#b42318; margin-bottom:6px;">&#10005; AVOID (BLURRY, GLARE, OR CUT-OFF)</div>
             <svg viewBox="0 0 320 96" width="100%" height="84" style="display:block; background:#fef3f2; border-radius:6px; border:1px solid #fecdca;">
-              <!-- Cut-off / Glare ID -->
               <rect x="20" y="14" width="130" height="70" rx="6" fill="#ffffff" stroke="#f04438" stroke-width="2" stroke-dasharray="4 2"/>
               <rect x="30" y="26" width="30" height="36" rx="4" fill="#cbd5e1" opacity="0.4"/>
               <rect x="68" y="28" width="66" height="7" rx="3" fill="#94a3b8" opacity="0.35"/>
               <rect x="68" y="42" width="52" height="6" rx="3" fill="#94a3b8" opacity="0.35"/>
               <circle cx="105" cy="42" r="22" fill="#fde047" opacity="0.65"/>
               <text x="32" y="76" font-size="8" font-family="sans-serif" fill="#b42318" font-weight="bold">FLASH GLARE / BLURRY</text>
-              <!-- Cropped / Angled ID -->
               <g transform="rotate(-11 235 48)">
                 <rect x="185" y="18" width="145" height="66" rx="6" fill="#ffffff" stroke="#f04438" stroke-width="2"/>
                 <rect x="195" y="30" width="80" height="7" rx="3" fill="#94a3b8" opacity="0.5"/>
@@ -253,8 +263,8 @@
 
       <div class="form-grid mt">
         <div>
-          <label for="id_type">Primary Valid ID Type <span class="req" onclick="helpTip('Valid ID Type', 'Choose the government-issued ID you are uploading.', event)">*</span></label>
-          <select id="id_type">
+          <label for="id_type">Primary Valid ID Type <span class="req" data-req-for="id_type" onmouseenter="showReqTip(this, 'ID Type', 'Select government-issued ID type.')" onmouseleave="hideReqTip(this)">*</span></label>
+          <select id="id_type" onchange="updateIdFormatHint()">
             <option value="">-- Select Valid ID --</option>
             <option value="Philippine National ID (PhilSys)">Philippine National ID (PhilSys)</option>
             <option value="Driver's License">Driver's License</option>
@@ -267,21 +277,21 @@
           </select>
         </div>
         <div>
-          <label for="id_number">Primary ID Number <span class="req" onclick="helpTip('Primary ID Number', 'Type the ID number printed on your selected government ID.', event)">*</span></label>
+          <label for="id_number">Primary ID Number <span class="req" data-req-for="id_number" onmouseenter="showReqTip(this, 'ID Number', 'Enter number printed on card.')" onmouseleave="hideReqTip(this)">*</span></label>
           <input id="id_number" type="text" placeholder="Enter ID number on card">
+          <div id="id-format-hint" class="small muted mt" style="font-size:12px;"></div>
         </div>
 
-        <!-- Front of Valid ID Upload (Photos or Camera) -->
+        <!-- Front of Valid ID Upload (Phone vs Desktop Responsive) -->
         <div>
-          <label>Front of Valid ID <span class="req" onclick="helpTip('Front of Valid ID', 'Take a photo using your camera or select a clear photo of the FRONT of your ID.', event)">*</span></label>
+          <label>Front of Valid ID <span class="req" data-req-for="id_front" onmouseenter="showReqTip(this, 'Front ID', 'Upload clear photo of the FRONT of your ID.')" onmouseleave="hideReqTip(this)">*</span></label>
           <div class="upload-box">
             <div id="id-front-filename" class="small muted">No Front ID photo selected yet</div>
-            <!-- Hidden file inputs for Gallery/Photos and Camera -->
             <input id="id_front" type="file" accept="image/*" style="display:none" onchange="handleIdFileSelect('front', this)">
             <input id="id_front_cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleIdFileSelect('front', this)">
             <div class="upload-btns">
-              <button type="button" class="btn btn-small" onclick="document.getElementById('id_front').click()">&#128444; Choose from Photos</button>
-              <button type="button" class="btn btn-small btn-red" onclick="document.getElementById('id_front_cam').click()">&#128247; Take Photo (Camera)</button>
+              <button type="button" class="btn btn-small" onclick="document.getElementById('id_front').click()">&#128444; Choose from Files</button>
+              <button type="button" id="btn-front-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_front_cam').click()">&#128247; Take Photo (Camera)</button>
             </div>
             <div id="id-front-preview-box" class="mt" hidden>
               <img id="id-front-preview" class="id-preview" alt="Front ID Preview">
@@ -289,17 +299,16 @@
           </div>
         </div>
 
-        <!-- Back of Valid ID Upload (Photos or Camera) -->
+        <!-- Back of Valid ID Upload (Phone vs Desktop Responsive) -->
         <div>
-          <label>Back of Valid ID <span class="req" onclick="helpTip('Back of Valid ID', 'Take a photo using your camera or select a clear photo of the BACK of your ID.', event)">*</span></label>
+          <label>Back of Valid ID <span class="req" data-req-for="id_back" onmouseenter="showReqTip(this, 'Back ID', 'Upload clear photo of the BACK of your ID.')" onmouseleave="hideReqTip(this)">*</span></label>
           <div class="upload-box">
             <div id="id-back-filename" class="small muted">No Back ID photo selected yet</div>
-            <!-- Hidden file inputs for Gallery/Photos and Camera -->
             <input id="id_back" type="file" accept="image/*" style="display:none" onchange="handleIdFileSelect('back', this)">
             <input id="id_back_cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleIdFileSelect('back', this)">
             <div class="upload-btns">
-              <button type="button" class="btn btn-small" onclick="document.getElementById('id_back').click()">&#128444; Choose from Photos</button>
-              <button type="button" class="btn btn-small btn-red" onclick="document.getElementById('id_back_cam').click()">&#128247; Take Photo (Camera)</button>
+              <button type="button" class="btn btn-small" onclick="document.getElementById('id_back').click()">&#128444; Choose from Files</button>
+              <button type="button" id="btn-back-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_back_cam').click()">&#128247; Take Photo (Camera)</button>
             </div>
             <div id="id-back-preview-box" class="mt" hidden>
               <img id="id-back-preview" class="id-preview" alt="Back ID Preview">
@@ -310,41 +319,75 @@
 
       <div class="row between mt-big">
         <button type="button" class="btn" onclick="prevPanel()">&larr; Back</button>
-        <button type="button" class="btn btn-red" onclick="nextPanel()">Review Application &rarr;</button>
+        <button type="button" class="btn btn-red" onclick="nextPanel()">Next</button>
       </div>
     </section>
 
     <!-- =======================================================
-         PANEL 3: Subscriber Declaration & Review Summary
+         PANEL 3: Detailed Subscriber Declaration & Consent
          ======================================================= -->
     <section id="panel-3" class="card panel" hidden>
-      <h3>Subscriber Declaration &amp; Review</h3>
-      <p class="small muted">Review all details below and confirm the Subscriber Declaration before submitting your registration.</p>
+      <h3>Subscriber Declaration &amp; Consent</h3>
+      <p class="small muted">Please review the official Red Fiber subscriber declarations and terms before completing your registration.</p>
 
-      <h4>Application Summary</h4>
-      <div id="review-summary" class="table-wrap"></div>
+      <div class="notice mt" style="background:#fff; border:1px solid var(--line); font-size:13.5px; line-height:1.6; max-height:260px; overflow-y:auto; padding:16px;">
+        <b style="color:var(--text); font-size:14px; display:block; margin-bottom:8px;">OFFICIAL SUBSCRIBER CERTIFICATION &amp; UNDERTAKING</b>
+        <p>1. <b>Truthfulness of Information:</b> I hereby certify under penalty of perjury that all personal information, contact numbers, address details, and valid identification documents submitted in this application are authentic, accurate, and belong to me.</p>
+        <p style="margin-top:8px;">2. <b>Terms of Service:</b> I agree to abide by the standard Red Fiber Postpaid Terms and Conditions, Acceptable Use Policy, and Combined Facilities Support Services guidelines governing internet service installation and maintenance.</p>
+        <p style="margin-top:8px;">3. <b>Data Privacy Consent:</b> Pursuant to the Data Privacy Act of 2012 (RA 10173), I authorize PIGEM Combined Facilities Support Services to collect, store, and process my personal data and ID documents solely for fiber eligibility validation, installation dispatch, billing, and account servicing.</p>
+        <p style="margin-top:8px;">4. <b>Customer Premises Equipment (Modem/ONT):</b> I acknowledge that the optical network terminal (ONT) modem and accessories installed in my premises remain property of the provider and shall be handled with due care.</p>
+        <p style="margin-top:8px;">5. <b>No Lock-in &amp; Billing Cycle:</b> I understand that Red Fiber postpaid plans feature no lock-in contract period, and billing commences upon successful fiber line activation and optical power hand-off.</p>
+      </div>
 
-      <h4>Subscriber Certificate &amp; Consent</h4>
-      <div class="notice">
+      <div class="mt-big">
         <label class="check">
           <input id="agree_sub" type="checkbox">
           <span>
-            <b>Subscriber Certificate Confirmation <span class="req" onclick="helpTip('Subscriber Confirmation', 'Required to process your Red Fiber internet service application.', event)">*</span>:</b>
-            I certify that all information and identification documents submitted in this application are true, accurate, and belong to me, and I agree to the Red Fiber Terms of Service and Data Privacy Policy.
+            <b>I accept and agree to the Subscriber Certificate and Terms of Service <span class="req" data-req-for="agree_sub" onmouseenter="showReqTip(this, 'Agreement', 'Required to complete registration.')" onmouseleave="hideReqTip(this)">*</span></b>
           </span>
         </label>
         <label class="check mt">
           <input id="agree_tu" type="checkbox">
           <span>
             <b>Credit Bureau / TransUnion Consent (Optional):</b>
-            I authorize basic credit and identity verification to expedite processing of my fiber line application.
+            I authorize basic credit bureau verification to expedite line provisioning.
           </span>
         </label>
       </div>
 
       <div class="row between mt-big">
-        <button type="button" class="btn" onclick="prevPanel()">&larr; Edit Information</button>
+        <button type="button" class="btn" onclick="prevPanel()">&larr; Back</button>
         <button id="btn-submit" type="button" class="btn btn-red" onclick="submitRegistration()">Submit Registration</button>
+      </div>
+    </section>
+
+    <!-- =======================================================
+         PANEL 4: Realistic Animated Registration Loading Screen
+         ======================================================= -->
+    <section id="panel-loading" class="card panel" hidden>
+      <div class="reg-loading-overlay">
+        <div class="reg-spinner"></div>
+        <h3 id="reg-loading-title">Registering Application...</h3>
+        <p id="reg-loading-sub" class="small muted">Please wait while the system securely processes your application.</p>
+
+        <div class="reg-step-list">
+          <div id="step-ld-1" class="reg-step-item active">
+            <span class="reg-step-icon">1</span>
+            <span>Verifying Application Information</span>
+          </div>
+          <div id="step-ld-2" class="reg-step-item">
+            <span class="reg-step-icon">2</span>
+            <span>Securely Uploading Valid ID Documents</span>
+          </div>
+          <div id="step-ld-3" class="reg-step-item">
+            <span class="reg-step-icon">3</span>
+            <span>Creating Customer Account &amp; Notification</span>
+          </div>
+          <div id="step-ld-4" class="reg-step-item">
+            <span class="reg-step-icon">4</span>
+            <span>Generating Official Reference Number</span>
+          </div>
+        </div>
       </div>
     </section>
   </main>

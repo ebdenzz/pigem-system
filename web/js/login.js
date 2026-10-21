@@ -1,11 +1,21 @@
 // ============================================================
 // SHARED LOGIN & PASSWORD RESET LOGIC
-// Used by login.html (Customer), staff-login.html (Agent/Manager),
+// Used by login.html (Customer), staff-login.html (Internal Staff),
 // and admin-login.html (Admin).
 // ============================================================
 
 var resetTargetEmail = "";
 var loginCaptchaVerified = false;
+var loginAttempts = 0;
+var MAX_ATTEMPTS = 5;
+
+function getHomeForRole(role) {
+  var r = String(role || "").toLowerCase();
+  if (r === "admin") return (window.ROOT || "") + "admin.html";
+  if (r === "manager") return (window.ROOT || "") + "manager.html";
+  if (r === "agent") return (window.ROOT || "") + "agent.html";
+  return (window.ROOT || "") + "customer.html";
+}
 
 function renderLoginCaptchaBox() {
   var box = document.getElementById("login-captcha-box");
@@ -48,13 +58,21 @@ window.addEventListener("DOMContentLoaded", function () {
 
 async function handleLogin(event) {
   event.preventDefault();
-  if (!loginCaptchaVerified) {
-    showAlert("Security Verification", "Please check the 'I'm not a robot' security box before signing in.", "warn");
+
+  if (loginAttempts >= MAX_ATTEMPTS) {
+    showAlert("Account Locked", "Your account has been temporarily locked due to 5 consecutive failed login attempts. Please click 'Forgot Password?' to reset your password.", "bad");
     return;
   }
 
-  var email = document.getElementById("email").value.trim();
-  var password = document.getElementById("password").value;
+  if (!loginCaptchaVerified) {
+    showAlert("Security Check", "Please check the 'I'm not a robot' box before signing in.", "warn");
+    return;
+  }
+
+  var emailEl = document.getElementById("email");
+  var pwEl = document.getElementById("password");
+  var email = (emailEl ? emailEl.value : "").trim();
+  var password = pwEl ? pwEl.value : "";
   var btn = document.getElementById("btn-login");
 
   btn.disabled = true;
@@ -63,11 +81,23 @@ async function handleLogin(event) {
 
   try {
     var user = await dbSignIn(email, password);
+    loginAttempts = 0;
     window.location.href = getHomeForRole(user.role);
   } catch (err) {
-    showAlert("Sign In Failed", err.message || "Invalid email or password.", "bad");
+    loginAttempts++;
+    if (pwEl) {
+      pwEl.value = "";
+      pwEl.focus();
+    }
     btn.disabled = false;
     btn.textContent = oldText;
+
+    if (loginAttempts >= MAX_ATTEMPTS) {
+      showAlert("Account Locked", "You have exceeded the maximum of " + MAX_ATTEMPTS + " failed login attempts. For security reasons, please click 'Forgot Password?' to reset your password.", "bad");
+    } else {
+      var remaining = MAX_ATTEMPTS - loginAttempts;
+      showAlert("Sign In Failed", (err.message || "Invalid email or password.") + " (" + remaining + " attempt" + (remaining === 1 ? "" : "s") + " remaining)", "bad");
+    }
   }
 }
 
@@ -78,7 +108,7 @@ function openForgotModal() {
     '<p class="small muted mt">Enter your account email address. We will send a 6-digit verification code to reset your password.</p>' +
     '<div class="mt">' +
       '<label for="reset-email">Email Address</label>' +
-      '<input id="reset-email" type="email" placeholder="yourname@gmail.com">' +
+      '<input id="reset-email" type="email" placeholder="Enter your email">' +
     '</div>' +
     '<div class="row mt-big" style="justify-content:flex-end">' +
       '<button class="btn" onclick="closePopup()">Cancel</button>' +
@@ -99,9 +129,9 @@ async function sendResetCode() {
     var subject = "PIGEM Account Security — Password Reset Verification Code";
     var body =
       "Dear Valued Client,\n\n" +
-      "We received a request to reset the password associated with your PIGEM Combined Facilities Support Services account (" + email + ").\n\n" +
+      "We received a request to reset the password associated with your PIGEM account (" + email + ").\n\n" +
       "Your 6-Digit Password Reset Verification Code is: " + code + "\n\n" +
-      "Please enter this verification code on the password reset screen to set your new password. If you did not request a password reset, please disregard this notice.\n\n" +
+      "Please enter this verification code on the password reset screen to set your new password.\n\n" +
       "Sincerely,\n" +
       "PIGEM Combined Facilities Support Services";
     await apiSendEmail(email, subject, body);
@@ -138,6 +168,7 @@ async function confirmResetPassword() {
   var pw = document.getElementById("reset-pw").value;
   try {
     await dbFinishPasswordReset(resetTargetEmail, code, pw);
+    loginAttempts = 0;
     showAlert("Password Updated", "Your password has been changed. You can now sign in with your new password.", "good");
   } catch (err) {
     showAlert("Reset Failed", err.message || "Invalid code or password.", "bad");

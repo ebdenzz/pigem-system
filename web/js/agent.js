@@ -8,6 +8,41 @@ var activeBranch = "overview"; // "overview", "queue", "claimed", "correction", 
 var activeDetailAppId = null;
 var activeCopyMode = "latest"; // "latest" or "original"
 var pendingProofDataUrl = "";
+var lastDetectedFields = null;
+
+var VALIDATOR_PRESETS = [
+  { label: "-- Quick Select Common / Rare Validator Remark --", raw: "", field: "auto", msg: "" },
+  { label: "⚡ [COMMON] Duplicate Email in RADIUS", raw: "Duplicate email address in RADIUS portal", field: "email", msg: "We detected that your email address is already associated with an existing account in the RADIUS portal. Please provide an alternate active email address so we can proceed with your application." },
+  { label: "⚡ [COMMON] Duplicate Mobile Number in RADIUS", raw: "Mobile number already exists in RADIUS provider system", field: "phone", msg: "The mobile number provided is already registered in the provider system. Please update your primary mobile number." },
+  { label: "⚡ [COMMON] Both Email & Mobile Duplicate", raw: "Duplicate email and mobile number in subscriber database", field: "email_or_phone", msg: "Both your email and mobile number are already linked to an existing account. Please provide an alternate email and mobile number." },
+  { label: "⚡ [COMMON] Blurry / Unreadable Valid ID", raw: "Uploaded valid ID photo is blurry, unreadable, or low resolution", field: "id_photo", msg: "Your uploaded valid ID is blurry and could not be clearly verified. Please upload a clear, high-resolution photo of your valid ID." },
+  { label: "⚡ [COMMON] ID Lighting Glare / Flash", raw: "Lighting glare or flash reflection covering text/photo on valid ID", field: "id_photo", msg: "There is lighting glare or flash reflection covering details on your ID. Please take a photo in a well-lit room without flash." },
+  { label: "⚡ [COMMON] ID Edges / Corners Cut Off", raw: "Valid ID corners or borders are cropped / out of frame", field: "id_photo", msg: "Some edges or corners of your valid ID are cut off. Please place your ID flat and take a photo showing all 4 corners." },
+  { label: "⚡ [COMMON] Primary ID Number Mismatch", raw: "ID number entered does not match number printed on ID card", field: "id_number", msg: "The ID number entered in the form does not match the number printed on your valid ID. Please check and correct your ID number." },
+  { label: "⚡ [COMMON] Back of ID Missing / Unclear", raw: "Back of valid ID is missing, damaged, or barcode unreadable", field: "id_photo", msg: "The back of your valid ID is required or was not readable. Please upload a clear photo of the back of your ID." },
+  { label: "🔍 [RARE] Address Incomplete / Missing Landmark", raw: "Installation address missing specific building or landmark", field: "address", msg: "Your installation address requires a clearer street detail or nearest landmark to assist the dispatch team. Please update your address." },
+  { label: "🔍 [RARE] Expired Government ID Card", raw: "Submitted government-issued ID card has expired", field: "id_photo", msg: "The submitted government ID has expired. Please upload an active, unexpired valid government-issued ID." },
+  { label: "🔍 [RARE] Name Spelling Mismatch on ID", raw: "Applicant name spelling does not match name on valid ID", field: "id_photo", msg: "The spelling of your name does not match the name printed on your valid ID. Please review and update your name." }
+];
+
+function renderValidatorPresetOptions() {
+  return VALIDATOR_PRESETS.map(function (p, idx) {
+    return "<option value='" + idx + "'>" + escapeHtml(p.label) + "</option>";
+  }).join("");
+}
+
+function onValidatorPresetChange(val) {
+  var idx = parseInt(val, 10);
+  if (isNaN(idx) || idx < 0 || idx >= VALIDATOR_PRESETS.length) return;
+  var p = VALIDATOR_PRESETS[idx];
+  if (!p || !p.raw) return;
+  var rawEl = document.getElementById("det-validator-raw");
+  var fieldEl = document.getElementById("det-correction-field");
+  var remEl = document.getElementById("det-remarks");
+  if (rawEl) rawEl.value = p.raw;
+  if (fieldEl) fieldEl.value = p.field;
+  if (remEl) remEl.value = p.msg;
+}
 
 window.addEventListener("DOMContentLoaded", async function () {
   currentAgent = await requireLogin(["agent", "manager", "admin"]);
@@ -94,7 +129,7 @@ function showTab(branch) {
 
 function getSimpleAiSummary(app) {
   if (!isAiEnabled()) {
-    return '<span class="badge badge-yellow">ARTIFICIAL INTELLIGENCE is under maintenance</span>';
+    return '<span class="badge badge-yellow">AI is under maintenance</span>';
   }
   var ai = app.ai_result || {};
   var st = ai.overall_status || "Pending";
@@ -223,7 +258,7 @@ async function renderDetailModalContent() {
   var aiLogs = await dbListAiLogs(app.id);
   var aiLogHtml = "";
   if (!isAiEnabled()) {
-    aiLogHtml = '<div class="msg info show"><b>ARTIFICIAL INTELLIGENCE is under maintenance.</b> Manual agent verification is active.</div>';
+    aiLogHtml = '<div class="msg info show"><b>Local AI is currently offline.</b> Manual agent verification is active.</div>';
   } else {
     var ai = app.ai_result || {};
     aiLogHtml +=
@@ -252,7 +287,8 @@ async function renderDetailModalContent() {
       '</div>';
   }
 
-  var idPhotoUrl = viewData.id_image_url || app.id_image_url || "assets/images/logo.png";
+  var idPhotoUrl = viewData.id_image_url || app.id_image_url || app.id_front_path || "assets/images/logo.png";
+  var idBackPhotoUrl = viewData.id_back_path || app.id_back_path || "";
 
   document.getElementById("det-body").innerHTML =
     copySwitcher +
@@ -277,17 +313,24 @@ async function renderDetailModalContent() {
       '</div>' +
 
       '<div>' +
-        '<h3 style="margin-bottom:8px">Submitted Valid ID Photo</h3>' +
-        '<div style="border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--soft); text-align:center; margin-bottom:14px">' +
-          '<img id="det-id-img" src="' + escapeHtml(idPhotoUrl) + '" alt="Valid ID" style="max-height:220px; margin:0 auto; border-radius:6px; object-fit:contain" />' +
+        '<h3 style="margin-bottom:8px">Submitted Valid ID Photos (Front &amp; Back)</h3>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px">' +
+          '<div style="border:1px solid var(--line); border-radius:8px; padding:6px; background:var(--soft); text-align:center">' +
+            '<div style="font-size:11px; font-weight:700; margin-bottom:4px">FRONT ID</div>' +
+            '<img src="' + escapeHtml(idPhotoUrl) + '" alt="Front ID" style="max-height:160px; max-width:100%; border-radius:4px; object-fit:contain" />' +
+          '</div>' +
+          '<div style="border:1px solid var(--line); border-radius:8px; padding:6px; background:var(--soft); text-align:center">' +
+            '<div style="font-size:11px; font-weight:700; margin-bottom:4px">BACK ID</div>' +
+            (idBackPhotoUrl ? '<img src="' + escapeHtml(idBackPhotoUrl) + '" alt="Back ID" style="max-height:160px; max-width:100%; border-radius:4px; object-fit:contain" />' : '<span class="muted small" style="display:block; padding:40px 0">No Back ID uploaded</span>') +
+          '</div>' +
         '</div>' +
 
         '<h3 style="margin-bottom:8px">AI Screening &amp; Activity Log</h3>' +
-        '<div class="chat-log" style="max-height:210px; overflow-y:auto">' + aiLogHtml + '</div>' +
+        '<div class="chat-log" style="max-height:200px; overflow-y:auto">' + aiLogHtml + '</div>' +
       '</div>' +
     '</div>' +
 
-    // Agent Encoding Proof & Decision Controls
+    // Agent Decision Controls with Quick Remark Dropdown & AI Running Spinner
     '<div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line)">' +
       '<h3 style="margin-bottom:10px">Agent Encoding &amp; Decision</h3>' +
       '<div class="grid-2">' +
@@ -307,22 +350,33 @@ async function renderDetailModalContent() {
         '</div>' +
       '</div>' +
 
-      // Validator / RADIUS Portal Paste -> AI Polite Customer Message
+      // Quick Dropdown + Search + AI Polite Message
       '<div class="card" style="background:var(--soft); margin-bottom:12px; padding:12px">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px">' +
           '<div>' +
-            '<b>🤖 Validator / RADIUS Remark → AI Polite Customer Message</b>' +
-            '<div class="muted" style="font-size:12px">Paste the raw remark from the RADIUS / Provider Validator (e.g. "Duplicate email", "Mobile number already exists", "Blurry ID"). AI converts it into a polite message and flags the exact field for the customer to fix.</div>' +
+            '<b>⚡ Quick Select Validator Remark &amp; Auto-Polite Message</b>' +
+            '<div class="muted" style="font-size:12px">Pick a common or rare remark from the dropdown to auto-fill the target field and customer instruction without typing.</div>' +
           '</div>' +
-          '<button type="button" id="btn-ai-polite" class="btn btn-outline btn-sm" onclick="convertValidatorToPoliteRemark()">✨ AI Generate Polite Message</button>' +
+          '<div style="display:flex; gap:8px; align-items:center;">' +
+            '<span id="ai-running-spinner" class="badge badge-blue" style="display:none;">🤖 AI is running, please wait...</span>' +
+            '<button type="button" id="btn-ai-polite" class="btn btn-outline btn-sm" onclick="convertValidatorToPoliteRemark()">✨ AI Generate Polite Message</button>' +
+          '</div>' +
         '</div>' +
+
+        '<div class="field" style="margin-bottom:10px">' +
+          '<label>⚡ Common &amp; Rare Validator Presets (Quick Select)</label>' +
+          '<select id="det-preset-select" onchange="onValidatorPresetChange(this.value)">' +
+            renderValidatorPresetOptions() +
+          '</select>' +
+        '</div>' +
+
         '<div class="grid-2">' +
           '<div class="field" style="margin-bottom:0">' +
-            '<label>Paste Raw Validator / RADIUS Remark</label>' +
+            '<label>Raw Validator / RADIUS Remark</label>' +
             '<input id="det-validator-raw" type="text" value="' + escapeHtml(app.validator_raw_remark || "") + '" placeholder="e.g. Duplicate email in RADIUS / Mobile number already registered / Blurry ID..." />' +
           '</div>' +
           '<div class="field" style="margin-bottom:0">' +
-            '<label>Specific Field for Customer to Update (if requesting correction)</label>' +
+            '<label>Specific Field for Customer to Update</label>' +
             '<select id="det-correction-field">' +
               '<option value="auto">Auto-Detect from Validator Remark</option>' +
               '<option value="email" ' + ((app.correction_fields || []).join(",") === "email" ? "selected" : "") + '>Email Address Only (Duplicate Email in RADIUS)</option>' +
@@ -337,8 +391,8 @@ async function renderDetailModalContent() {
       '</div>' +
 
       '<div class="field">' +
-        '<label>Polite Message Sent to Customer (Auto-generated by AI or editable below)</label>' +
-        '<textarea id="det-remarks" rows="2" placeholder="Click \'✨ AI Generate Polite Message\' above or paste validator remark and click Request Correction...">' + escapeHtml(app.agent_remarks || "") + '</textarea>' +
+        '<label>Polite Message Sent to Customer (Auto-generated or editable below)</label>' +
+        '<textarea id="det-remarks" rows="2" placeholder="Select a preset above or click \'✨ AI Generate Polite Message\'...">' + escapeHtml(app.agent_remarks || "") + '</textarea>' +
       '</div>' +
       '<label style="display:flex; gap:8px; align-items:center; font-size:13px; font-weight:700; margin-bottom:14px">' +
         '<input id="det-encoded-chk" type="checkbox" style="width:auto" ' + (app.encoded ? "checked" : "") + ' />' +
@@ -352,26 +406,27 @@ async function renderDetailModalContent() {
     '</div>';
 }
 
-var lastDetectedFields = null;
-
 async function convertValidatorToPoliteRemark() {
   var rawEl = document.getElementById("det-validator-raw");
   var remEl = document.getElementById("det-remarks");
   var fieldEl = document.getElementById("det-correction-field");
   var btn = document.getElementById("btn-ai-polite");
+  var spin = document.getElementById("ai-running-spinner");
 
   var rawText = (rawEl && rawEl.value.trim()) || (remEl && remEl.value.trim()) || "";
   var chosenField = fieldEl ? fieldEl.value : "auto";
 
   if (!rawText && chosenField === "auto") {
-    showAlert("Validator Remark Needed", "Please paste the raw validator remark or select the specific field (e.g. Email Address Only or Mobile Number Only) first.");
+    showAlert("Validator Remark Needed", "Please select a preset above or paste a raw validator remark first.");
     return null;
   }
 
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "Generating...";
+    btn.textContent = "AI Running...";
   }
+  if (spin) spin.style.display = "inline-block";
+
   try {
     var res = await apiGeneratePoliteRemark(rawText || chosenField, chosenField);
     if (remEl && res.polite_message) {
@@ -380,9 +435,10 @@ async function convertValidatorToPoliteRemark() {
     lastDetectedFields = res.target_fields || [];
     return res;
   } catch (err) {
-    showAlert("AI Service Offline", "Local Ollama AI is currently offline on this device. Please start START-SYSTEM.bat on your local machine, or type the customer instruction manually in the box below.");
+    showAlert("AI Service Offline", "Local Ollama AI is currently offline on this device. Please select a preset from the Quick Select dropdown above or type the customer instruction manually.");
     return null;
   } finally {
+    if (spin) spin.style.display = "none";
     if (btn) {
       btn.disabled = false;
       btn.textContent = "✨ AI Generate Polite Message";
@@ -426,7 +482,7 @@ async function saveAgentDecision(newStatus) {
       }
     }
     if (!remarks) {
-      showAlert("Customer Instruction Required", "Please type the instruction for the customer (or start local Ollama AI to generate it from the Validator remark).");
+      showAlert("Customer Instruction Required", "Please type the instruction for the customer or choose a Quick Preset above.");
       return;
     }
   }
@@ -489,7 +545,7 @@ function downloadApplicantId() {
   var app = findAppById(activeDetailAppId);
   if (!app) return;
   var a = document.createElement("a");
-  a.href = app.id_image_url || "assets/images/logo.png";
+  a.href = app.id_image_url || app.id_front_path || "assets/images/logo.png";
   a.download = (app.reference_no || "applicant") + "-ID.png";
   document.body.appendChild(a);
   a.click();

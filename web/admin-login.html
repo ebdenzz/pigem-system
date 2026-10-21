@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>System Administrator Login | PIGEM</title>
+  <title>Admin Login | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -12,22 +12,20 @@
   <header class="simple-bar">
     <div class="container">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
-      <b>PIGEM System Administration</b>
+      <b>Combined Facilities Support Services</b>
     </div>
   </header>
 
   <main class="auth-page">
     <div class="card auth-card">
       <div class="center">
-        <span class="tag">Subsystem 3 &mdash; Restricted</span>
-        <h2 class="mt">System Admin Login</h2>
-        <p class="small muted mt">Authorized System Administrators only. All login attempts and system changes are recorded in the audit log.</p>
+        <h2>Admin Login</h2>
       </div>
 
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Admin Email Address</label>
-          <input id="email" type="email" placeholder="admin@pigem.local" required>
+          <label for="email">Email Address</label>
+          <input id="email" type="email" placeholder="Enter your email" required>
         </div>
 
         <div class="mt">
@@ -35,7 +33,7 @@
             <label for="password" style="margin:0">Password</label>
             <a href="#" class="small" style="color:var(--red); font-weight:600;" onclick="openForgotModal(); return false;">Forgot Password?</a>
           </div>
-          <input id="password" type="password" class="mt" placeholder="Enter administrator password" required>
+          <input id="password" type="password" class="mt" placeholder="Enter your password" required>
         </div>
 
         <!-- Always-Working Captcha Widget -->
@@ -48,6 +46,7 @@
     </div>
   </main>
 
+  <script>window.SYSTEM = "admin";</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

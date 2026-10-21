@@ -12,7 +12,7 @@
   <!-- Top Navigation Bar -->
   <header class="site-header">
     <div class="container">
-      <a href="index.html" class="logo">
+      <a href="about.html" class="logo" onclick="window.location.reload(); return false;" title="Refresh page">
         <img data-img="logo.png" src="assets/images/logo.png" alt="Logo">
         <span>Combined Facilities Support Services</span>
       </a>
@@ -29,8 +29,11 @@
   <!-- Phone Slide-Out Side Menu -->
   <div class="side-menu-back" onclick="toggleMenu()"></div>
   <aside class="side-menu">
-    <div class="row between" style="padding-bottom:10px; border-bottom:1px solid var(--line);">
-      <b>Menu</b>
+    <div class="row between" style="padding-bottom:10px; border-bottom:1px solid var(--line); align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" style="height:28px; width:auto;">
+        <b style="font-size:14px;">Menu</b>
+      </div>
       <button class="btn btn-small" onclick="toggleMenu()">&#10005;</button>
     </div>
     <a href="index.html">Home</a>
