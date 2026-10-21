@@ -296,24 +296,3 @@ insert into public.website_content (id, data) values
   }'::jsonb)
 on conflict (id) do update set
   data = excluded.data;
-
--- D. Initial Official Staff Accounts (Pre-configured with standard secure passwords)
--- You can log into these immediately or update them anytime in your Manager/Admin consoles:
--- Password for all seed accounts below is: Pigem2026!
-insert into public.users (id, email, full_name, role, active, activated, activation_code) values
-  -- 1 System Administrator
-  ('usr-admin-01', 'pigem.sysadmin@gmail.com', 'System Administrator', 'admin', true, true, 'PW:Pigem2026!'),
-
-  -- 1 Operations Manager
-  ('usr-mgr-01', 'pigem.operations.mgr@gmail.com', 'Operations Manager', 'manager', true, true, 'PW:Pigem2026!'),
-
-  -- 3 Verification & Encoding Agents
-  ('usr-agt-01', 'pigem.agent.maria@gmail.com', 'Maria Santos (Verification Agent)', 'agent', true, true, 'PW:Pigem2026!'),
-  ('usr-agt-02', 'pigem.agent.mark@gmail.com', 'Mark Reyes (Field Agent)', 'agent', true, true, 'PW:Pigem2026!'),
-  ('usr-agt-03', 'pigem.agent.john@gmail.com', 'John Dela Cruz (Encoding Agent)', 'agent', true, true, 'PW:Pigem2026!')
-on conflict (email) do update set
-  full_name = excluded.full_name,
-  role = excluded.role,
-  active = excluded.active,
-  activated = excluded.activated,
-  activation_code = excluded.activation_code;
