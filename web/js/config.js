@@ -161,14 +161,27 @@ function getImageUrl(filePath) {
   return ROOT + "assets/images/" + filePath;
 }
 
-// If a picture fails to load, try the local folder, then placeholder.png
+var cloudAssetFailures = 0;
+
+// If a picture fails to load from Supabase Cloud storage, use placeholder and trigger maintenance notice
 function imageFallback(img, filePath) {
-  if (img.getAttribute("data-tried") !== "yes") {
-    img.setAttribute("data-tried", "yes");
-    img.src = ROOT + "assets/images/" + filePath;
-  } else {
-    img.onerror = null;
-    img.src = ROOT + "assets/images/placeholder.png";
+  cloudAssetFailures++;
+  img.onerror = null;
+  img.src = ROOT + "assets/images/placeholder.png";
+  if (cloudAssetFailures >= 2) {
+    showSystemMaintenanceNotice();
+  }
+}
+
+function showSystemMaintenanceNotice(customMsg) {
+  var existing = document.getElementById("sys-maintenance-banner");
+  if (existing) return;
+  var banner = document.createElement("div");
+  banner.id = "sys-maintenance-banner";
+  banner.style.cssText = "background:#dc2626; color:#ffffff; padding:12px 18px; font-size:13.5px; text-align:center; position:sticky; top:0; z-index:99999; font-weight:700; box-shadow:0 3px 10px rgba(0,0,0,0.25);";
+  banner.innerHTML = "⚠️ <b>System Notice:</b> " + (customMsg || "Cloud Asset Storage &amp; Database is temporarily degraded or undergoing maintenance. Public application services are operating under maintenance mode. Hotline: 101-733 (RED) | (046) 458-0908.");
+  if (document.body) {
+    document.body.insertBefore(banner, document.body.firstChild);
   }
 }
 

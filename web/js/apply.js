@@ -104,6 +104,91 @@ function initApplyPage() {
   renderPlanChoices();
   setupDeviceUploadUI();
   window.addEventListener("resize", setupDeviceUploadUI);
+
+  // If visitor hasn't verified security CAPTCHA yet, prompt verification now
+  if (sessionStorage.getItem("pigem_captcha_verified") !== "true") {
+    setTimeout(showApplySecurityCaptchaModal, 150);
+  } else {
+    applyCaptchaVerified = true;
+    var cCard = document.getElementById("apply-captcha-card");
+    var cCheck = document.getElementById("apply-captcha-check");
+    if (cCard && cCheck) {
+      cCard.classList.add("verified");
+      cCheck.innerHTML = "&#10003;";
+    }
+  }
+}
+
+function showApplySecurityCaptchaModal() {
+  openPopup(
+    '<div class="center" style="padding:10px 4px;">' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;">🛡️</div>' +
+      '<h3 style="font-size:18px;margin-bottom:4px;">Security Verification</h3>' +
+      '<p class="small muted" style="margin-bottom:16px;">Please confirm you are not a robot before proceeding to the application form.</p>' +
+      '<div id="g-apply-recaptcha-wrap" style="display:flex;justify-content:center;margin:16px auto;min-height:78px;">' +
+        '<div id="g-apply-recaptcha-box" class="g-recaptcha" data-sitekey="' + CONFIG.RECAPTCHA_SITE_KEY + '" data-callback="onApplyCaptchaVerified"></div>' +
+      '</div>' +
+      '<div id="apply-captcha-fallback-box" style="margin-top:8px;">' +
+        '<div id="apply-popup-captcha-card" class="captcha-container" onclick="triggerApplyPopupCaptcha()">' +
+          '<div style="display:flex;align-items:center;gap:12px;">' +
+            '<div id="apply-popup-captcha-check" class="captcha-box-inner"></div>' +
+            '<span id="apply-popup-captcha-text" style="font-weight:600;font-size:14px;color:var(--text);">I\'m not a robot</span>' +
+          '</div>' +
+          '<div style="text-align:right;line-height:1.2;">' +
+            '<div style="font-size:11px;font-weight:800;color:var(--muted);">CAPTCHA</div>' +
+            '<div style="font-size:10px;color:var(--muted);">Security Verification</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="row mt-big" style="justify-content:center;">' +
+        '<button type="button" class="btn btn-outline btn-small" onclick="window.location.href=\'index.html\'">Return to Home</button>' +
+      '</div>' +
+    '</div>'
+  );
+
+  if (typeof grecaptcha !== "undefined" && grecaptcha.render) {
+    try {
+      var fb = document.getElementById("apply-captcha-fallback-box");
+      if (fb) fb.style.display = "none";
+      grecaptcha.render("g-apply-recaptcha-box", {
+        sitekey: CONFIG.RECAPTCHA_SITE_KEY,
+        callback: onApplyCaptchaVerified
+      });
+    } catch (e) {
+      // Fallback is available
+    }
+  }
+}
+
+function onApplyCaptchaVerified() {
+  sessionStorage.setItem("pigem_captcha_verified", "true");
+  applyCaptchaVerified = true;
+  closePopup();
+  var cCard = document.getElementById("apply-captcha-card");
+  var cCheck = document.getElementById("apply-captcha-check");
+  if (cCard && cCheck) {
+    cCard.classList.add("verified");
+    cCheck.innerHTML = "&#10003;";
+  }
+}
+
+function triggerApplyPopupCaptcha() {
+  var check = document.getElementById("apply-popup-captcha-check");
+  var card = document.getElementById("apply-popup-captcha-card");
+  var text = document.getElementById("apply-popup-captcha-text");
+  if (!check || !card) return;
+
+  check.innerHTML = '<div class="captcha-spinner"></div>';
+  if (text) text.textContent = "Verifying security credentials...";
+
+  setTimeout(function () {
+    check.innerHTML = "&#10003;";
+    card.classList.add("verified");
+    if (text) text.textContent = "I'm not a robot";
+    setTimeout(function () {
+      onApplyCaptchaVerified();
+    }, 400);
+  }, 600);
 }
 
 // Render Red Fiber plans

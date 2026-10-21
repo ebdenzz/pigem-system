@@ -1281,7 +1281,11 @@ async function dbSyncLiveSettingsAndContent() {
 
     if (typeof loadPageImages === "function") loadPageImages();
     if (typeof window.onLiveContentSynced === "function") window.onLiveContentSynced();
-  } catch (e) {}
+  } catch (e) {
+    if (typeof showSystemMaintenanceNotice === "function") {
+      showSystemMaintenanceNotice("Cloud Database and asset storage is temporarily unreachable. Public services are operating in maintenance mode.");
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
