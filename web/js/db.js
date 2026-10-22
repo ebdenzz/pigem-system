@@ -1151,6 +1151,10 @@ async function dbListUsers() {
   return await dbListProfiles();
 }
 
+async function dbGetUsers() {
+  return await dbListProfiles();
+}
+
 async function dbCreateUserAccount(fullName, email, password, role) {
   var cleanEmail = email.trim().toLowerCase();
   var users = getDemoUsers();
