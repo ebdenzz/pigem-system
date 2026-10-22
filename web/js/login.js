@@ -17,10 +17,56 @@ function getHomeForRole(role) {
   return (window.ROOT || "") + "customer.html";
 }
 
+window.onLoginCaptchaVerified = function (token) {
+  loginCaptchaVerified = true;
+};
+
+window.onLoginCaptchaExpired = function () {
+  loginCaptchaVerified = false;
+};
+
 function renderLoginCaptchaBox() {
   var box = document.getElementById("login-captcha-box");
   if (!box) return;
   loginCaptchaVerified = false;
+  var siteKey = CONFIG.RECAPTCHA_SITE_KEY;
+  box.innerHTML = '<div id="g-login-recaptcha" class="g-recaptcha" data-sitekey="' + siteKey + '" data-callback="onLoginCaptchaVerified" data-expired-callback="onLoginCaptchaExpired"></div>';
+
+  function tryRenderGoogle() {
+    if (typeof grecaptcha !== "undefined" && grecaptcha.render) {
+      try {
+        grecaptcha.render("g-login-recaptcha", {
+          sitekey: siteKey,
+          callback: onLoginCaptchaVerified,
+          "expired-callback": onLoginCaptchaExpired,
+          "error-callback": function () {
+            renderLoginCaptchaFallback(box);
+          }
+        });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  if (!tryRenderGoogle()) {
+    var attempts = 0;
+    var timer = setInterval(function () {
+      attempts++;
+      if (tryRenderGoogle() || attempts > 15) {
+        clearInterval(timer);
+        if (attempts > 15 && !box.querySelector("iframe")) {
+          renderLoginCaptchaFallback(box);
+        }
+      }
+    }, 250);
+  }
+}
+
+function renderLoginCaptchaFallback(box) {
+  if (!box) return;
   box.innerHTML =
     '<div id="login-captcha-card" class="captcha-container" onclick="triggerLoginCaptcha()">' +
       '<div style="display:flex;align-items:center;gap:12px;">' +
@@ -28,7 +74,7 @@ function renderLoginCaptchaBox() {
         '<span id="login-captcha-text" style="font-weight:600;font-size:14px;color:var(--text);">I\'m not a robot</span>' +
       '</div>' +
       '<div style="text-align:right;line-height:1.2;">' +
-        '<div style="font-size:11px;font-weight:800;color:var(--muted);">CAPTCHA</div>' +
+        '<div style="font-size:11px;font-weight:800;color:var(--muted);">reCAPTCHA</div>' +
         '<div style="font-size:10px;color:var(--muted);">Security Verification</div>' +
       '</div>' +
     '</div>';
@@ -48,8 +94,8 @@ function triggerLoginCaptcha() {
     loginCaptchaVerified = true;
     check.innerHTML = "&#10003;";
     card.classList.add("verified");
-    if (text) text.textContent = "I'm not a robot";
-  }, 600);
+    if (text) text.textContent = "I\'m not a robot";
+  }, 450);
 }
 
 window.addEventListener("DOMContentLoaded", function () {
@@ -71,8 +117,15 @@ async function handleLogin(event) {
     return;
   }
 
+  if (!loginCaptchaVerified && typeof grecaptcha !== "undefined" && grecaptcha.getResponse) {
+    try {
+      var gResp = grecaptcha.getResponse();
+      if (gResp && gResp.length > 0) loginCaptchaVerified = true;
+    } catch (e) {}
+  }
+
   if (!loginCaptchaVerified) {
-    var card = document.getElementById("login-captcha-card");
+    var card = document.getElementById("login-captcha-card") || document.getElementById("login-recaptcha-wrap");
     if (card) {
       card.style.borderColor = "#c8102e";
       setTimeout(function () { card.style.borderColor = "#cbd5e1"; }, 1500);
@@ -154,18 +207,18 @@ async function sendResetCode() {
       "Sincerely,\n" +
       "PIGEM Combined Facilities Support Services";
     await apiSendOtpEmail(email, code, "Password Reset", "Subscriber");
-    openFinishResetModal(code);
+    openFinishResetModal();
   } catch (err) {
     showAlert("Reset Failed", err.message || "Could not start password reset.", "bad");
   }
 }
 
 // Step 2 of Forgot Password: enter the 6-digit code + new password
-function openFinishResetModal(demoCode) {
+function openFinishResetModal() {
   openPopup(
     '<h3>Enter Verification Code</h3>' +
     '<div class="notice mt">A 6-digit verification code was sent to <b>' + resetTargetEmail + '</b>' +
-      (demoCode ? ' (Verification Code: <b>' + demoCode + '</b>)' : '') +
+      '' +
     '.</div>' +
     '<div class="mt">' +
       '<label for="reset-code">6-Digit Verification Code</label>' +

@@ -8,7 +8,7 @@ echo ================================================
 REM 1. Ensure Python 3.11 virtual environment exists
 if not exist "%~dp0api\.venv311\Scripts\python.exe" (
     echo Setting up Python environment...
-    python -m venv "%~dp0api\.venv311"
+    py -3.11 -m venv "%~dp0api\.venv311" 2>nul || python -m venv "%~dp0api\.venv311"
     "%~dp0api\.venv311\Scripts\python.exe" -m pip install -r "%~dp0api\requirements.txt"
 )
 

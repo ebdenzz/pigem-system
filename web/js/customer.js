@@ -334,7 +334,7 @@ async function submitCustomerCorrection(appId) {
     );
 
     await dbAddNotification(
-      app.assigned_agent || "agent@demo.test",
+      app.assigned_agent || "support@pigem.com",
       "agent",
       "Correction Resubmitted: " + app.reference_no,
       fullName + " updated " + changedList.join(", ") + " for " + app.reference_no + ". Status is now back to Processing."

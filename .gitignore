@@ -17,3 +17,4 @@ api/.env
 Thumbs.db
 .vscode/
 .idea/
+assets_backup/

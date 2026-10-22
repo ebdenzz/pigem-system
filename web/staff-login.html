@@ -6,6 +6,7 @@
   <link rel="icon" href="assets/images/logo.png">
   <title>Internal Login | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="assets/style.css">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 
@@ -36,8 +37,10 @@
           <input id="password" type="password" class="mt" placeholder="Enter your password" required>
         </div>
 
-        <!-- Always-Working Captcha Widget -->
-        <div id="login-captcha-box" class="mt"></div>
+        <!-- Google reCAPTCHA v2 Widget -->
+        <div id="login-recaptcha-wrap" style="display:flex; justify-content:center; margin:16px 0; min-height:78px;">
+          <div id="login-captcha-box" style="min-width:304px; min-height:78px;"></div>
+        </div>
 
         <div class="mt-big">
           <button id="btn-login" type="submit" class="btn btn-red btn-full">Sign In</button>

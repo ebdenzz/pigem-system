@@ -11,13 +11,19 @@ var CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1dW5xZnh5ZWp4d3Jhd3RqZHJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTE3MTEsImV4cCI6MjEwNzcyNzcxMX0.4Wt-6pJpLS4OUf_93bFn1513omGESvMn_E0ulnONf2g",
 
   // MAJOR: Python FastAPI server (OpenCV, PaddleOCR, Ollama, Resend)
-  API_URL: "http://127.0.0.1:8001",
+  API_URL: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("8001") !== -1) ? window.location.origin : "http://127.0.0.1:8001",
 
   // MAJOR: Where website pictures come from: "supabase" (website-assets bucket), "server" (FastAPI), or "local"
   ASSET_SOURCE: "supabase",
 
-  // Google reCAPTCHA v2 Site Key
-  RECAPTCHA_SITE_KEY: "6LdlYRktAAAAAPnkgulv86Iu1HbR4Fo7moj7RKrG",
+  // Google reCAPTCHA v2 Site Key Configuration
+  // Registered Production Key: 6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV
+  // Google Official Localhost Dev Key: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI (allows localhost & 127.0.0.1)
+  RECAPTCHA_PRODUCTION_KEY: "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
+  RECAPTCHA_LOCALHOST_KEY: "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
+  RECAPTCHA_SITE_KEY: (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
+    ? "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+    : "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
 
   // Red Fiber plans (the Manager can edit these in Content > Plans)
   PLANS: [

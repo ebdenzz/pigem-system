@@ -58,6 +58,9 @@
         <button id="nav-agent-perf" data-nav-label="Agent Workload & Performance" data-nav-target="agent-perf" onclick="showTab('agent-perf')">
           <span>Workload &amp; Performance</span>
         </button>
+        <button id="nav-agent-add" data-nav-label="Add New Agent" data-nav-target="agent-add" onclick="openAddAgentModal()">
+          <span>+ Add New Agent</span>
+        </button>
         <button id="nav-agent-links" data-nav-label="Agent Referral Links" data-nav-target="agent-links" onclick="showTab('agent-links')">
           <span>Referral Links</span>
         </button>
@@ -129,6 +132,14 @@
 
       <!-- TAB: OVERVIEW -->
       <section id="tab-overview">
+        <!-- QUICK AGENT ONBOARDING BANNER -->
+        <div id="overview-quick-add-agent" class="card" style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border:1px solid #bfdbfe;">
+          <div>
+            <b style="font-size:15px; color:#1e3a8a;">👥 Verification Staff Quick Provisioning</b>
+            <div class="muted" style="font-size:12.5px; margin-top:2px;">Need to onboard a new verification agent to process subscriber applications and RADIUS encoding?</div>
+          </div>
+          <button type="button" class="btn btn-sm" style="background:#175cd3; color:#fff; font-weight:700;" onclick="openAddAgentModal()">+ Quick Add Agent</button>
+        </div>
         <div class="grid-4" style="margin-bottom:20px">
           <div class="stat"><div class="num" id="st-total">0</div><div class="lbl">Total Applications</div></div>
           <div class="stat"><div class="num" id="st-pending">0</div><div class="lbl">Pending / In Review</div></div>
@@ -170,8 +181,13 @@
       <!-- TAB: AGENT WORKLOAD & PERFORMANCE -->
       <section id="tab-agent-perf" class="hidden">
         <div class="card">
-          <h2 style="font-size:20px; margin-bottom:6px">Agent Workload &amp; Performance</h2>
-          <p class="muted" style="font-size:13px; margin-bottom:14px">Live summary of applications claimed, encoded, and pending per verification agent.</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div>
+              <h2 style="font-size:20px; margin-bottom:4px">Agent Workload &amp; Performance</h2>
+              <p class="muted" style="font-size:13px; margin:0">Live summary of applications claimed, encoded, and pending per verification agent.</p>
+            </div>
+            <button type="button" id="btn-add-agent-perf" class="btn btn-sm" style="background:#175cd3; color:#fff; font-weight:700;" onclick="openAddAgentModal()">+ Add New Agent</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -478,5 +494,36 @@
   <script src="js/api.js"></script>
   <script src="js/dash-ui.js"></script>
   <script src="js/manager.js"></script>
+
+  <!-- MODAL: ADD NEW AGENT -->
+  <div id="modal-add-agent" class="modal-wrap hidden">
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-top">
+        <b>+ Provision New Verification Agent</b>
+        <button type="button" class="btn-close" onclick="closeAddAgentModal()">&times;</button>
+      </div>
+      <div class="field mt">
+        <label for="new-agent-name">Agent Full Legal Name</label>
+        <input id="new-agent-name" type="text" placeholder="e.g. Elena S. Torres" />
+      </div>
+      <div class="field mt">
+        <label for="new-agent-email">Agent Email Address</label>
+        <input id="new-agent-email" type="email" placeholder="e.g. pigem.agent.elena@gmail.com" />
+      </div>
+      <div class="field mt">
+        <label for="new-agent-pw">Password (min. 6 characters)</label>
+        <input id="new-agent-pw" type="password" placeholder="Enter secure password" />
+      </div>
+      <div class="field mt">
+        <label for="new-agent-area">Assigned Territory / Specialization</label>
+        <input id="new-agent-area" type="text" placeholder="e.g. ID Document Screening & RADIUS Desk" />
+      </div>
+      <div id="new-agent-msg" class="msg" style="margin-top:10px"></div>
+      <div class="row right mt-big" style="gap:10px">
+        <button type="button" class="btn btn-outline" onclick="closeAddAgentModal()">Cancel</button>
+        <button type="button" id="btn-submit-new-agent" class="btn" style="background:#175cd3; color:#fff;" onclick="submitNewAgent()">Provision Agent</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

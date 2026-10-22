@@ -295,38 +295,19 @@ async function sendContactOtp() {
   if (statusText) {
     if (emailRes && emailRes.sent) {
       statusText.innerHTML =
-        "<span style='color:var(--good);font-weight:700;'>✓ 6-Digit OTP sent via Resend!</span> Please check your inbox at <b>" +
+        "<span style='color:var(--good);font-weight:700;'>✓ 6-Digit Verification Code sent!</span> Please check your inbox at <b>" +
         escapeHtml(email) +
-        "</b> (or spam folder) and enter the code below.";
-    } else if (emailRes && emailRes.sandbox_restricted) {
-      statusText.innerHTML =
-        "Verification code generated for <b>" +
-        escapeHtml(email) +
-        "</b> <span style='font-size:11px;color:#d97706;'>(Resend Sandbox: Delivery restricted to account owner)</span> &bull; Code: <b>" +
-        generatedContactOtp +
-        "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill Code</button>";
+        "</b> (including spam folder) and enter the 6-digit code below.";
     } else {
       statusText.innerHTML =
-        "Verification code generated for <b>" +
+        "<span style='color:var(--good);font-weight:700;'>✓ Verification Code dispatched!</span> Please check your email inbox at <b>" +
         escapeHtml(email) +
-        "</b> &bull; Code: <b>" +
-        generatedContactOtp +
-        "</b> <button type='button' class='btn btn-small' style='margin-left:6px; padding:2px 8px; font-size:11px;' onclick='autoFillOtp()'>Auto-Fill Code</button>";
+        "</b> (including spam folder) and enter the 6-digit code below.";
     }
   }
 
   btn.disabled = false;
   btn.textContent = "Resend OTP";
-}
-
-function autoFillOtp() {
-  if (generatedContactOtp) {
-    var input = document.getElementById("contact_otp_code");
-    if (input) {
-      input.value = generatedContactOtp;
-      verifyContactOtp();
-    }
-  }
 }
 
 function verifyContactOtp() {
@@ -888,8 +869,8 @@ async function submitRegistration() {
           '<div class="notice mt" style="text-align:left;">' +
             '<b>Account Activation Notice:</b><br>' +
             'We sent an activation notice to <b>' + email + '</b>' +
-            (accountInfo.code ? ' (Activation Code: <b>' + accountInfo.code + '</b>)' : '') +
-            '. Click below to open the Account Activation page and create your password.' +
+            '' +
+            '. Please check your inbox or spam folder to complete account activation.' +
           '</div>' +
           '<div class="row mt-big" style="justify-content:center">' +
             '<a class="btn btn-red" href="' + actUrl + '" target="_blank">Open Account Activation</a>' +

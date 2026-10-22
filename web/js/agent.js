@@ -433,10 +433,16 @@ async function renderDetailModalContent() {
         '<label>Polite Message Sent to Customer (Auto-generated or editable below)</label>' +
         '<textarea id="det-remarks" rows="2" placeholder="Select a preset above or click \'✨ AI Generate Polite Message\'...">' + escapeHtml(app.agent_remarks || "") + '</textarea>' +
       '</div>' +
-      '<label style="display:flex; gap:8px; align-items:center; font-size:13px; font-weight:700; margin-bottom:14px">' +
-        '<input id="det-encoded-chk" type="checkbox" style="width:auto" ' + (app.encoded ? "checked" : "") + ' />' +
-        'Mark Application as Encoded to Red Fiber Provider (Wait 3–5 business days message sent to customer)' +
-      '</label>' +
+      '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; background:var(--soft); padding:10px 14px; border-radius:8px;">' +
+        '<label style="display:flex; gap:8px; align-items:center; font-size:13px; font-weight:700; margin:0;">' +
+          '<input id="det-encoded-chk" type="checkbox" style="width:auto" ' + (app.encoded ? "checked" : "") + ' />' +
+          'Mark Application as Encoded to Red Fiber RADIUS Portal (Manual Entry Verified)' +
+        '</label>' +
+        '<div style="display:flex; gap:8px; align-items:center;">' +
+          '<label style="font-size:12px; margin:0; font-weight:600;">RADIUS Ref / Circuit #:</label>' +
+          '<input id="det-provider-ref" type="text" placeholder="e.g. RF-CIR-10492" value="' + escapeHtml(app.provider_ref || "") + '" style="font-size:12px; padding:4px 8px; width:150px; border:1px solid var(--line); border-radius:4px;" />' +
+        '</div>' +
+      '</div>' +
       '<div style="display:flex; gap:10px; flex-wrap:wrap">' +
         '<button type="button" class="btn btn-green" onclick="saveAgentDecision(\'Approved\')">✓ Approve &amp; Encode</button>' +
         '<button type="button" class="btn btn-outline" style="border-color:#d97706; color:#b45309" onclick="saveAgentDecision(\'Needs Correction\')">⚠ Request Correction</button>' +
@@ -504,6 +510,7 @@ async function saveAgentDecision(newStatus) {
   var remarks = document.getElementById("det-remarks").value.trim();
   var rejectType = document.getElementById("det-reject-type").value;
   var isEncoded = document.getElementById("det-encoded-chk").checked || newStatus === "Approved";
+  var providerRef = document.getElementById("det-provider-ref") ? document.getElementById("det-provider-ref").value.trim() : (app.provider_ref || "");
   var targetFields = lastDetectedFields || [];
 
   if (chosenField === "email") targetFields = ["email"];
@@ -554,6 +561,7 @@ async function saveAgentDecision(newStatus) {
     customer_instruction: remarks,
     screening: updatedScreening,
     encoded: isEncoded,
+    provider_ref: providerRef,
     encoding_proof_url: proofUrl
   });
 
@@ -563,7 +571,7 @@ async function saveAgentDecision(newStatus) {
     app.id,
     app.reference_no,
     "Agent (" + currentAgent.full_name + ")",
-    "Set status to " + newStatus + (targetFields.length ? " [Target fields: " + targetFields.join(", ") + "]" : "") + (isEncoded ? " (Encoded)" : "") + ": " + remarks
+    "Set status to " + newStatus + (targetFields.length ? " [Target fields: " + targetFields.join(", ") + "]" : "") + (isEncoded ? " (Encoded to Red Fiber RADIUS" + (providerRef ? ": " + providerRef : "") + ")" : "") + ": " + remarks
   );
 
   await dbAddNotification(

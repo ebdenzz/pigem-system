@@ -708,3 +708,62 @@ async function sendManagerPromoBroadcast() {
     btn.textContent = "✉️ Send Promotional Campaign Email";
   }
 }
+
+
+// ============================================================
+// AGENT PROVISIONING (Manager)
+// ============================================================
+function openAddAgentModal() {
+  var modal = document.getElementById("modal-add-agent");
+  if (!modal) return;
+  document.getElementById("new-agent-name").value = "";
+  document.getElementById("new-agent-email").value = "";
+  document.getElementById("new-agent-pw").value = "";
+  document.getElementById("new-agent-area").value = "";
+  var msg = document.getElementById("new-agent-msg");
+  if (msg) { msg.textContent = ""; msg.className = "msg"; }
+  modal.classList.remove("hidden");
+}
+
+function closeAddAgentModal() {
+  var modal = document.getElementById("modal-add-agent");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function submitNewAgent() {
+  var name = document.getElementById("new-agent-name").value.trim();
+  var email = document.getElementById("new-agent-email").value.trim().toLowerCase();
+  var pw = document.getElementById("new-agent-pw").value;
+  var area = document.getElementById("new-agent-area").value.trim();
+  var msg = document.getElementById("new-agent-msg");
+  var btn = document.getElementById("btn-submit-new-agent");
+
+  if (!name || !email || !pw) {
+    showAlert("Missing Required Information", "Please enter full name, email address, and password for the agent.");
+    return;
+  }
+  if (pw.length < 6) {
+    showAlert("Password Short", "Password must be at least 6 characters.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Provisioning in Database...";
+  try {
+    var created = await dbCreateUserAccount(name, email, pw, "agent");
+    if (area) await dbUpdateProfile(created.id, { intro: area });
+    await dbAddActivity("agent_provisioned", "Manager " + currentManager.full_name + " provisioned verification agent: " + name + " (" + email + ")");
+    await refreshManagerData();
+    closeAddAgentModal();
+    showAlert("Agent Provisioned", "Verification agent " + name + " (" + email + ") has been successfully provisioned.");
+  } catch (err) {
+    if (msg) {
+      msg.textContent = "Error: " + (err.message || "Failed to create agent");
+      msg.className = "msg bad";
+    }
+    showAlert("Provisioning Failed", err.message || "Could not provision agent.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Provision Agent";
+  }
+}

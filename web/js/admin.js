@@ -265,7 +265,8 @@ async function adminCreateUser() {
   hideMsg("acc-msg");
   var name = document.getElementById("new-acc-name").value.trim();
   var email = document.getElementById("new-acc-email").value.trim().toLowerCase();
-  var pw = document.getElementById("new-acc-pw").value || "demo123";
+  var pw = (document.getElementById("new-acc-pw").value || "").trim();
+  if (!pw || pw.length < 6) { showMsg("acc-msg", "error", "Please provide a password of at least 6 characters."); return; }
   var role = document.getElementById("new-acc-role").value;
 
   if (!name || !email) {

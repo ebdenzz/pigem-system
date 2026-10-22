@@ -34,6 +34,7 @@
       <div class="role-grid">
 
         <!-- CARD 1: SYSTEM ADMINISTRATOR -->
+        <div id="card-admin-container">
         <div class="card" style="background:var(--bg-soft); border:1px solid var(--line);">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -50,7 +51,7 @@
 
           <div class="mt">
             <label for="adm-name">Full Legal Name</label>
-            <input id="adm-name" type="text" value="Juan C. Dela Cruz" placeholder="Juan C. Dela Cruz">
+            <input id="adm-name" type="text" value="Denzel Fortez" placeholder="Denzel Fortez">
           </div>
           <div class="mt">
             <label for="adm-email">Admin Email Address</label>
@@ -58,17 +59,19 @@
           </div>
           <div class="mt">
             <label for="adm-pw">Password (min. 6 characters)</label>
-            <input id="adm-pw" type="text" value="admin123" placeholder="At least 6 characters">
+            <input id="adm-pw" type="password" placeholder="Enter secure password (min. 6 characters)">
           </div>
           <div class="mt">
-            <label for="adm-age">Designation</label>
-            <input id="adm-age" type="text" value="Lead Systems Engineer" placeholder="e.g. Lead Systems Engineer">
+            <label for="adm-age">Age / Designation / Location</label>
+            <input id="adm-age" type="text" value="Age: 21, Dasmariñas City, Cavite" placeholder="Age: 21, Dasmariñas City, Cavite">
           </div>
 
           <button type="button" id="btn-save-admin" class="btn btn-dark btn-full mt-big" onclick="registerAdminAccount()">
             + Create Admin Account
           </button>
           <div id="adm-status" class="small mt center"></div>
+        </div>
+
         </div>
 
         <!-- CARD 2: OPERATIONS MANAGER -->
@@ -96,7 +99,7 @@
           </div>
           <div class="mt">
             <label for="mgr-pw">Password (min. 6 characters)</label>
-            <input id="mgr-pw" type="text" value="manager123" placeholder="At least 6 characters">
+            <input id="mgr-pw" type="password" placeholder="Enter secure password (min. 6 characters)">
           </div>
           <div class="mt">
             <label for="mgr-phone">Contact Mobile Number</label>
@@ -136,7 +139,7 @@
           </div>
           <div class="mt">
             <label for="agent-pw">Password (min. 6 characters)</label>
-            <input id="agent-pw" type="text" value="agent123" placeholder="At least 6 characters">
+            <input id="agent-pw" type="password" placeholder="Enter secure password (min. 6 characters)">
           </div>
           <div class="mt">
             <label for="agent-area">Assigned Territory / Specialization</label>
@@ -203,16 +206,15 @@
     };
 
     function fillAdminPreset() {
-      document.getElementById("adm-name").value = "Juan C. Dela Cruz";
+      document.getElementById("adm-name").value = "Denzel Fortez";
       document.getElementById("adm-email").value = "pigem.system.admin@gmail.com";
-      document.getElementById("adm-pw").value = "admin123";
-      document.getElementById("adm-age").value = "Lead Systems Engineer";
+      document.getElementById("adm-age").value = "Age: 21, Dasmariñas City, Cavite";
     }
 
     function fillManagerPreset() {
       document.getElementById("mgr-name").value = "Maria Santos Reyes";
       document.getElementById("mgr-email").value = "pigem.manager.santos@gmail.com";
-      document.getElementById("mgr-pw").value = "manager123";
+      
       document.getElementById("mgr-phone").value = "09171234567";
     }
 
@@ -221,7 +223,7 @@
       if (!p) return;
       document.getElementById("agent-name").value = p.name;
       document.getElementById("agent-email").value = p.email;
-      document.getElementById("agent-pw").value = "agent123";
+      
       document.getElementById("agent-area").value = p.area;
     }
 
@@ -336,6 +338,36 @@
           tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center;" class="muted">No accounts found in Supabase. Register your first account above!</td></tr>';
           return;
         }
+        var hasAdmin = false;
+        var adminName = "Denzel Fortez";
+        for (var k = 0; k < (users || []).length; k++) {
+          if (users[k].role === "admin") {
+            hasAdmin = true;
+            if (users[k].full_name) adminName = users[k].full_name;
+            break;
+          }
+        }
+        var adminContainer = document.getElementById("card-admin-container");
+        if (adminContainer) {
+          if (hasAdmin) {
+            adminContainer.innerHTML = '\
+              <div class="card" style="background:#f8fafc; border:1px solid #cbd5e1; opacity:0.95; height:100%;">\
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">\
+                  <span class="badge" style="background:#101828; color:#fff; font-weight:700;">ADMIN INITIALIZED</span>\
+                  <span class="badge badge-green">✓ Active & Locked</span>\
+                </div>\
+                <h3 style="margin:0 0 8px 0; font-size:16.5px;">System Administrator Provisioned</h3>\
+                <p class="small muted" style="margin-bottom:12px;">Admin account is active for <b>' + escapeHtml(adminName) + '</b> (Age: 21, Dasmariñas City, Cavite). To protect system security, Admin registration is permanently locked.</p>\
+                <div style="font-size:12px; background:#fff; padding:10px 12px; border-radius:6px; border:1px solid var(--line); margin-bottom:14px;">\
+                  <div><b>Account:</b> pigem.system.admin@gmail.com</div>\
+                  <div><b>Designation:</b> Age: 21, Dasmariñas City, Cavite</div>\
+                  <div><b>Security:</b> SHA-256 Hashed Password Protected</div>\
+                </div>\
+                <a href="admin-login.html" class="btn btn-dark btn-full mt">Go to Admin Login &rarr;</a>\
+              </div>';
+          }
+        }
+
         var rows = "";
         for (var i = 0; i < users.length; i++) {
           var u = users[i];

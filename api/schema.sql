@@ -1,158 +1,277 @@
--- ============================================================
--- PIGEM database setup (Supabase / PostgreSQL)
--- HOW TO USE: Supabase dashboard -> SQL Editor -> New query -> paste this whole file -> Run
--- It is safe to run more than once.
--- ============================================================
+-- ================================================================================
+-- PIGEM INTERNET SERVICE APPLICATION SYSTEM - CLEAN DATABASE RESET SCHEMA
+-- Target Database : Supabase PostgreSQL (Project: wuunqfxyejxwrawtjdrf)
+-- Instructions    : Open Supabase SQL Editor -> Paste -> Press Ctrl+A (Select All) -> Click RUN
+-- ================================================================================
 
--- MAJOR: 1) PROFILES - one row per login account, with the role that controls access
-create table if not exists public.profiles (
-  id         uuid primary key references auth.users(id) on delete cascade,
-  email      text,
-  full_name  text not null default '',
-  role       text not null default 'customer' check (role in ('customer','agent','manager','admin')),
-  active     boolean not null default true,
-  created_at timestamptz not null default now()
+-- 1. DROP EXISTING TABLES & LEGACY OBJECTS
+DROP TABLE IF EXISTS public.system_logs CASCADE;
+DROP TABLE IF EXISTS public.login_history CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.corrections CASCADE;
+DROP TABLE IF EXISTS public.screenings CASCADE;
+DROP TABLE IF EXISTS public.documents CASCADE;
+DROP TABLE IF EXISTS public.agent_links CASCADE;
+DROP TABLE IF EXISTS public.applications CASCADE;
+DROP TABLE IF EXISTS public.website_content CASCADE;
+DROP TABLE IF EXISTS public.system_settings CASCADE;
+DROP TABLE IF EXISTS public.plans CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.activity CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- 2. CREATE FRESH PRODUCTION TABLES (12 TABLES)
+
+-- Table 1: USERS
+CREATE TABLE public.users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('admin', 'manager', 'agent', 'customer')),
+  active BOOLEAN NOT NULL DEFAULT true,
+  activated BOOLEAN NOT NULL DEFAULT true,
+  activation_code TEXT,
+  reset_code TEXT,
+  avatar_url TEXT,
+  intro TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- MAJOR: 2) APPLICATIONS - one row per internet service application
-create table if not exists public.applications (
-  id                uuid primary key default gen_random_uuid(),
-  reference         text unique not null,                 -- example: PG-20261016-AB12CD
-  customer_id       uuid not null references public.profiles(id),
-  agent_id          uuid references public.profiles(id),  -- the Agent handling it (null = unclaimed)
-  referral_agent_id uuid references public.profiles(id),  -- the Agent whose link was used
-  status            text not null default 'Processing'
-                    check (status in ('Processing','Needs Correction','Ready for Encoding','Provider Processing','Approved','Rejected')),
-  plan              text not null,
-  version           integer not null default 1,           -- goes up each time the customer corrects it
-  details           jsonb not null default '{}',          -- everything typed in the form
-  documents         jsonb not null default '{}',          -- storage paths of uploaded files
-  screening         jsonb,                                -- result from the Python AI screening service
-  correction_note   text not null default '',
-  provider_reference text not null default '',
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
+-- Table 2: LOGIN HISTORY
+CREATE TABLE public.login_history (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT,
+  email TEXT,
+  role TEXT,
+  action TEXT NOT NULL DEFAULT 'login',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- MAJOR: 3) NOTIFICATIONS - messages shown inside the website
-create table if not exists public.notifications (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles(id),
-  message    text not null,
-  created_at timestamptz not null default now()
+-- Table 3: AGENT LINKS
+CREATE TABLE public.agent_links (
+  id BIGSERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  link_code TEXT,
+  agent_id TEXT,
+  agent_email TEXT,
+  agent_name TEXT,
+  note TEXT,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- MAJOR: 4) ACTIVITY - a history of who did what
-create table if not exists public.activity (
-  id             bigint generated always as identity primary key,
-  application_id uuid references public.applications(id),
-  actor_id       uuid references public.profiles(id),
-  event          text not null,
-  detail         text not null default '',
-  created_at     timestamptz not null default now()
+-- Table 4: PLANS
+CREATE TABLE public.plans (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  speed INTEGER NOT NULL,
+  price NUMERIC NOT NULL,
+  tag TEXT,
+  featured BOOLEAN NOT NULL DEFAULT false,
+  active BOOLEAN NOT NULL DEFAULT true
 );
 
--- ============================================================
--- MAJOR: AUTOMATIC PROFILE - every new sign-up becomes a 'customer'.
--- Roles can only be changed later by an Admin (or in this SQL editor).
--- ============================================================
-create or replace function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, email, full_name, role)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name',''), 'customer');
-  return new;
-end $$;
+-- Table 5: WEBSITE CONTENT
+CREATE TABLE public.website_content (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- Table 6: SYSTEM SETTINGS
+CREATE TABLE public.system_settings (
+  id TEXT PRIMARY KEY,
+  ai_enabled BOOLEAN NOT NULL DEFAULT true,
+  maintenance_mode BOOLEAN NOT NULL DEFAULT false,
+  maintenance_message TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- MINOR: helper that returns the role of the person who is logged in
-create or replace function public.my_role() returns text
-language sql security definer stable set search_path = public as $$
-  select role from public.profiles where id = auth.uid() and active
-$$;
+-- Table 7: APPLICATIONS
+CREATE TABLE public.applications (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  ref_no TEXT UNIQUE NOT NULL,
+  reference_no TEXT,
+  customer_id TEXT,
+  agent_id TEXT,
+  agent_link_code TEXT,
+  assigned_agent TEXT,
+  plan TEXT,
+  plan_id TEXT,
+  plan_name TEXT,
+  first_name TEXT,
+  middle_name TEXT DEFAULT 'N/A',
+  last_name TEXT,
+  full_name TEXT NOT NULL,
+  birth_date TEXT,
+  phone TEXT NOT NULL,
+  phone_alt TEXT,
+  email TEXT NOT NULL,
+  house_no TEXT,
+  house_suffix TEXT,
+  unit_no TEXT,
+  unit_type TEXT DEFAULT 'Residential',
+  floor_no TEXT,
+  building_name TEXT DEFAULT 'N/A',
+  street TEXT,
+  subdivision TEXT DEFAULT 'N/A',
+  barangay TEXT,
+  city TEXT,
+  province TEXT,
+  landmark TEXT,
+  address_line TEXT,
+  lat DOUBLE PRECISION DEFAULT 14.3294,
+  lng DOUBLE PRECISION DEFAULT 120.9367,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  id_type TEXT NOT NULL,
+  id_number TEXT NOT NULL,
+  id_front_path TEXT,
+  id_back_path TEXT,
+  id_image_url TEXT,
+  remarks TEXT,
+  agree_tu BOOLEAN DEFAULT false,
+  original_copy JSONB,
+  original_submission JSONB,
+  corrected_copy JSONB,
+  has_correction BOOLEAN DEFAULT false,
+  screening JSONB DEFAULT '{}'::jsonb,
+  ai_result JSONB,
+  ai_log JSONB DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'Pending Review'
+    CHECK (status IN ('Pending Review', 'Under Agent Review', 'Needs Correction', 'Approved', 'Rejected', 'Processing', 'Submitted to Provider')),
+  correction_note TEXT,
+  agent_remarks TEXT,
+  provider_ref TEXT,
+  provider_remarks TEXT,
+  customer_instruction TEXT,
+  encoded BOOLEAN DEFAULT false,
+  encoded_proof TEXT,
+  encoding_proof_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- ============================================================
--- MAJOR: SECURITY RULES (Row Level Security) - who can see / change what
--- ============================================================
-alter table public.profiles       enable row level security;
-alter table public.applications   enable row level security;
-alter table public.notifications  enable row level security;
-alter table public.activity       enable row level security;
+-- Table 8: DOCUMENTS
+CREATE TABLE public.documents (
+  id BIGSERIAL PRIMARY KEY,
+  application_id TEXT,
+  doc_type TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  version TEXT NOT NULL DEFAULT 'original',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- PROFILES: you see yourself; staff see everyone; only Admin changes roles
-drop policy if exists "profiles read"   on public.profiles;
-drop policy if exists "profiles admin"  on public.profiles;
-create policy "profiles read"  on public.profiles for select to authenticated
-  using (id = auth.uid() or public.my_role() in ('agent','manager','admin'));
-create policy "profiles admin" on public.profiles for update to authenticated
-  using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+-- Table 9: SCREENINGS
+CREATE TABLE public.screenings (
+  id BIGSERIAL PRIMARY KEY,
+  application_id TEXT,
+  quality JSONB,
+  ocr JSONB,
+  comparisons JSONB,
+  ai_remark TEXT,
+  status TEXT NOT NULL DEFAULT 'completed',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- APPLICATIONS: customers see their own, agents see unclaimed + their own, managers see all
-drop policy if exists "apps read"             on public.applications;
-drop policy if exists "apps customer insert"  on public.applications;
-drop policy if exists "apps customer update"  on public.applications;
-drop policy if exists "apps agent update"     on public.applications;
-drop policy if exists "apps manager update"   on public.applications;
+-- Table 10: CORRECTIONS
+CREATE TABLE public.corrections (
+  id BIGSERIAL PRIMARY KEY,
+  application_id TEXT,
+  agent_id TEXT,
+  issue_note TEXT NOT NULL,
+  customer_response JSONB,
+  status TEXT NOT NULL DEFAULT 'Pending Customer',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-create policy "apps read" on public.applications for select to authenticated
-  using (
-    customer_id = auth.uid()
-    or public.my_role() = 'manager'
-    or (public.my_role() = 'agent' and (agent_id is null or agent_id = auth.uid()))
-  );
+-- Table 11: NOTIFICATIONS
+CREATE TABLE public.notifications (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT,
+  email TEXT,
+  role TEXT,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-create policy "apps customer insert" on public.applications for insert to authenticated
-  with check (
-    customer_id = auth.uid() and public.my_role() = 'customer' and status = 'Processing'
-    and (agent_id is null or exists (select 1 from public.profiles p where p.id = agent_id and p.role = 'agent' and p.active))
-  );
+-- Table 12: SYSTEM LOGS
+CREATE TABLE public.system_logs (
+  id BIGSERIAL PRIMARY KEY,
+  actor_email TEXT,
+  action TEXT NOT NULL,
+  detail TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
--- MINOR: a customer can only edit an application that was sent back for correction
-create policy "apps customer update" on public.applications for update to authenticated
-  using (customer_id = auth.uid() and status = 'Needs Correction')
-  with check (customer_id = auth.uid() and status = 'Processing');
+-- 3. ROW-LEVEL SECURITY (RLS) & POLICIES
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.website_content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.screenings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.corrections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
 
-create policy "apps agent update" on public.applications for update to authenticated
-  using (public.my_role() = 'agent' and (agent_id is null or agent_id = auth.uid()))
-  with check (public.my_role() = 'agent' and agent_id = auth.uid());
+CREATE POLICY "Allow all on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on login_history" ON public.login_history FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on agent_links" ON public.agent_links FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on plans" ON public.plans FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on website_content" ON public.website_content FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on system_settings" ON public.system_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on applications" ON public.applications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on documents" ON public.documents FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on screenings" ON public.screenings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on corrections" ON public.corrections FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on system_logs" ON public.system_logs FOR ALL USING (true) WITH CHECK (true);
 
-create policy "apps manager update" on public.applications for update to authenticated
-  using (public.my_role() = 'manager') with check (public.my_role() = 'manager');
+-- 4. STORAGE BUCKETS CONFIGURATION
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('website-assets', 'website-assets', true), ('documents', 'documents', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
--- NOTIFICATIONS: you read only your own; any logged-in user may send one
-drop policy if exists "notes read"   on public.notifications;
-drop policy if exists "notes insert" on public.notifications;
-create policy "notes read"   on public.notifications for select to authenticated using (user_id = auth.uid());
-create policy "notes insert" on public.notifications for insert to authenticated with check (auth.uid() is not null);
+DROP POLICY IF EXISTS "Allow public access to website-assets" ON storage.objects;
+CREATE POLICY "Allow public access to website-assets"
+ON storage.objects FOR ALL
+USING (bucket_id = 'website-assets')
+WITH CHECK (bucket_id = 'website-assets');
 
--- ACTIVITY: staff read it; anyone logged in can add their own entries
-drop policy if exists "activity read"   on public.activity;
-drop policy if exists "activity insert" on public.activity;
-create policy "activity read"   on public.activity for select to authenticated
-  using (public.my_role() in ('agent','manager','admin'));
-create policy "activity insert" on public.activity for insert to authenticated with check (actor_id = auth.uid());
+DROP POLICY IF EXISTS "Allow access to documents" ON storage.objects;
+CREATE POLICY "Allow access to documents"
+ON storage.objects FOR ALL
+USING (bucket_id = 'documents')
+WITH CHECK (bucket_id = 'documents');
 
--- ============================================================
--- MAJOR: FILE STORAGE - a private bucket named "documents"
--- Files are saved as  <user id>/<file name>
--- ============================================================
-insert into storage.buckets (id, name, public) values ('documents', 'documents', false)
-on conflict (id) do nothing;
+-- 5. INITIAL CLEAN PRODUCTION SEED DATA (ZERO DEMO ACCOUNTS)
 
-drop policy if exists "documents upload" on storage.objects;
-drop policy if exists "documents read"   on storage.objects;
-create policy "documents upload" on storage.objects for insert to authenticated
-  with check (bucket_id = 'documents' and (storage.foldername(name))[1] = auth.uid()::text);
-create policy "documents read" on storage.objects for select to authenticated
-  using (
-    bucket_id = 'documents'
-    and ((storage.foldername(name))[1] = auth.uid()::text or public.my_role() in ('agent','manager'))
-  );
+-- A. Official Red Fiber Plans
+INSERT INTO public.plans (id, name, speed, price, tag, featured, active) VALUES
+  ('1000', 'Plan 1000', 100, 1000, 'Fiber for your home', false, true),
+  ('1400', 'Plan 1400', 300, 1400, 'Most Chosen', true, true),
+  ('1900', 'Plan 1900', 500, 1900, 'Power Users & Heavy Streaming', false, true)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, speed = EXCLUDED.speed, price = EXCLUDED.price,
+  tag = EXCLUDED.tag, featured = EXCLUDED.featured, active = EXCLUDED.active;
 
--- ============================================================
--- AFTER RUNNING: make your first Admin (replace the email, then run this line alone)
---   update public.profiles set role = 'admin' where email = 'you@example.com';
--- ============================================================
+-- B. Default System Settings
+INSERT INTO public.system_settings (id, ai_enabled, maintenance_mode, maintenance_message) VALUES
+  ('main', true, false, '')
+ON CONFLICT (id) DO UPDATE SET
+  ai_enabled = EXCLUDED.ai_enabled, maintenance_mode = EXCLUDED.maintenance_mode;
+
+-- C. Default Website CMS Data
+INSERT INTO public.website_content (id, data) VALUES
+  ('main', '{"logo_image": "logo.png", "area_text": "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.", "client_images": ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"], "hero_slides": [{"image": "Banners/home-banner-1.png", "title": "Pure Fiber Internet for Your Home", "desc": "Fast, reliable, and unlimited Red Fiber broadband without lock-in."}, {"image": "Banners/home-banner-2.png", "title": "Seamless Streaming & Gaming", "desc": "Low latency fiber connectivity optimized for modern smart homes."}, {"image": "Banners/home-banner-3.png", "title": "Quick Professional Installation", "desc": "Same-week dispatch and dedicated fiber facility validation in Cavite."}]}'::jsonb)
+ON CONFLICT (id) DO UPDATE SET
+  data = EXCLUDED.data;
+
+-- Return confirmation status
+SELECT 'PIGEM database schema initialized successfully.' AS status;

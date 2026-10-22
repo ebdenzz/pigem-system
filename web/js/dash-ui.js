@@ -291,7 +291,7 @@ async function sendProfilePwOtp() {
     var code = await dbStartPasswordReset(dashCurrentUser.email);
     await apiSendOtpEmail(dashCurrentUser.email, code, "Password Change Verification");
     document.getElementById("prof-pw-step2").classList.remove("hidden");
-    showMsg("prof-pw-msg", "info", "Verification code sent (Demo code: " + code + ").");
+    showMsg("prof-pw-msg", "info", "Verification code sent to your email. Please check your inbox or spam folder.");
   } catch (err) {
     showMsg("prof-pw-msg", "error", err.message);
   }

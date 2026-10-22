@@ -1,177 +1,187 @@
 # PIGEM Web-Based Internet Service Application System
 
-An enterprise-grade, web-based internet service application and customer lifecycle management platform developed for **Combined Facilities Support Services (PIGEM)** based in Dasmariñas City, Cavite.
+<p align="center">
+  <img src="web/assets/images/logo.png" alt="PIGEM Logo" width="180"/>
+</p>
+
+<p align="center">
+  <strong>Enterprise-Grade Customer Acquisition, Geolocation Pinning, AI Document Screening, and Operations Management Platform</strong><br>
+  <em>Developed for Combined Facilities Support Services (PIGEM) — Dasmariñas City, Cavite, Philippines</em>
+</p>
+
+<p align="center">
+  <a href="http://127.0.0.1:8001/"><img src="https://img.shields.io/badge/Host-Localhost%20Unified%20Server-blue?style=flat" alt="Unified Server"/></a>
+  <a href="https://supabase.com"><img src="https://img.shields.io/badge/Supabase-Cloud%20Database-3ECF8E?style=flat&logo=supabase" alt="Supabase"/></a>
+  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.159.1-009688?style=flat&logo=fastapi" alt="FastAPI"/></a>
+  <a href="https://www.python.org/downloads/release/python-3119/"><img src="https://img.shields.io/badge/Python-3.11.9-3776AB?style=flat&logo=python" alt="Python 3.11"/></a>
+  <a href="https://opencv.org/"><img src="https://img.shields.io/badge/OpenCV-4.10%20Deskew-5C3EE8?style=flat&logo=opencv" alt="OpenCV"/></a>
+  <a href="https://github.com/PaddlePaddle/PaddleOCR"><img src="https://img.shields.io/badge/PaddleOCR-Text%20Extraction-red?style=flat" alt="PaddleOCR"/></a>
+  <a href="https://resend.com"><img src="https://img.shields.io/badge/Resend-Transactional%20Email-000000?style=flat" alt="Resend"/></a>
+  <a href="https://ollama.com"><img src="https://img.shields.io/badge/Ollama-Qwen2.5%201.5B-orange?style=flat" alt="Ollama"/></a>
+</p>
+
+---
+
+## 📋 Table of Contents
+
+- [📌 Project Overview](#-project-overview)
+- [🌐 Localhost System Portals](#-localhost-system-portals)
+- [🏛 System Architecture](#-system-architecture)
+- [✨ Core Functional Modules](#-core-functional-modules)
+- [🚀 Quick Start Guide (1-Click Run)](#-quick-start-guide)
+- [🗄️ Database Reset & Clean Schema](#-database-reset--clean-schema)
+- [🛡 Security, Audit & Data Privacy](#-security-audit--data-privacy)
 
 ---
 
 ## 📌 Project Overview
 
-The **PIGEM Web-Based Internet Service Application System** streamlines the customer acquisition and onboarding process for residential fiber internet subscriptions (Red Fiber). It digitizes applicant registration, interactive fiber coverage pinning, identification document verification, customer communication, and internal administrative workflows into a unified cloud-native architecture.
+The **PIGEM Web-Based Internet Service Application System** is a unified, privacy-first web platform and on-premises AI screening engine built to streamline the customer onboarding and service provisioning lifecycle for residential **Red Fiber** broadband subscriptions.
 
-### Key Objectives
-- **Digital Customer Onboarding:** Eliminates manual paper forms with an interactive, responsive multi-step online application form with integrated geolocation pinning.
-- **Data Privacy & Document Quality Screening:** Incorporates an on-premises AI screening engine utilizing computer vision (OpenCV) and optical character recognition (PaddleOCR) to detect image blur, glare, and data consistency without exposing sensitive government IDs to public third-party cloud LLMs.
-- **End-to-End Operational Transparency:** Provides dedicated role-based portals for customers, verification agents, operations managers, and technical system administrators.
+Operating in **Dasmariñas City, Cavite** and adjacent coverage areas across Greater Manila, the platform replaces paper application forms with an interactive, geolocated digital submission workflow, automated on-premises identification document screening, multi-tier staff desks, and transactional email notifications.
+
+### Primary Objectives
+1. **Paperless Customer Onboarding:** Interactive subscriber forms with GPS map pinning (Leaflet / OpenStreetMap).
+2. **On-Premises Privacy-Preserving Screening:** Automated document image quality evaluation (blur, brightness, orientation, 4-point homography deskew) and text extraction using **OpenCV** and **PaddleOCR**, paired with a local **Ollama (Qwen2.5 1.5B)** polite remark rewriter.
+3. **Application Management Subsystem:** Queueing, claim, review, and status tracking for Verification Agents, alongside manager oversight, agent workload tracking, and Content CMS.
+4. **Manual Red Fiber RADIUS Encoding:** Verification agents record official provider circuit IDs and reference numbers after manual entry into the Red Fiber RADIUS portal.
+5. **Zero Demo Accounts:** Clean production database starting empty, with authenticated staff roles.
 
 ---
 
-## 🌐 Live System Subsystems & Access Portals
+## 🌐 Localhost System Portals
 
-The production web interface is hosted on **Vercel** and backed by **Supabase Cloud** (`PostgreSQL`, `Row-Level Security`, `Auth`, and `Storage Buckets`):
+When running `START-AI.bat`, the FastAPI server directly mounts and serves the web application at `http://127.0.0.1:8001/`. This guarantees zero CORS errors and zero mixed-content issues.
 
-### 1. External Customer Subsystem
-*Public portal for plan discovery, online registration, and application lifecycle monitoring.*
-- **Public Home Page:** [https://pigem-system-web.vercel.app/index.html](https://pigem-system-web.vercel.app/index.html)
-- **About PIGEM:** [https://pigem-system-web.vercel.app/about.html](https://pigem-system-web.vercel.app/about.html)
-- **Application Form:** [https://pigem-system-web.vercel.app/apply.html](https://pigem-system-web.vercel.app/apply.html)
-- **Account Activation:** [https://pigem-system-web.vercel.app/activate.html](https://pigem-system-web.vercel.app/activate.html)
-- **Customer Login:** [https://pigem-system-web.vercel.app/login.html](https://pigem-system-web.vercel.app/login.html)
-- **Customer Portal:** [https://pigem-system-web.vercel.app/customer.html](https://pigem-system-web.vercel.app/customer.html)
+> 📄 **Quick Text Reference:** See [`LOCAL_ACCESS_URLS.txt`](./LOCAL_ACCESS_URLS.txt) for a copy-pasteable directory of all portal links.
 
-### 2. Internal Application Management Subsystem
-*Operational workspace for fiber verification agents and operations managers.*
-- **Internal Staff Login:** [https://pigem-system-web.vercel.app/staff-login.html](https://pigem-system-web.vercel.app/staff-login.html)
-- **Agent Verification Workspace:** [https://pigem-system-web.vercel.app/agent.html](https://pigem-system-web.vercel.app/agent.html)
-- **Manager Operations & Content CMS:** [https://pigem-system-web.vercel.app/manager.html](https://pigem-system-web.vercel.app/manager.html)
+### 1. External Customer Subsystem (Public Facing)
+| Portal | Direct Local URL | Description |
+| :--- | :--- | :--- |
+| **Home Landing Page** | [http://127.0.0.1:8001/index.html](http://127.0.0.1:8001/index.html) | Plan showcase, promotional banners, coverage area text. |
+| **Corporate About** | [http://127.0.0.1:8001/about.html](http://127.0.0.1:8001/about.html) | Company history, field operations, and facilities profile. |
+| **Online Application** | [http://127.0.0.1:8001/apply.html](http://127.0.0.1:8001/apply.html) | Registration form, GPS map pinning, valid ID upload, reCAPTCHA. |
+| **One-Time Activation** | [http://127.0.0.1:8001/activate.html](http://127.0.0.1:8001/activate.html) | OTP verification and subscriber password initialization. |
+| **Customer Login** | [http://127.0.0.1:8001/login.html](http://127.0.0.1:8001/login.html) | Authentication gate with reCAPTCHA v2 protection. |
+| **Customer Dashboard** | [http://127.0.0.1:8001/customer.html](http://127.0.0.1:8001/customer.html) | Application status lifecycle, agent remarks, and correction resubmissions. |
+| **Privacy Policy** | [http://127.0.0.1:8001/privacy.html](http://127.0.0.1:8001/privacy.html) | RA 10173 data handling disclosures and legal advisory. |
 
-### 3. Internal Technical Management Subsystem
-*Administrative console for system configuration, audit logging, and service provisioning.*
-- **Admin Login:** [https://pigem-system-web.vercel.app/admin-login.html](https://pigem-system-web.vercel.app/admin-login.html)
-- **Technical Management Dashboard:** [https://pigem-system-web.vercel.app/admin.html](https://pigem-system-web.vercel.app/admin.html)
-- **Account Setup & Provisioning Portal:** [https://pigem-system-web.vercel.app/setup-accounts.html](https://pigem-system-web.vercel.app/setup-accounts.html)
+### 2. Internal Staff & Operations Subsystems
+| Portal | Direct Local URL | Description |
+| :--- | :--- | :--- |
+| **Staff Authentication** | [http://127.0.0.1:8001/staff-login.html](http://127.0.0.1:8001/staff-login.html) | Secure login for Verification Agents and Operations Managers. |
+| **Agent Verification Desk** | [http://127.0.0.1:8001/agent.html](http://127.0.0.1:8001/agent.html) | Application queue, ID screening, polite remark generator, manual RADIUS encoding. |
+| **Operations Manager CMS** | [http://127.0.0.1:8001/manager.html](http://127.0.0.1:8001/manager.html) | Pipeline oversight, agent provisioning, workload metrics, and Content CMS. |
+
+### 3. Technical Administration Subsystem
+| Portal | Direct Local URL | Description |
+| :--- | :--- | :--- |
+| **Admin Login** | [http://127.0.0.1:8001/admin-login.html](http://127.0.0.1:8001/admin-login.html) | Secure gate for Technical Administrators. |
+| **Technical Console** | [http://127.0.0.1:8001/admin.html](http://127.0.0.1:8001/admin.html) | Local AI server health diagnostics, audit logs, and maintenance toggles. |
+| **Account Provisioning** | [http://127.0.0.1:8001/setup-accounts.html](http://127.0.0.1:8001/setup-accounts.html) | Primary account setup with permanent Admin lockout protection. |
 
 ---
 
 ## 🏛 System Architecture
 
-The system utilizes a hybrid, privacy-preserving multi-tier architecture:
+```mermaid
+flowchart TD
+    subgraph Browser["Web Frontend (Unified Localhost :8001)"]
+        UI["HTML5 / Modern JavaScript / Leaflet / CSS3"]
+    end
 
-```
-[ Customer / Staff Web Browser ]
-              │
-              ▼
-   ┌──────────────────────┐
-   │     Vercel Edge      │  <-- Static Web Frontend (HTML5, Vanilla JS, Leaflet)
-   └──────────┬───────────┘
-              │
-      ┌───────┴────────────────────────┐
-      ▼                                ▼
-┌────────────────────────┐   ┌────────────────────────────────┐
-│     Supabase Cloud     │   │   On-Premises / Workstation    │
-│  - PostgreSQL DB       │   │   - Python FastAPI (Port 8001) │
-│  - Storage Buckets     │   │   - OpenCV Blur/Glare Analysis │
-│  - User Authentication │   │   - PaddleOCR Text Extraction  │
-│  - Activity Logging    │   │   - Local Ollama (qwen2.5)     │
-└────────────────────────┘   └────────────────────────────────┘
-```
+    subgraph Backend["Python 3.11 FastAPI Server (:8001)"]
+        FastAPI["Uvicorn / FastAPI Backend Engine"]
+        CV["OpenCV 4.10 (4-Point Perspective Transform & Blur Detection)"]
+        OCR["PaddleOCR 3.7.0 (Text Extraction)"]
+        Ollama["Ollama Local AI (Qwen2.5 1.5B Polite Remarks)"]
+        FastAPI --> CV
+        FastAPI --> OCR
+        FastAPI --> Ollama
+    end
 
-- **Resilient Offline Operation:** In compliance with Philippine Data Privacy Act regulations (RA 10173), document analysis runs locally on authorized workstations. If the workstation or AI engine is offline, the web system seamlessly falls back to **Manual Agent Verification Mode** without interruption to public application submissions.
+    subgraph SupabaseCloud["Supabase PostgreSQL Cloud"]
+        DB[("PostgreSQL Database (12 Tables)")]
+        RLS["Row Level Security Policies"]
+        Storage["Storage Buckets (website-assets, documents)"]
+        DB --- RLS
+    end
+
+    subgraph EmailGateway["Transactional Notifications"]
+        Resend["Resend API (Transactional Status & Correction Alerts)"]
+    end
+
+    UI -- "Static Assets & Local AI Queries" --> FastAPI
+    UI -- "Data & Auth Operations" --> DB
+    UI -- "Upload Documents & Media" --> Storage
+    FastAPI -- "Email Dispatches" --> Resend
+```
 
 ---
 
-## 🚀 Local AI Service Installation & Setup
+## ✨ Core Functional Modules
 
-To run the local Python FastAPI document screening service:
+1. **User Authentication Subsystem:**
+   - Isolated sessions for Customer, Agent, Manager, and Admin.
+   - Client-side SHA-256 password hashing with Supabase Auth synchronization.
+   - Google reCAPTCHA v2 with automatic localhost development key switching.
+   - Admin account registered as **Denzel Fortez, Age: 21, Dasmariñas City, Cavite** with permanent card lock.
 
-### Prerequisites
-- Python 3.11+
-- [Ollama](https://ollama.com/) with model `qwen2.5:1.5b`
+2. **Online Application Form:**
+   - Red Fiber Plans (Plan 1000, Plan 1400, Plan 1900).
+   - Valid ID upload (Front & Back) with client-side preview.
+   - Geolocation address capture with Cavite reference coordinates.
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/ebdenzz/pigem-system.git
-cd pigem-system
-```
+3. **Application Management Subsystem:**
+   - Verification agent queue: Claim, review, approve, request correction, or reject.
+   - Preset common and rare validator remarks with local AI polite message rewriting.
+   - Manual Red Fiber RADIUS portal verification and provider reference recording.
+   - Manager dashboard with live workload metrics, referral links, agent provisioning, and Content CMS with Maintenance Mode protection.
 
-### 2. Environment Configuration
-Create a `.env` file inside the `api/` directory (or copy from `api/.env.example`):
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-supabase-anon-key
-RESEND_API_KEY=your-resend-api-key
-RESEND_FROM=PIGEM Support <onboarding@resend.dev>
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:1.5b
-```
+4. **Technical Management Subsystem:**
+   - Technical Admin Console for local AI diagnostics and screening engine controls.
+   - OpenCV 4-Point Homography Perspective Transform (document auto-deskew).
+   - Laplacian blur detection, contrast variance, and brightness analysis.
+   - PaddleOCR text cross-matching (Legal Name and ID Number).
+   - Immutable security and screening activity audit logs.
 
-### 3. Run the AI Screening Service
-Using the automated launcher on Windows:
-```cmd
-START-AI.bat
-```
+5. **Notification Subsystem:**
+   - Resend transactional email dispatches for application status updates, customer correction update requests, and encoding notices.
 
-Or manually via terminal:
-```bash
-cd api
-python -m venv .venv311
+---
+
+## 🚀 Quick Start Guide
+
+### Step 1: Start the Server
+Double-click `START-AI.bat` in `C:\pigem-system`:
+```powershell
+cd C:\pigem-system\api
 .\.venv311\Scripts\activate
-pip install -r requirements.txt
 uvicorn main:app --host 127.0.0.1 --port 8001
 ```
 
----
-
-## ✉️ Email Notification Module (Powered by Resend)
-
-The system includes an enterprise-grade transactional email notification engine configured with **Resend** (`https://resend.com`) and formatted with official **Red Fiber / PIGEM Combined Facilities Support Services** corporate branding.
-
-### Supported Email Templates & Events:
-1. **Security OTP Verification:** Delivers a large 6-digit verification code with 10-minute validity and anti-fraud advisory for application contact verification and password resets.
-2. **Application Confirmation & Reference:** Prominently displays the generated Reference Number (`PF-YYYYMMDD-XXXX`), subscription plan, speed, address, and one-time account activation link.
-3. **Privacy-Safe Correction Notices (RA 10173):** In compliance with Republic Act No. 10173 (Data Privacy Act of 2012), correction emails notify the subscriber that action is required and direct them to log in to the authenticated Customer Portal rather than exposing raw sensitive PII in open email.
-4. **Application Status Updates:** Real-time updates for *Approved*, *Encoded to Provider* (with 3–5 business day technician dispatch notice), and *Rejected*.
-5. **Agent Operational Alerts:** Alerts agents when applications are assigned or when customers resubmit corrections.
-6. **Manager Operational Summaries:** Governance alerts and application escalation briefings for management.
-7. **Promotional & Marketing Announcements:** Authorized marketing broadcasts for available fiber plan upgrades and community announcements with CAN-SPAM compliant unsubscribe links.
-
-### Recommended Test Accounts (for Live Demo & System Evaluation):
-- **Agent Desk (3 Accounts):**
-  - `pigem.agent.carla@gmail.com` — Verification Agent 1 (Document Screening & ID Verification)
-  - `pigem.agent.mark@gmail.com` — Verification Agent 2 (Customer Clarifications & Corrections)
-  - `pigem.agent.elena@gmail.com` — Verification Agent 3 (Barangay Coverage & Provider Encoding)
-- **Operations Manager (1 Account):**
-  - `pigem.manager.santos@gmail.com` — Operations & Content CMS Manager
-- **Technical Administrator (1 Account):**
-  - `pigem.system.admin@gmail.com` — Technical Administrator (System Health, AI Engine, API Console)
-- **Live Resend Inbox:**
-  - `ebdenzzz@gmail.com` — Registered Resend account owner. Receives live test emails directly in inbox when using the Resend free development domain (`onboarding@resend.dev`). Other test accounts display OTP codes and Auto-Fill buttons seamlessly to prevent evaluation roadblocks.
-
----
-
-## 📂 Repository Layout
-
-```text
-pigem_system/
-├── web/                        # Production Frontend (Vercel Root)
-│   ├── index.html              # Public Home Landing Page
-│   ├── about.html              # Corporate Background & Service Strips
-│   ├── apply.html              # Multi-Panel Application Form & Map
-│   ├── activate.html           # One-Time Account Activation
-│   ├── login.html              # Customer Authentication
-│   ├── customer.html           # Customer Application Dashboard
-│   ├── staff-login.html        # Internal Staff Authentication
-│   ├── agent.html              # Agent Verification Workspace
-│   ├── manager.html            # Operations Management & CMS
-│   ├── admin-login.html        # System Administrator Authentication
-│   ├── admin.html              # Technical Administration Dashboard
-│   ├── setup-accounts.html     # Administrator Account Provisioning
-│   ├── privacy.html            # Policy & Legal Notice
-│   ├── assets/                 # Stylesheets, Brand Images, and Assets
-│   └── js/                     # Modular Scripts (config, db, api, dash-ui)
-├── api/                        # Local Python AI Backend Service
-│   ├── main.py                 # FastAPI Application Gateway
-│   ├── quality.py              # OpenCV Image Sharpness & Glare Detector
-│   ├── ocr.py                  # PaddleOCR Text Recognition Engine
-│   ├── ai.py                   # Ollama Local LLM Integration
-│   ├── mailer.py               # Corporate Transactional Emailer
-│   └── requirements.txt        # Python Backend Dependencies
-├── START-AI.bat                # Windows Launcher for Local AI Engine
-└── vercel.json                 # Vercel Deployment Configuration
+### Step 2: (Optional for Local AI Remarks) Start Ollama
+```powershell
+ollama run qwen2.5:1.5b
 ```
 
+### Step 3: Open in Browser
+Open: **[http://127.0.0.1:8001/index.html](http://127.0.0.1:8001/index.html)**
+
 ---
 
-## 📄 License & Ownership
+## 🗄️ Database Reset & Clean Schema
 
-Developed for **Combined Facilities Support Services (PIGEM)**.  
-All rights reserved © 2026.
+The clean database schema is located in [`supabase/schema.sql`](./supabase/schema.sql). To reset your Supabase project:
+1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/wuunqfxyejxwrawtjdrf/sql/new).
+2. Copy and paste the contents of `supabase/schema.sql`.
+3. Press `Ctrl` + `A` to ensure the entire script is selected, then click **RUN**.
+4. Open [http://127.0.0.1:8001/setup-accounts.html](http://127.0.0.1:8001/setup-accounts.html) to provision your official accounts.
+
+---
+
+## 🛡 Security, Audit & Data Privacy
+
+* **Zero Cloud ID Leaks:** OpenCV and PaddleOCR run 100% on-premises. Government ID images are never sent to third-party public AI providers.
+* **RA 10173 Compliance:** Application data and uploaded valid IDs are strictly compartmentalized with Row-Level Security (RLS).
+* **Password Encryption:** Passwords are SHA-256 hashed on the client and bcrypt-secured within Supabase Authentication.
