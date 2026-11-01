@@ -11,7 +11,6 @@
 </head>
 <body>
 
-  <!-- Simple Top Bar -->
   <header class="simple-bar">
     <div class="container" style="justify-content:space-between;">
       <div style="display:flex; align-items:center; gap:12px;">
@@ -23,7 +22,7 @@
   </header>
 
   <main class="form-wrap">
-    <!-- Progress Header (Clean, No "Step" Words) -->
+
     <div class="card" style="margin-bottom:18px;">
       <div class="row between">
         <b id="section-title">Select Your Plan</b>
@@ -35,9 +34,6 @@
       <div id="agent-ref-banner" class="notice good mt" hidden></div>
     </div>
 
-    <!-- =======================================================
-         PANEL 0: Plan Selection
-         ======================================================= -->
     <section id="panel-0" class="card panel">
       <h3>Select Your Plan</h3>
       <p class="small muted">Choose the monthly Red Fiber internet plan for your home.</p>
@@ -50,9 +46,6 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         PANEL 1: Personal Information
-         ======================================================= -->
     <section id="panel-1" class="card panel" hidden>
       <h3>Personal Information</h3>
       <p class="small muted">Enter your legal name as printed on your valid government ID.</p>
@@ -82,9 +75,6 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         PANEL 2: Contact Information (with OTP)
-         ======================================================= -->
     <section id="panel-2" class="card panel" hidden>
       <h3>Contact Information</h3>
       <p class="small muted">Provide your active Gmail and primary mobile number for application updates and OTP verification.</p>
@@ -103,7 +93,6 @@
           <input id="phone_alt" type="tel" placeholder="Optional alternate number">
         </div>
 
-        <!-- Contact Verification Box -->
         <div class="full">
           <div class="upload-box" style="background:var(--bg-soft);">
             <div class="row between" style="align-items:center; flex-wrap:wrap; gap:10px;">
@@ -128,9 +117,6 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         PANEL 3: Installation Location Map & Address
-         ======================================================= -->
     <section id="panel-3" class="card panel" hidden>
       <h3>Installation Location</h3>
       <p class="small muted">Pin your exact house or building on the interactive map so our installation team can verify fiber facility coverage.</p>
@@ -216,9 +202,6 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         PANEL 4: Valid ID Documents (Front & Back)
-         ======================================================= -->
     <section id="panel-4" class="card panel" hidden>
       <div class="row between" style="align-items:flex-start; flex-wrap:wrap; gap:10px;">
         <div>
@@ -228,7 +211,6 @@
         <button type="button" id="btn-phone-qr" class="btn btn-small btn-outline" onclick="openPhoneQrModal()">&#128242; Continue on Phone (QR Code)</button>
       </div>
 
-      <!-- In-Card Document Instructions & Sample Photos -->
       <div class="notice mt" style="background:var(--bg-soft); border:1px solid var(--line);">
         <b>Document Upload Instructions &amp; Quality Guide</b>
         <ul style="margin:8px 0 10px 18px; font-size:13.5px; color:var(--muted); line-height:1.5;">
@@ -237,7 +219,7 @@
           <li>Keep all 4 corners of the ID inside the frame with no flash glare or fingers covering the text.</li>
         </ul>
         <div class="id-sample-grid">
-          <!-- Good Sample Visual Card -->
+
           <div style="border:2px solid #12b76a; border-radius:10px; padding:10px; background:#fff;">
             <div style="font-size:12px; font-weight:700; color:#027a48; margin-bottom:6px;">&#10003; GOOD SAMPLE (CLEAR FRONT &amp; BACK)</div>
             <svg viewBox="0 0 320 96" width="100%" height="84" style="display:block; background:#f8fafc; border-radius:6px; border:1px solid #d0d5dd;">
@@ -257,7 +239,7 @@
               <text x="176" y="74" font-size="8" font-family="sans-serif" fill="#027a48" font-weight="bold">BACK: BARCODE CLEAR</text>
             </svg>
           </div>
-          <!-- Bad Sample Visual Card -->
+
           <div style="border:2px solid #f04438; border-radius:10px; padding:10px; background:#fff;">
             <div style="font-size:12px; font-weight:700; color:#b42318; margin-bottom:6px;">&#10005; AVOID (BLURRY, GLARE, OR CUT-OFF)</div>
             <svg viewBox="0 0 320 96" width="100%" height="84" style="display:block; background:#fef3f2; border-radius:6px; border:1px solid #fecdca;">
@@ -299,7 +281,6 @@
           <div id="id-format-hint" class="small muted mt" style="font-size:12px;"></div>
         </div>
 
-        <!-- Front of Valid ID Upload (Phone vs Desktop Responsive) -->
         <div>
           <label>Front of Valid ID <span class="req" data-req-for="id_front" onmouseenter="showReqTip(this, 'Front ID', 'Upload clear photo of the FRONT of your ID.')" onmouseleave="hideReqTip(this)">*</span></label>
           <div class="upload-box">
@@ -316,7 +297,6 @@
           </div>
         </div>
 
-        <!-- Back of Valid ID Upload (Phone vs Desktop Responsive) -->
         <div>
           <label>Back of Valid ID <span class="req" data-req-for="id_back" onmouseenter="showReqTip(this, 'Back ID', 'Upload clear photo of the BACK of your ID.')" onmouseleave="hideReqTip(this)">*</span></label>
           <div class="upload-box">
@@ -340,9 +320,6 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         PANEL 5: Detailed Subscriber Declaration & Consent
-         ======================================================= -->
     <section id="panel-5" class="card panel" hidden>
       <h3>Subscriber Declaration &amp; Consent</h3>
       <p class="small muted">Please review the official Red Fiber subscriber declarations and terms before completing your registration.</p>
@@ -372,7 +349,6 @@
         </label>
       </div>
 
-      <!-- Interactive "I'm not a robot" CAPTCHA Widget -->
       <div class="mt-big">
         <div id="apply-captcha-card" class="captcha-container" onclick="triggerApplyCaptcha()">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -392,27 +368,24 @@
       </div>
     </section>
 
-    <!-- =======================================================
-         REALISTIC ANIMATED REGISTRATION LOADING SCREEN
-         ======================================================= -->
     <section id="panel-loading" class="card panel" hidden>
       <div class="reg-loading-overlay">
         <div class="reg-spinner"></div>
-        <h3 id="reg-loading-title">Registering Application...</h3>
-        <p id="reg-loading-sub" class="small muted">Please wait while the system securely processes your application.</p>
+        <h3 id="reg-loading-title">Submitting Application...</h3>
+        <p id="reg-loading-sub" class="small muted">Please wait a moment while we securely transfer your information and documents.</p>
 
         <div class="reg-step-list">
           <div id="step-ld-1" class="reg-step-item active">
             <span class="reg-step-icon">1</span>
-            <span>Verifying Application Information</span>
+            <span>Transferring Application Information</span>
           </div>
           <div id="step-ld-2" class="reg-step-item">
             <span class="reg-step-icon">2</span>
-            <span>Securely Uploading Valid ID Documents</span>
+            <span>Uploading Valid ID to Secure Storage</span>
           </div>
           <div id="step-ld-3" class="reg-step-item">
             <span class="reg-step-icon">3</span>
-            <span>Creating Customer Account &amp; Notification</span>
+            <span>Forwarding Application for Screening</span>
           </div>
           <div id="step-ld-4" class="reg-step-item">
             <span class="reg-step-icon">4</span>

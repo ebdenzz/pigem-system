@@ -1,7 +1,3 @@
-// ============================================================
-// TECHNICAL MANAGEMENT SYSTEM (ADMIN) LOGIC
-// ============================================================
-
 var currentAdmin = null;
 var adminApps = [];
 var adminUsers = [];
@@ -29,18 +25,16 @@ async function refreshAdminData() {
   document.getElementById("st-ai").textContent = aiOn ? "ON" : "OFF";
   document.getElementById("st-maint").textContent = maintOn ? "ON" : "OFF";
 
-  // Count roles
   var rCounts = { customer: 0, agent: 0, manager: 0, admin: 0 };
   for (var i = 0; i < adminUsers.length; i++) {
     var r = adminUsers[i].role || "customer";
     rCounts[r] = (rCounts[r] || 0) + 1;
   }
 
-  // Count app statuses
   var pending = 0, fix = 0, approved = 0, rejected = 0;
   for (var j = 0; j < adminApps.length; j++) {
     var st = adminApps[j].status;
-    if (st === "Pending Review" || st === "Under Agent Review") pending++;
+    if (st === "Pending Review" || st === "Under Agent Review" || st === "Encoding") pending++;
     else if (st === "Needs Correction") fix++;
     else if (st === "Approved" || st === "Submitted to Provider") approved++;
     else if (st === "Rejected") rejected++;
@@ -80,7 +74,6 @@ function showTab(tab) {
   }
 }
 
-// 1. Maintenance Mode Toggle
 function renderMaintState() {
   var on = isMaintenanceOn();
   var lbl = document.getElementById("maint-status-label");
@@ -99,29 +92,30 @@ async function toggleMaintMode() {
   await refreshAdminData();
 }
 
-// 2. AI Screening Control
 var lastHealthData = null;
 
 async function renderAiState() {
   var on = isAiEnabled();
   var health = await apiCheckHealth();
   lastHealthData = health;
+  var pyOnline = Boolean(health && health.api);
   var ollamaOnline = Boolean(health && health.ollama);
+  var activeJobs = Number((health && health.active_screenings) || 0);
 
   var stAiEl = document.getElementById("st-ai");
   if (stAiEl) {
-    stAiEl.textContent = (!on) ? "MAINT" : (ollamaOnline ? "ONLINE" : "OFFLINE");
+    stAiEl.textContent = (!on) ? "PAUSED" : (pyOnline ? "ONLINE" : "OFFLINE");
   }
 
   var lbl = document.getElementById("ai-status-label");
   var btn = document.getElementById("btn-toggle-ai");
   if (lbl) {
     if (!on) {
-      lbl.textContent = "Currently DISABLED by Admin (Agent queue shows 'ARTIFICIAL INTELLIGENCE is under maintenance')";
-    } else if (!ollamaOnline) {
-      lbl.textContent = "⚠️ Local AI Server (Ollama / OpenCV / PaddleOCR) is OFFLINE on this device — Related AI APIs are inactive; manual agent review is active.";
+      lbl.textContent = "Currently DISABLED by Admin (Agent & Manager workspaces switch cleanly to manual document review)";
+    } else if (!pyOnline) {
+      lbl.textContent = "Local Python FastAPI Screening Server is OFFLINE on this device - manual agent review is active.";
     } else {
-      lbl.textContent = "✅ Local AI Server ONLINE (Ollama qwen2.5:1.5b + OpenCV + PaddleOCR active on 127.0.0.1:8001)";
+      lbl.textContent = "2-Layer Background AI Screening Engine ONLINE (Active parallel jobs: " + activeJobs + " - OpenCV + PaddleOCR" + (ollamaOnline ? " + Ollama qwen2.5:1.5b" : " + Plain-Language Fallback") + ")";
     }
   }
   if (btn) {
@@ -141,7 +135,7 @@ async function renderAiState() {
     var item = aiList[i];
     html +=
       '<div class="chat-item ai">' +
-        '<div class="who">' + escapeHtml(item.reference_no || "") + ' • ' + escapeHtml(item.actor) + ' <span class="muted" style="font-weight:400">(' + formatDate(item.created_at) + ')</span></div>' +
+        '<div class="who">' + escapeHtml(item.reference_no || "") + ' - ' + escapeHtml(item.actor) + ' <span class="muted" style="font-weight:400">(' + formatDate(item.created_at) + ')</span></div>' +
         '<div>' + escapeHtml(item.message) + '</div>' +
       '</div>';
   }
@@ -155,7 +149,6 @@ async function toggleAiMode() {
   await refreshAdminData();
 }
 
-// 3. APIs Health Check (If Ollama is offline, AI-related APIs also report Offline)
 async function checkApiHealth() {
   var box = document.getElementById("api-health-list");
   if (!box) return;
@@ -164,55 +157,66 @@ async function checkApiHealth() {
   var data = await apiCheckHealth();
   var pyOk = Boolean(data && data.api);
   var ollamaOk = Boolean(data && data.ollama);
-  var opencvOk = Boolean(ollamaOk && data && data.opencv);
-  var ocrOk = Boolean(ollamaOk && data && data.paddleocr);
-  var resendOk = Boolean(pyOk && data && data.resend);
+  var opencvOk = Boolean(pyOk && data && data.opencv);
+  var ocrOk = Boolean(pyOk && data && data.paddleocr);
+  var smtpOk = Boolean(pyOk && data && (data.smtp || data.resend));
   var supaOk = !IS_DEMO_MODE;
+  var activeJobs = Number((data && data.active_screenings) || 0);
+
+  var smtpBadgeEl = document.getElementById("smtp-status-badge");
+  if (smtpBadgeEl) {
+    smtpBadgeEl.className = "badge " + (smtpOk ? "badge-green" : "badge-red");
+    smtpBadgeEl.textContent = smtpOk ? "Gmail SMTP Connected" : (pyOk ? "SMTP Password Missing" : "Server Offline");
+  }
 
   var items = [
     {
-      name: "Ollama Local AI Engine (qwen2.5:1.5b)",
-      status: ollamaOk ? "Online (Local)" : "Offline",
-      badge: ollamaOk ? "badge-green" : "badge-red",
-      detail: ollamaOk
-        ? "Running locally at http://localhost:11434 (Prototype privacy mode)"
-        : "Offline on this device — AI screening & polite remark generator are disabled when Ollama is not running"
+      name: "2-Layer Parallel Screening Coordinator (FastAPI /screen-async)",
+      status: pyOk ? ("Online (" + activeJobs + " active)") : "Offline",
+      badge: pyOk ? "badge-green" : "badge-red",
+      detail: pyOk
+        ? "Fetches Valid IDs from Supabase Storage bucket & runs concurrent Layer 1 + Layer 2 background screening"
+        : "Offline on this device - start FastAPI server at " + apiUrl
     },
     {
-      name: "OpenCV Image Quality API (Blur / Glare / Brightness)",
+      name: "Ollama Local AI Engine (qwen2.5:1.5b)",
+      status: ollamaOk ? "Online (Local)" : "Fallback Active",
+      badge: ollamaOk ? "badge-green" : "badge-yellow",
+      detail: ollamaOk
+        ? "Running locally at http://localhost:11434 (generates plain-language remarks & guidance)"
+        : "Ollama not running - built-in deterministic plain-English guidance & polite messages active"
+    },
+    {
+      name: "OpenCV Auto-Crop & Image Quality API (Layer 1 & Layer 2)",
       status: opencvOk ? "Online" : "Offline",
       badge: opencvOk ? "badge-green" : "badge-red",
       detail: opencvOk
-        ? "Connected via local FastAPI (" + apiUrl + ")"
-        : "Offline — Requires local Python FastAPI & Ollama AI service to be running"
+        ? "4-corner perspective crop, rotation alignment, CLAHE enhancement, blur & glare scoring"
+        : "Offline - Requires Python FastAPI & opencv-python-headless"
     },
     {
-      name: "PaddleOCR ID Text Extraction API",
+      name: "PaddleOCR ID Text Extraction & Mismatch Engine",
       status: ocrOk ? "Online" : "Offline",
       badge: ocrOk ? "badge-green" : "badge-red",
       detail: ocrOk
-        ? "Connected via local FastAPI (" + apiUrl + ")"
-        : "Offline — Requires local Python FastAPI & Ollama AI service to be running"
+        ? "Extracts ID text & auto-checks Name, Birth Date, and ID Number mismatches"
+        : "Offline - Requires Python FastAPI & PaddleOCR"
     },
     {
-      name: "Resend Transactional Email API (via Local FastAPI)",
-      status: resendOk ? "Online" : "Offline",
-      badge: resendOk ? "badge-green" : "badge-red",
-      detail: resendOk
-        ? "Ready at " + apiUrl + "/notify"
-        : "Offline on this device (In-app Supabase notifications remain active)"
+      name: "Gmail SMTP Email Engine (via Local FastAPI)",
+      status: smtpOk ? "Online" : (pyOk ? "Needs App Password" : "Offline"),
+      badge: smtpOk ? "badge-green" : "badge-red",
+      detail: smtpOk
+        ? "Ready at " + apiUrl + "/notify (smtp.gmail.com)"
+        : (pyOk
+            ? "Set SMTP_USER and 16-char Google App Password (SMTP_PASSWORD) in api/.env"
+            : "Offline on this device (In-app Supabase notifications remain active)")
     },
     {
       name: "Supabase Cloud (PostgreSQL + Auth + Storage Buckets)",
       status: supaOk ? "Live Cloud" : "Local Demo Storage",
       badge: supaOk ? "badge-green" : "badge-blue",
-      detail: supaOk ? CONFIG.SUPABASE_URL : "Running in local browser storage"
-    },
-    {
-      name: "Leaflet.js + OpenStreetMap + Nominatim Reverse Geocoding",
-      status: "Online",
-      badge: "badge-green",
-      detail: "Interactive map pinning & automatic address lookup enabled"
+      detail: supaOk ? (CONFIG.SUPABASE_URL + " (documents + website-assets buckets)") : "Running in local browser storage"
     }
   ];
 
@@ -231,7 +235,6 @@ async function checkApiHealth() {
   box.innerHTML = html;
 }
 
-// 4. Accounts Management
 function renderAdminUsers() {
   var body = document.getElementById("admin-users-body");
   if (!body) return;
@@ -297,7 +300,6 @@ async function adminToggleActive(userId, activeState) {
   await refreshAdminData();
 }
 
-// 5. Activity & Login History Logs
 async function renderAdminLogs() {
   var logs = await dbListLogs();
   var logBody = document.getElementById("admin-logs-body");
@@ -321,7 +323,6 @@ async function renderAdminLogs() {
   }
 }
 
-// 6. Export CSV & Reset Demo Data
 function exportApplicationsCsv() {
   var headers = ["Reference No", "Full Name", "Email", "Mobile", "Plan", "ID Type", "ID Number", "City", "Province", "Status", "Assigned Agent", "Created At"];
   var rows = [headers.join(",")];
@@ -369,27 +370,27 @@ async function adminSendTestEmail() {
   }
 
   btn.disabled = true;
-  btn.textContent = "Sending via Resend...";
-  showMsg("test-email-msg", "info", "Contacting Resend API...");
+  btn.textContent = "Sending via Gmail SMTP...";
+  showMsg("test-email-msg", "info", "Connecting to Gmail SMTP (smtp.gmail.com)...");
 
   try {
     var res;
     if (type === "otp") {
       var sampleOtp = String(Math.floor(100000 + Math.random() * 900000));
-      res = await apiSendOtpEmail(to, sampleOtp, "Admin Security Test", "System Administrator");
+      res = await apiSendOtpEmail(to, sampleOtp, "Admin Security Test", "Admin");
     } else if (type === "application_confirmation") {
       res = await apiSendApplicationConfirmationEmail(
         to,
         "Juan Dela Cruz",
         "PF-20261021-0001",
-        { name: "Plan 1299", speed: "50", price: 1299 },
+        { name: "Plan 1400", speed: "300", price: 1400 },
         "Blk 42 Lot 19 Tokya St., Summerwind Village M., Brgy. Burol Main, Dasmariñas City, Cavite",
         { status: "pending", code: "ACT-789012" }
       );
     } else if (type === "correction_notice") {
-      res = await apiSendCorrectionEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "Clarification needed");
+      res = await apiSendCorrectionEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "The name entered on your application form does not match the name printed on your Valid ID.");
     } else if (type === "status_update") {
-      res = await apiSendStatusEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "Approved & Encoded", "Your documents have been verified and submitted to the Red Fiber provider.");
+      res = await apiSendStatusEmail(to, "Juan Dela Cruz", "PF-20261021-0001", "Approved", "Your application has been approved by the provider.");
     } else if (type === "promotional") {
       res = await apiSendPromotionalEmail(
         to,
@@ -404,11 +405,9 @@ async function adminSendTestEmail() {
     }
 
     if (res && res.sent) {
-      showMsg("test-email-msg", "ok", "✓ Email successfully delivered via Resend! (ID: " + (res.id || "OK") + "). Check your inbox.");
-    } else if (res && res.sandbox_restricted) {
-      showMsg("test-email-msg", "error", "Resend Free Sandbox: Can only deliver to account owner (ebdenzzz@gmail.com). To send to other emails, verify a custom domain at resend.com/domains.");
+      showMsg("test-email-msg", "ok", "Email delivered via Gmail SMTP to " + to + "! Check inbox (and Spam folder).");
     } else if (res && res.offline) {
-      showMsg("test-email-msg", "error", "Local FastAPI server is offline (http://127.0.0.1:8001). Please run START-AI.bat to send live emails.");
+      showMsg("test-email-msg", "error", "Local FastAPI server is offline (http://127.0.0.1:8001). Please start the server to send live emails.");
     } else {
       showMsg("test-email-msg", "error", "Delivery failed: " + ((res && res.reason) || "Unknown error"));
     }
@@ -416,6 +415,6 @@ async function adminSendTestEmail() {
     showMsg("test-email-msg", "error", "Error: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "✉️ Send Live Email via Resend";
+    btn.textContent = "Send Live Email via Gmail SMTP";
   }
 }

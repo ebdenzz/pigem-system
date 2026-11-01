@@ -4,52 +4,51 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Internal Account Registration</title>
+  <title>Account Setup - Admin &amp; Manager</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-    .role-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-  </style>
+.role-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+</style>
 </head>
 <body>
 
   <header class="simple-bar">
     <div class="container" style="display:flex; align-items:center; gap:12px;">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
-      <span style="font-weight:700; font-size:16px; cursor:default; user-select:none;">Combined Facilities Support Services &mdash; New System Account Provisioning</span>
+      <span style="font-weight:700; font-size:16px; cursor:default; user-select:none;">Combined Facilities Support Services &mdash; Account Setup</span>
     </div>
   </header>
 
   <main class="form-wrap" style="max-width:960px; padding:24px 16px;">
     <div class="card" style="margin-bottom:24px;">
       <div class="center" style="margin-bottom:24px;">
-        <h2 style="font-size:24px; font-weight:800; margin:0;">Internal Account Registration</h2>
+        <h2 style="font-size:24px; font-weight:800; margin:0;">Admin &amp; Manager Account Registration</h2>
       </div>
 
       <div class="role-grid-2">
 
-        <!-- CARD 1: SYSTEM ADMINISTRATOR (Disappears once created) -->
         <div id="card-admin-container">
           <div class="card" style="background:var(--bg-soft); border:1px solid var(--line); height:100%;">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
               <span class="badge" style="background:#101828; color:#fff; font-weight:700;">ADMIN</span>
-              <h3 style="margin:0; font-size:16.5px;">Technical Administrator</h3>
+              <h3 style="margin:0; font-size:16.5px;">Admin</h3>
             </div>
 
             <div>
-              <label for="adm-name">Full Legal Name</label>
-              <input id="adm-name" type="text" placeholder="Enter full legal name">
+              <label for="adm-name">Full Name</label>
+              <input id="adm-name" type="text" placeholder="Enter full name">
             </div>
             <div class="mt">
               <label for="adm-email">Admin Email Address</label>
-              <input id="adm-email" type="email" placeholder="admin@domain.com">
+              <input id="adm-email" type="email" placeholder="admin@gmail.com">
             </div>
             <div class="mt">
               <label for="adm-pw">Password (min. 6 characters)</label>
-              <input id="adm-pw" type="password" placeholder="Enter secure password">
+              <input id="adm-pw" type="password" placeholder="Enter password">
             </div>
             <div class="mt">
-              <label for="adm-age">Age / Designation / Location</label>
-              <input id="adm-age" type="text" placeholder="Age, designation, or address">
+              <label for="adm-phone">Contact Mobile Number</label>
+              <input id="adm-phone" type="tel" placeholder="09xxxxxxxxx">
             </div>
 
             <button type="button" id="btn-save-admin" class="btn btn-dark btn-full mt-big" onclick="registerAdminAccount()">
@@ -59,25 +58,24 @@
           </div>
         </div>
 
-        <!-- CARD 2: OPERATIONS MANAGER -->
         <div id="card-manager-container">
           <div class="card" style="background:var(--bg-soft); border:1px solid var(--line); height:100%;">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
               <span class="badge" style="background:#c8102e; color:#fff; font-weight:700;">MANAGER</span>
-              <h3 style="margin:0; font-size:16.5px;">Operations Manager</h3>
+              <h3 style="margin:0; font-size:16.5px;">Manager</h3>
             </div>
 
             <div>
-              <label for="mgr-name">Full Legal Name</label>
-              <input id="mgr-name" type="text" placeholder="Enter full legal name">
+              <label for="mgr-name">Full Name</label>
+              <input id="mgr-name" type="text" placeholder="Enter full name">
             </div>
             <div class="mt">
               <label for="mgr-email">Manager Email Address</label>
-              <input id="mgr-email" type="email" placeholder="manager@domain.com">
+              <input id="mgr-email" type="email" placeholder="manager@gmail.com">
             </div>
             <div class="mt">
               <label for="mgr-pw">Password (min. 6 characters)</label>
-              <input id="mgr-pw" type="password" placeholder="Enter secure password">
+              <input id="mgr-pw" type="password" placeholder="Enter password">
             </div>
             <div class="mt">
               <label for="mgr-phone">Contact Mobile Number</label>
@@ -93,14 +91,13 @@
 
       </div>
 
-      <!-- LIVE DATABASE TABLE -->
       <div style="margin-top:32px; border-top:1px solid var(--line); padding-top:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div>
-            <h3 style="font-size:17px; margin:0;">Active Registered Accounts in Database</h3>
-            <span class="small muted">Accounts registered in Supabase PostgreSQL authentication.</span>
+            <h3 style="font-size:17px; margin:0;">Registered Accounts</h3>
+            <span class="small muted">Active accounts saved in the database.</span>
           </div>
-          <button type="button" class="btn btn-small" onclick="loadRegisteredAccounts()">↻ Refresh List</button>
+          <button type="button" class="btn btn-small" onclick="loadRegisteredAccounts()">Refresh List</button>
         </div>
 
         <div class="table-wrap" style="max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;">
@@ -109,20 +106,19 @@
               <tr style="background:var(--bg-soft); text-align:left; border-bottom:1px solid var(--line);">
                 <th style="padding:10px 14px;">Full Name</th>
                 <th style="padding:10px 14px;">Email Address</th>
-                <th style="padding:10px 14px;">System Role</th>
+                <th style="padding:10px 14px;">Role</th>
                 <th style="padding:10px 14px;">Status</th>
               </tr>
             </thead>
             <tbody id="users-table-body">
               <tr>
-                <td colspan="4" style="padding:20px; text-align:center;" class="muted">Loading registered accounts from Supabase...</td>
+                <td colspan="4" style="padding:20px; text-align:center;" class="muted">Loading registered accounts...</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- BOTTOM NAVIGATION -->
       <div class="row between mt-big" style="border-top:1px solid var(--line); padding-top:18px;">
         <a href="index.html" class="btn btn-small">&larr; Back to Home</a>
         <div class="row" style="gap:10px;">
@@ -138,10 +134,10 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-    async function registerAdminAccount() {
+async function registerAdminAccount() {
       var name = document.getElementById("adm-name").value.trim();
       var email = document.getElementById("adm-email").value.trim().toLowerCase();
-      var age = document.getElementById("adm-age").value.trim();
+      var phone = document.getElementById("adm-phone").value.trim();
       var pw = document.getElementById("adm-pw").value;
       var statusEl = document.getElementById("adm-status");
       var btn = document.getElementById("btn-save-admin");
@@ -156,11 +152,11 @@
       }
 
       btn.disabled = true;
-      btn.textContent = "Creating in Supabase...";
+      btn.textContent = "Creating Account...";
       try {
         var created = await dbCreateUserAccount(name, email, pw, "admin");
-        if (age) await dbUpdateProfile(created.id, { intro: age });
-        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Admin account created!</b>";
+        if (phone) await dbUpdateProfile(created.id, { intro: "Contact: " + phone });
+        statusEl.innerHTML = "<b style='color:var(--good);'>Admin account created!</b>";
         showAlert("Admin Created", "Admin account (" + email + ") registered successfully.", "good");
         await loadRegisteredAccounts();
       } catch (err) {
@@ -190,11 +186,11 @@
       }
 
       btn.disabled = true;
-      btn.textContent = "Creating in Supabase...";
+      btn.textContent = "Creating Account...";
       try {
         var created = await dbCreateUserAccount(name, email, pw, "manager");
         if (phone) await dbUpdateProfile(created.id, { intro: "Contact: " + phone });
-        statusEl.innerHTML = "<b style='color:var(--good);'>✓ Manager account created!</b>";
+        statusEl.innerHTML = "<b style='color:var(--good);'>Manager account created!</b>";
         showAlert("Manager Created", "Manager account (" + email + ") registered successfully.", "good");
         await loadRegisteredAccounts();
       } catch (err) {
@@ -219,18 +215,13 @@
           }
         }
 
-        // When admin is created, hide the Admin card completely on refresh
         var adminContainer = document.getElementById("card-admin-container");
         if (adminContainer) {
-          if (hasAdmin) {
-            adminContainer.style.display = "none";
-          } else {
-            adminContainer.style.display = "block";
-          }
+          adminContainer.style.display = hasAdmin ? "none" : "block";
         }
 
         if (!users || !users.length) {
-          tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center;" class="muted">No accounts found in Supabase. Register your first account above!</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center;" class="muted">No accounts registered yet. Create your Admin and Manager accounts above.</td></tr>';
           return;
         }
 
@@ -244,10 +235,10 @@
           else if (u.role === "customer") roleBadge = '<span class="badge" style="background:#027a48; color:#fff;">Customer</span>';
 
           rows += '<tr style="border-bottom:1px solid var(--line);">' +
-            '<td style="padding:10px 14px; font-weight:600;">' + escapeHtml(u.full_name || "—") + '</td>' +
-            '<td style="padding:10px 14px;">' + escapeHtml(u.email || "—") + '</td>' +
+            '<td style="padding:10px 14px; font-weight:600;">' + escapeHtml(u.full_name || "-") + '</td>' +
+            '<td style="padding:10px 14px;">' + escapeHtml(u.email || "-") + '</td>' +
             '<td style="padding:10px 14px;">' + roleBadge + '</td>' +
-            '<td style="padding:10px 14px;"><span style="color:var(--good); font-weight:600;">✓ Active</span></td>' +
+            '<td style="padding:10px 14px;"><span style="color:var(--good); font-weight:600;">Active</span></td>' +
           '</tr>';
         }
         tbody.innerHTML = rows;
@@ -259,6 +250,6 @@
     document.addEventListener("DOMContentLoaded", function() {
       loadRegisteredAccounts();
     });
-  </script>
+</script>
 </body>
 </html>

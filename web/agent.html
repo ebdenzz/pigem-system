@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Application Handling Management — PIGEM Agent Workspace</title>
+  <title>Application Handling Management - PIGEM Agent Workspace</title>
   <link rel="icon" type="image/png" href="assets/images/logo.png" />
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
 
-  <!-- SPLASH SCREEN -->
   <div id="splash" class="splash">
     <img src="assets/images/logo.png" alt="PIGEM" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page" />
     <b>Application Management System</b>
@@ -18,7 +17,6 @@
 
   <div class="dash-wrap">
 
-    <!-- SIDEBAR -->
     <aside class="dash-side">
       <div class="brand">
         <img src="assets/images/logo.png" alt="PIGEM" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page" />
@@ -29,13 +27,12 @@
       </div>
 
       <button id="nav-overview" data-nav-label="Overview" data-nav-target="overview" class="active" onclick="showTab('overview')">
-        <span>📊 Overview</span>
+        <span><img src="assets/images/placeholder.png" data-icon="overview.png" alt="Overview" class="icon-placeholder" title="Flaticon placeholder: overview.png" />Overview</span>
       </button>
 
-      <!-- EXPANDABLE APPLICATIONS BRANCH -->
       <button type="button" onclick="toggleNavGroup(this)">
-        <span>📋 Applications</span>
-        <span class="chev">▾</span>
+        <span><img src="assets/images/placeholder.png" data-icon="applications.png" alt="Applications" class="icon-placeholder" title="Flaticon placeholder: applications.png" />Applications</span>
+        <span class="chev">v</span>
       </button>
       <div class="nav-sub">
         <button id="nav-queue" data-nav-label="Application Queue (Unclaimed)" data-nav-target="queue" onclick="showTab('queue')">
@@ -46,31 +43,29 @@
           <span>Claimed</span>
           <span id="cnt-claimed" class="badge badge-blue">0</span>
         </button>
-        <button id="nav-correction" data-nav-label="Needs Correction" data-nav-target="correction" onclick="showTab('correction')">
+        <button id="nav-correction" data-nav-label="Needs Correction (Optional)" data-nav-target="correction" onclick="showTab('correction')">
           <span>Needs Correction</span>
           <span id="cnt-correction" class="badge badge-yellow">0</span>
         </button>
-        <button id="nav-encoded" data-nav-label="Encoded Applications" data-nav-target="encoded" onclick="showTab('encoded')">
-          <span>Encoded</span>
+        <button id="nav-encoded" data-nav-label="Encoding & Approved" data-nav-target="encoded" onclick="showTab('encoded')">
+          <span>Encoding / Approved</span>
           <span id="cnt-encoded" class="badge badge-green">0</span>
         </button>
       </div>
 
       <button id="nav-links" data-nav-label="Application Links" data-nav-target="links" onclick="showTab('links')">
-        <span>🔗 Application Links</span>
+        <span><img src="assets/images/placeholder.png" data-icon="link.png" alt="Links" class="icon-placeholder" title="Flaticon placeholder: link.png" />Application Links</span>
       </button>
 
       <button type="button" data-nav-label="Settings & Theme" data-nav-target="settings" onclick="toggleProfileDrawer()">
-        <span>⚙️ Settings</span>
+        <span><img src="assets/images/placeholder.png" data-icon="settings.png" alt="Settings" class="icon-placeholder" title="Flaticon placeholder: settings.png" />Settings</span>
       </button>
 
       <div class="side-foot">© 2026 All Rights Reserved</div>
     </aside>
 
-    <!-- MAIN CONTENT -->
     <div class="dash-main">
 
-      <!-- TOP BAR -->
       <div class="dash-top">
         <div>
           <b style="font-size:16px">Application Handling Management</b>
@@ -84,13 +79,12 @@
 
         <div class="top-actions">
           <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
-            🔔 <span id="notif-count" class="badge badge-red hidden">0</span>
+            <img src="assets/images/placeholder.png" data-icon="bell.png" alt="Notifications" class="icon-placeholder" title="Flaticon placeholder: bell.png" /> <span id="notif-count" class="badge badge-red hidden">0</span>
           </button>
           <button id="avatar-btn" type="button" class="avatar-btn" onclick="toggleProfileDrawer()" title="Account & Theme">AG</button>
         </div>
       </div>
 
-      <!-- TAB 1: OVERVIEW (STATS + GRAPHS + CALENDAR) -->
       <section id="tab-overview">
         <div class="grid-4" style="margin-bottom:20px">
           <div class="stat"><div class="num" id="st-unclaimed">0</div><div class="lbl">Unclaimed Queue</div></div>
@@ -116,7 +110,6 @@
         </div>
       </section>
 
-      <!-- TAB 2: APPLICATION LISTS (QUEUE / CLAIMED / NEEDS CORRECTION / ENCODED) -->
       <section id="tab-apps" class="hidden">
         <div class="card" style="margin-bottom:16px">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
@@ -126,7 +119,7 @@
             </div>
             <div style="display:flex; gap:8px; align-items:center">
               <input id="q-filter" type="text" placeholder="Filter by name, ref no., or city..." oninput="renderAgentCards()" style="max-width:240px" />
-              <button type="button" class="btn btn-outline btn-sm" onclick="refreshAgentData()">↻ Refresh</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="refreshAgentData()">Refresh</button>
             </div>
           </div>
         </div>
@@ -134,7 +127,6 @@
         <div id="agent-cards-box"></div>
       </section>
 
-      <!-- TAB 3: APPLICATION LINKS -->
       <section id="tab-links" class="hidden">
         <div class="card" style="margin-bottom:18px">
           <h2 style="font-size:20px; margin-bottom:4px">Generate Customer Application Link</h2>
@@ -167,7 +159,6 @@
     </div>
   </div>
 
-  <!-- APPLICATION DETAILS & VERIFICATION MODAL -->
   <div id="app-detail-modal" class="modal hidden" onclick="if(event.target===this) closeDetailModal()">
     <div class="modal-box wide">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line)">
@@ -176,9 +167,9 @@
           <h2 id="det-title" style="font-size:20px; margin-top:4px">Reference</h2>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap">
-          <button type="button" class="btn btn-outline btn-sm" onclick="downloadApplicantId()">⬇ Download ID</button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="printApplicantCopy()">🖨 Print Copy</button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="closeDetailModal()">✕ Close</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="downloadApplicantId()"><img src="assets/images/placeholder.png" data-icon="download.png" alt="Download" class="icon-placeholder" title="Flaticon placeholder: download.png" />Download ID</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="printApplicantCopy()"><img src="assets/images/placeholder.png" data-icon="printer.png" alt="Print" class="icon-placeholder" title="Flaticon placeholder: printer.png" />Print Copy</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeDetailModal()">Close</button>
         </div>
       </div>
 
@@ -186,7 +177,6 @@
     </div>
   </div>
 
-  <!-- NOTIFICATIONS MODAL -->
   <div id="notif-modal" class="modal hidden">
     <div class="modal-box">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
@@ -197,12 +187,11 @@
     </div>
   </div>
 
-  <!-- PROFILE DRAWER -->
   <div id="profile-drawer" class="drawer hidden" onclick="if(event.target===this) toggleProfileDrawer()">
     <div class="drawer-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
         <b>Agent Account &amp; Theme</b>
-        <button type="button" class="btn btn-outline btn-sm" onclick="toggleProfileDrawer()">✕</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleProfileDrawer()">Close</button>
       </div>
       <div id="profile-drawer-body"></div>
     </div>

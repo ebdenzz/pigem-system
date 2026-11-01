@@ -1,14 +1,3 @@
-// ============================================================
-// APPLICATION FORM SCRIPT (apply.html)
-// Clean 6-Panel Flow (No "Step" Words):
-//   Panel 0: Select Your Plan
-//   Panel 1: Personal Information
-//   Panel 2: Contact Information (with OTP)
-//   Panel 3: Installation Location Map & Address
-//   Panel 4: Valid ID Documents (Front & Back) — Responsive Camera / QR Code
-//   Panel 5: Subscriber Declaration & Consent
-// ============================================================
-
 var currentPanel = 0;
 var TOTAL_PANELS = 6;
 var selectedPlanId = "1000";
@@ -32,7 +21,6 @@ var SECTION_TITLES = [
   "Subscriber Declaration & Consent"
 ];
 
-// Inline Tooltip Bubble for Asterisk (*) — No underlines, smooth hover
 function showReqTip(el, fieldName, detail) {
   hideReqTip(el);
   var bubble = document.createElement("span");
@@ -64,20 +52,19 @@ function flashErrorBubble(fieldId, fieldName, message) {
   }, 4500);
 }
 
-// Device detection for camera vs desktop QR code
 function setupDeviceUploadUI() {
   var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
   var camBtns = document.querySelectorAll(".phone-only-btn");
   var qrBtn = document.getElementById("btn-phone-qr");
 
   if (!isMobile) {
-    // Desktop: hide camera buttons, show QR Code button
+
     for (var i = 0; i < camBtns.length; i++) {
       camBtns[i].style.display = "none";
     }
     if (qrBtn) qrBtn.style.display = "inline-flex";
   } else {
-    // Phone: show camera buttons, hide QR Code button
+
     for (var j = 0; j < camBtns.length; j++) {
       camBtns[j].style.display = "inline-flex";
     }
@@ -85,7 +72,6 @@ function setupDeviceUploadUI() {
   }
 }
 
-// Read ?plan= and ?agent= from URL
 function initApplyPage() {
   var params = new URLSearchParams(window.location.search);
   var urlPlan = params.get("plan");
@@ -105,7 +91,6 @@ function initApplyPage() {
   setupDeviceUploadUI();
   window.addEventListener("resize", setupDeviceUploadUI);
 
-  // If visitor hasn't verified security CAPTCHA yet, prompt verification now
   if (sessionStorage.getItem("pigem_captcha_verified") !== "true") {
     setTimeout(showApplySecurityCaptchaModal, 150);
   } else {
@@ -122,7 +107,7 @@ function initApplyPage() {
 function showApplySecurityCaptchaModal() {
   openPopup(
     '<div class="center" style="padding:10px 4px;">' +
-      '<div style="width:48px;height:48px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;">🛡️</div>' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;"><img src="assets/images/placeholder.png" data-icon="shield.png" alt="Security" class="icon-placeholder" title="Flaticon placeholder: shield.png" /></div>' +
       '<h3 style="font-size:18px;margin-bottom:4px;">Security Verification</h3>' +
       '<p class="small muted" style="margin-bottom:16px;">Please confirm you are not a robot before proceeding to the application form.</p>' +
       '<div id="g-apply-recaptcha-wrap" style="display:flex;justify-content:center;margin:16px auto;min-height:78px;">' +
@@ -157,7 +142,7 @@ function showApplySecurityCaptchaModal() {
         }
       });
     } catch (e) {
-      // Fallback is available
+
     }
   }
 }
@@ -193,7 +178,6 @@ function triggerApplyPopupCaptcha() {
   }, 600);
 }
 
-// Render Red Fiber plans
 function renderPlanChoices() {
   var plans = getActivePlans();
   var box = document.getElementById("plan-choice-box");
@@ -217,9 +201,6 @@ function pickPlan(planId) {
   renderPlanChoices();
 }
 
-// ============================================================
-// Interactive In-Page CAPTCHA Widget (Panel 5)
-// ============================================================
 var applyCaptchaVerified = false;
 
 function triggerApplyCaptcha() {
@@ -240,7 +221,6 @@ function triggerApplyCaptcha() {
   }, 600);
 }
 
-// QR Code Modal for Continuing on Phone
 function openPhoneQrModal() {
   var currentUrl = window.location.href;
   var qrImgUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(currentUrl);
@@ -261,9 +241,6 @@ function openPhoneQrModal() {
   );
 }
 
-// ============================================================
-// Contact OTP Verification (Panel 1)
-// ============================================================
 async function sendContactOtp() {
   var email = document.getElementById("email").value.trim().toLowerCase();
   var phone = document.getElementById("phone").value.trim();
@@ -295,14 +272,16 @@ async function sendContactOtp() {
   if (statusText) {
     if (emailRes && emailRes.sent) {
       statusText.innerHTML =
-        "<span style='color:var(--good);font-weight:700;'>✓ 6-Digit Verification Code sent!</span> Please check your inbox at <b>" +
+        "<span style='color:var(--good);font-weight:700;'>6-Digit Verification Code sent!</span> Please check your inbox at <b>" +
         escapeHtml(email) +
-        "</b> (including spam folder) and enter the 6-digit code below.";
+        "</b> (including Spam folder) and enter the 6-digit code below.";
     } else {
+      var errDetail = (emailRes && emailRes.offline)
+        ? "Verification email service is temporarily unavailable. Please try again in a moment."
+        : ((emailRes && emailRes.reason) || "Could not deliver verification email right now. Please double-check your email address and try again.");
       statusText.innerHTML =
-        "<span style='color:var(--good);font-weight:700;'>✓ Verification Code dispatched!</span> Please check your email inbox at <b>" +
-        escapeHtml(email) +
-        "</b> (including spam folder) and enter the 6-digit code below.";
+        "<span style='color:#dc2626;font-weight:700;'>Email delivery failed:</span> " +
+        escapeHtml(errDetail);
     }
   }
 
@@ -326,18 +305,17 @@ function verifyContactOtp() {
   if (badge) {
     badge.hidden = false;
     badge.className = "badge status-approved";
-    badge.textContent = "✓ Verified";
+    badge.textContent = "Verified";
   }
   var input = document.getElementById("contact_otp_code");
   if (input) input.disabled = true;
 
   var statusText = document.getElementById("otp-status-text");
   if (statusText) {
-    statusText.innerHTML = "<span style='color:var(--good);font-weight:700;'>✓ Email and Mobile Number successfully verified! Click 'Next' to proceed.</span>";
+    statusText.innerHTML = "<span style='color:var(--good);font-weight:700;'>Email and Mobile Number successfully verified! Click 'Next' to proceed.</span>";
   }
 }
 
-// Smart ID Format Hint
 function updateIdFormatHint() {
   var type = document.getElementById("id_type").value;
   var hintEl = document.getElementById("id-format-hint");
@@ -356,7 +334,6 @@ function updateIdFormatHint() {
   hintEl.textContent = hints[type] || "";
 }
 
-// Handle Valid ID File Selection (Front and Back)
 function handleIdFileSelect(side, inputEl) {
   var file = inputEl && inputEl.files && inputEl.files[0];
   if (!file) return;
@@ -364,7 +341,7 @@ function handleIdFileSelect(side, inputEl) {
   if (side === "front") {
     selectedFrontFile = file;
     var fnFront = document.getElementById("id-front-filename");
-    if (fnFront) fnFront.innerHTML = "<b style='color:var(--good)'>✓ Selected:</b> " + file.name;
+    if (fnFront) fnFront.innerHTML = "<b style='color:var(--good)'>Selected:</b> " + file.name;
     var boxF = document.getElementById("id-front-preview-box");
     var imgF = document.getElementById("id-front-preview");
     if (boxF && imgF) {
@@ -374,7 +351,7 @@ function handleIdFileSelect(side, inputEl) {
   } else {
     selectedBackFile = file;
     var fnBack = document.getElementById("id-back-filename");
-    if (fnBack) fnBack.innerHTML = "<b style='color:var(--good)'>✓ Selected:</b> " + file.name;
+    if (fnBack) fnBack.innerHTML = "<b style='color:var(--good)'>Selected:</b> " + file.name;
     var boxB = document.getElementById("id-back-preview-box");
     var imgB = document.getElementById("id-back-preview");
     if (boxB && imgB) {
@@ -384,7 +361,6 @@ function handleIdFileSelect(side, inputEl) {
   }
 }
 
-// Step Navigation
 function showPanel(index) {
   currentPanel = index;
   for (var i = 0; i < TOTAL_PANELS; i++) {
@@ -405,7 +381,6 @@ function showPanel(index) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Validate Current Panel — Triggers Bubbles on Missing Fields (No Modal Alert)
 function validateCurrentPanel() {
   var firstInvalidEl = null;
 
@@ -416,7 +391,6 @@ function validateCurrentPanel() {
     }
   }
 
-  // Panel 0: Plan Selection
   if (currentPanel === 0) {
     if (!selectedPlanId) {
       markInvalid("plan", "Plan Selection", "Please pick an internet plan.");
@@ -425,7 +399,6 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 1: Personal Information
   if (currentPanel === 1) {
     var first = document.getElementById("first_name").value.trim();
     var middle = document.getElementById("middle_name").value.trim();
@@ -433,7 +406,7 @@ function validateCurrentPanel() {
     var birth = document.getElementById("birth_date").value;
 
     if (!first) markInvalid("first_name", "First Name", "Please enter your first name.");
-    // Middle Name is optional; automatically default to N/A if blank
+
     if (!middle) {
       middle = "N/A";
       document.getElementById("middle_name").value = "N/A";
@@ -449,7 +422,6 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 2: Contact Information (with OTP)
   if (currentPanel === 2) {
     var email = document.getElementById("email").value.trim().toLowerCase();
     var phone = document.getElementById("phone").value.trim();
@@ -468,7 +440,6 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 3: Installation Location Map & Address
   if (currentPanel === 3) {
     var house = document.getElementById("house_no").value.trim();
     var bldg = document.getElementById("building_name").value.trim();
@@ -496,7 +467,6 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 4: Valid ID Documents (Front & Back)
   if (currentPanel === 4) {
     var idType = document.getElementById("id_type").value;
     var idNumber = document.getElementById("id_number").value.trim();
@@ -514,7 +484,6 @@ function validateCurrentPanel() {
     return true;
   }
 
-  // Panel 5: Subscriber Certificate & Terms
   if (currentPanel === 5) {
     if (!document.getElementById("agree_sub").checked) {
       markInvalid("agree_sub", "Terms Agreement", "Please check to accept the Subscriber Certificate.");
@@ -550,9 +519,6 @@ function prevPanel() {
   }
 }
 
-// ============================================================
-// Interactive Map Pinning & Address Auto-Fill
-// ============================================================
 function initMapPin() {
   if (!leafletMap) {
     var lat = parseFloat(document.getElementById("lat").value) || CONFIG.MAP_CENTER[0];
@@ -690,9 +656,6 @@ function useCurrentLocation() {
   );
 }
 
-// ============================================================
-// Realistic Loading Animation Screen & Submission
-// ============================================================
 function advanceLoadingStep(stepNum) {
   for (var i = 1; i <= 4; i++) {
     var el = document.getElementById("step-ld-" + i);
@@ -723,7 +686,6 @@ async function submitRegistration() {
   var idNumber = document.getElementById("id_number").value.trim();
   var p = getPlanById(selectedPlanId);
 
-  // Switch to realistic loading screen
   for (var i = 0; i < TOTAL_PANELS; i++) {
     var pEl = document.getElementById("panel-" + i);
     if (pEl) pEl.hidden = true;
@@ -733,38 +695,26 @@ async function submitRegistration() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 
   try {
-    // Step 1: Verification
-    advanceLoadingStep(1);
-    await new Promise(function (r) { setTimeout(r, 650); });
 
-    // Step 2: Upload Valid ID Front and Back (saved to Supabase customer-documents)
+    advanceLoadingStep(1);
+    await new Promise(function (r) { setTimeout(r, 350); });
+
     advanceLoadingStep(2);
     var accountInfo = await dbCreateAccountFromApplication(fullName, email);
     var frontPath = await dbUploadDocument(selectedFrontFile, accountInfo.user.id || "public", "id-front");
     var backPath = await dbUploadDocument(selectedBackFile, accountInfo.user.id || "public", "id-back");
 
-    // Local AI Screening check (falls back smoothly if offline)
-    var screening = null;
-    if (getSystemSettings().ai_enabled) {
-      screening = await apiRunScreening(selectedFrontFile, {
-        full_name: fullName,
-        birth_date: birth,
-        id_number: idNumber
-      });
-    } else {
-      screening = {
-        preliminary: true,
-        status: "disabled_by_admin",
-        quality: { ok: true, issues: [] },
-        ocr: { available: false, lines: [] },
-        comparisons: {},
-        ai: { model: "disabled", summary: "AI screening is currently offline.", correction_message: "" }
-      };
-    }
-
-    // Step 3: Registering Application & Account
     advanceLoadingStep(3);
-    await new Promise(function (r) { setTimeout(r, 650); });
+    var screening = {
+      preliminary: true,
+      state: getSystemSettings().ai_enabled ? "queued" : "paused",
+      phase: getSystemSettings().ai_enabled ? "Queued for Screening" : "Manual Review Active",
+      eta_seconds: getSystemSettings().ai_enabled ? 35 : 0,
+      advisory: getSystemSettings().ai_enabled
+        ? "Screening in progress (~30-40 seconds remaining). Original submission is available below."
+        : "Manual document review is active."
+    };
+    await new Promise(function (r) { setTimeout(r, 350); });
 
     var addrData = {
       house_no: document.getElementById("house_no").value.trim(),
@@ -781,7 +731,6 @@ async function submitRegistration() {
       landmark: document.getElementById("landmark").value.trim()
     };
 
-    // Save application with correct column names (id_front_path and id_back_path)
     var saved = await dbCreateApplication(Object.assign({}, addrData, {
       customer_id: accountInfo.user.id,
       agent_id: referralAgentId,
@@ -807,25 +756,27 @@ async function submitRegistration() {
       screening: screening
     }));
 
-    // Step 4: Generating Reference Number
-    advanceLoadingStep(4);
-    await new Promise(function (r) { setTimeout(r, 700); });
+    if (getSystemSettings().ai_enabled && typeof apiStartBackgroundScreening === "function") {
+      apiStartBackgroundScreening(saved.id);
+    }
 
-    // Send Professional Business Email & Notification
-    var subject = "PIGEM Application Confirmation — Reference No. " + saved.ref_no;
+    advanceLoadingStep(4);
+    await new Promise(function (r) { setTimeout(r, 350); });
+
+    var subject = "PIGEM Application Confirmation - Reference No. " + saved.ref_no;
     var body =
       "Dear " + fullName + ",\n\n" +
       "Thank you for submitting your internet service application with PIGEM Combined Facilities Support Services.\n\n" +
       "APPLICATION DETAILS\n" +
-      "• Reference Number: " + saved.ref_no + "\n" +
-      "• Plan: Red Fiber " + p.name + " (" + p.speed + " Mbps — " + formatPeso(p.price) + "/mo)\n" +
-      "• Installation Address: " + formatAddress(addrData) + "\n" +
-      "• Status: Under Verification\n\n" +
+      "- Reference Number: " + saved.ref_no + "\n" +
+      "- Plan: Red Fiber " + p.name + " (" + p.speed + " Mbps - " + formatPeso(p.price) + "/mo)\n" +
+      "- Installation Address: " + formatAddress(addrData) + "\n" +
+      "- Status: Processing\n\n" +
       (accountInfo.status === "active"
         ? "CUSTOMER ACCOUNT\nYour application has been linked to your existing account (" + email + "). You may log in anytime to monitor progress.\n\n"
         : "ACCOUNT ACTIVATION\nTo monitor your application online and track verification status, please activate your Customer Account using the link below:\n" +
-          "• Activation Link: https://pigem-system-web.vercel.app/activate.html?email=" + encodeURIComponent(email) + "&code=" + encodeURIComponent(accountInfo.code) + "\n" +
-          "• One-Time Activation Code: " + accountInfo.code + "\n\n") +
+          "- Activation Link: " + window.location.origin + "/activate.html?email=" + encodeURIComponent(email) + "&code=" + encodeURIComponent(accountInfo.code) + "\n" +
+          "- One-Time Activation Code: " + accountInfo.code + "\n\n") +
       "Sincerely,\n" +
       "PIGEM Combined Facilities Support Services";
 
@@ -835,7 +786,6 @@ async function submitRegistration() {
     await apiSendApplicationConfirmationEmail(email, fullName, saved.ref_no, p, formatAddress(addrData), accountInfo);
     await dbAddActivity("application_submitted", saved.ref_no + " (" + email + ")");
 
-    // Complete all step icons
     for (var k = 1; k <= 4; k++) {
       var item = document.getElementById("step-ld-" + k);
       if (item) {
@@ -844,7 +794,6 @@ async function submitRegistration() {
       }
     }
 
-    // Show Reference Number Popup
     if (accountInfo.status === "active") {
       openPopup(
         '<div class="center">' +

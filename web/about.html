@@ -9,7 +9,6 @@
 </head>
 <body class="public-page">
 
-  <!-- Top Navigation Bar -->
   <header class="site-header">
     <div class="container">
       <div class="logo">
@@ -30,7 +29,6 @@
     </div>
   </header>
 
-  <!-- Phone Slide-Out Side Menu -->
   <div class="side-menu-back" onclick="toggleMenu()"></div>
   <aside class="side-menu">
     <div class="row between" style="padding-bottom:12px; border-bottom:1px solid var(--line); align-items:center;">
@@ -47,10 +45,9 @@
   </aside>
 
   <main>
-    <!-- Auto-Sliding About Hero Banner -->
+
     <section id="about-slider" class="slider"></section>
 
-    <!-- Mission, Vision, Values -->
     <section class="section">
       <div class="container">
         <div class="grid-3">
@@ -70,7 +67,6 @@
       </div>
     </section>
 
-    <!-- Clients and Partners -->
     <section class="section gray-bg">
       <div class="container center">
         <h2>Clients and Partners</h2>
@@ -82,7 +78,6 @@
       </div>
     </section>
 
-    <!-- Horizontally Sliding Service Vehicles -->
     <section class="section">
       <div class="container">
         <div class="section-title">
@@ -92,7 +87,6 @@
       </div>
     </section>
 
-    <!-- Horizontally Sliding Government Permits -->
     <section class="section gray-bg">
       <div class="container">
         <div class="section-title">
@@ -103,7 +97,6 @@
     </section>
   </main>
 
-  <!-- Footer -->
   <footer class="site-footer">
     <div class="container">
       <div class="cols">
@@ -135,8 +128,7 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-    // Initialize About Page Slider, Editable Text, and Horizontal Strips
-    function initAboutPage() {
+function initAboutPage() {
       var content = getWebsiteContent();
       startSlider("about-slider", content.about_slides || DEFAULT_CONTENT.about_slides);
 
@@ -161,6 +153,6 @@
     }
     window.onLiveContentSynced = initAboutPage;
     initAboutPage();
-  </script>
+</script>
 </body>
 </html>

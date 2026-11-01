@@ -1,24 +1,15 @@
-// ============================================================
-// SHARED DASHBOARD UI HELPERS (Agent, Manager, and Admin)
-// Splash screen, Light/Dark/Device theme, Smart Topbar Search,
-// Notifications Bell, Circle Profile Drawer, Simple Charts & Calendar
-// ============================================================
-
 var dashCurrentUser = null;
 var dashSearchApps = [];
-var dashOnSelectApp = null; // Optional callback(appId) when user clicks an app in Smart Search
+var dashOnSelectApp = null;
 
-// 1. Initialize Splash Screen, Theme, Profile Drawer, and Smart Search
 function initDashUI(user, apps, onSelectAppCallback) {
   dashCurrentUser = user;
   dashSearchApps = apps || [];
   dashOnSelectApp = onSelectAppCallback || null;
 
-  // Apply saved theme immediately
   var savedTheme = readSaved("pigem_theme", "light");
   setThemeMode(savedTheme);
 
-  // Fade out splash screen
   var splash = document.getElementById("splash");
   if (splash) {
     setTimeout(function () {
@@ -26,12 +17,10 @@ function initDashUI(user, apps, onSelectAppCallback) {
     }, 1200);
   }
 
-  // Render avatar button & drawer content
   renderAvatarBtn(user);
   renderProfileDrawer(user);
   refreshNotifBell(user);
 
-  // Close search dropdown when clicking outside
   document.addEventListener("click", function (e) {
     var sWrap = document.querySelector(".top-search");
     var sDrop = document.getElementById("top-search-results");
@@ -45,7 +34,6 @@ function updateDashSearchApps(apps) {
   dashSearchApps = apps || [];
 }
 
-// 2. Light / Dark / Device Theme
 function setThemeMode(mode) {
   writeSaved("pigem_theme", mode);
   var effective = mode;
@@ -59,7 +47,6 @@ function setThemeMode(mode) {
     document.documentElement.removeAttribute("data-theme");
   }
 
-  // Highlight active theme button inside drawer
   var btns = document.querySelectorAll("[data-theme-btn]");
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle("btn-red", btns[i].getAttribute("data-theme-btn") === mode);
@@ -67,16 +54,14 @@ function setThemeMode(mode) {
   }
 }
 
-// 3. Expandable Sidebar Navigation Group
 function toggleNavGroup(btn) {
   var next = btn.nextElementSibling;
   if (!next) return;
   var isHidden = next.classList.toggle("hidden");
   var arrow = btn.querySelector(".chev");
-  if (arrow) arrow.textContent = isHidden ? "▸" : "▾";
+  if (arrow) arrow.textContent = isHidden ? ">" : "v";
 }
 
-// 4. Smart Topbar Search (searches Sidebar Navs + Applications)
 function onTopSearchInput(inputEl) {
   var q = (inputEl.value || "").trim().toLowerCase();
   var box = document.getElementById("top-search-results");
@@ -88,7 +73,7 @@ function onTopSearchInput(inputEl) {
   }
 
   var html = "";
-  // Search sidebar buttons
+
   var navBtns = document.querySelectorAll(".dash-side [data-nav-label]");
   for (var i = 0; i < navBtns.length; i++) {
     var label = navBtns[i].getAttribute("data-nav-label") || "";
@@ -100,7 +85,6 @@ function onTopSearchInput(inputEl) {
     }
   }
 
-  // Search applications
   var matched = 0;
   for (var j = 0; j < dashSearchApps.length; j++) {
     if (matched >= 6) break;
@@ -109,8 +93,8 @@ function onTopSearchInput(inputEl) {
     if (hay.indexOf(q) !== -1) {
       matched++;
       html += '<a href="#" onclick="jumpToApp(\'' + escapeHtml(a.id) + '\'); return false;">' +
-        '<b>' + escapeHtml(a.reference_no) + ' — ' + escapeHtml(a.full_name) + '</b>' +
-        '<div class="muted" style="font-size:11px">' + escapeHtml(a.plan_name || "") + ' • ' + escapeHtml(a.status || "") + '</div></a>';
+        '<b>' + escapeHtml(a.reference_no) + ' - ' + escapeHtml(a.full_name) + '</b>' +
+        '<div class="muted" style="font-size:11px">' + escapeHtml(a.plan_name || "") + ' - ' + escapeHtml(a.status || "") + '</div></a>';
     }
   }
 
@@ -142,7 +126,6 @@ function autoLinkUrls(text) {
   return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:var(--red); text-decoration:underline; word-break:break-all;">$1</a>');
 }
 
-// 5. Notifications Bell
 async function refreshNotifBell(user) {
   if (!user) return;
   var list = await dbListNotifications(user.email, user.role);
@@ -175,7 +158,6 @@ function toggleNotifModal() {
   if (m) m.classList.toggle("hidden");
 }
 
-// 6. Google-Style Circle Profile Drawer
 function getInitials(name) {
   var parts = String(name || "U").trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -209,21 +191,19 @@ function renderProfileDrawer(user) {
     '<div style="text-align:center; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       avatarHtml +
       '<div style="font-weight:800; font-size:16px">' + escapeHtml(user.full_name) + '</div>' +
-      '<div class="muted" style="font-size:12px">' + escapeHtml(user.email) + ' • ' + escapeHtml((user.role || "").toUpperCase()) + '</div>' +
+      '<div class="muted" style="font-size:12px">' + escapeHtml(user.email) + ' - ' + escapeHtml((user.role || "").toUpperCase()) + '</div>' +
       (user.intro ? '<div style="font-size:12px; margin-top:6px; font-style:italic">"' + escapeHtml(user.intro) + '"</div>' : '') +
     '</div>' +
 
-    // Theme Switcher
     '<div style="margin-top:14px; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Appearance / Theme</div>' +
       '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px">' +
-        '<button type="button" data-theme-btn="light" class="btn btn-sm ' + (savedTheme === "light" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'light\')">☀ Light</button>' +
-        '<button type="button" data-theme-btn="dark" class="btn btn-sm ' + (savedTheme === "dark" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'dark\')">🌙 Dark</button>' +
-        '<button type="button" data-theme-btn="device" class="btn btn-sm ' + (savedTheme === "device" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'device\')">💻 Device</button>' +
+        '<button type="button" data-theme-btn="light" class="btn btn-sm ' + (savedTheme === "light" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'light\')"><img src="assets/images/placeholder.png" data-icon="sun.png" alt="Light" class="icon-placeholder" title="Flaticon placeholder: sun.png" />Light</button>' +
+        '<button type="button" data-theme-btn="dark" class="btn btn-sm ' + (savedTheme === "dark" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'dark\')"><img src="assets/images/placeholder.png" data-icon="moon.png" alt="Dark" class="icon-placeholder" title="Flaticon placeholder: moon.png" />Dark</button>' +
+        '<button type="button" data-theme-btn="device" class="btn btn-sm ' + (savedTheme === "device" ? "btn-red" : "btn-outline") + '" onclick="setThemeMode(\'device\')"><img src="assets/images/placeholder.png" data-icon="monitor.png" alt="Device" class="icon-placeholder" title="Flaticon placeholder: monitor.png" />Device</button>' +
       '</div>' +
     '</div>' +
 
-    // Edit Profile Info
     '<div style="margin-top:14px; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Edit Profile</div>' +
       '<div id="prof-msg" class="msg"></div>' +
@@ -233,7 +213,6 @@ function renderProfileDrawer(user) {
       '<button type="button" class="btn btn-dark btn-sm" style="width:100%" onclick="saveProfileChanges()">Save Profile</button>' +
     '</div>' +
 
-    // Password Reset via OTP
     '<div style="margin-top:14px; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Change Password (OTP Verification)</div>' +
       '<div id="prof-pw-msg" class="msg"></div>' +
@@ -245,7 +224,6 @@ function renderProfileDrawer(user) {
       '</div>' +
     '</div>' +
 
-    // Sign Out
     '<div style="margin-top:16px">' +
       '<button type="button" class="btn btn-red" style="width:100%" onclick="signOutAndGoLogin()">Sign Out</button>' +
     '</div>';
@@ -310,7 +288,6 @@ async function confirmProfilePwOtp() {
   }
 }
 
-// 7. Simple CSS Horizontal Bar & Vertical Column Chart Builders
 function renderBars(boxId, rows) {
   var box = document.getElementById(boxId);
   if (!box) return;
@@ -353,7 +330,6 @@ function renderColumns(boxId, cols) {
   box.innerHTML = html;
 }
 
-// 8. Simple Monthly Calendar Builder
 function renderCalendar(boxId, apps) {
   var box = document.getElementById(boxId);
   if (!box) return;
@@ -364,7 +340,6 @@ function renderCalendar(boxId, apps) {
   var firstDay = new Date(year, month, 1).getDay();
   var daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Map day number -> count of applications created that day
   var byDay = {};
   var list = apps || [];
   for (var i = 0; i < list.length; i++) {
@@ -400,8 +375,6 @@ function renderCalendar(boxId, apps) {
   box.innerHTML = html;
 }
 
-
-// Ensure splash screen always fades out smoothly after 1200ms
 window.addEventListener("DOMContentLoaded", function () {
   var splash = document.getElementById("splash");
   if (splash) {

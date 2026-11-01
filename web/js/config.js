@@ -1,38 +1,26 @@
-// ============================================================
-// PIGEM SETTINGS AND SHARED HELPERS (used by every page)
-// ============================================================
-
-// Pages inside /staff and /admin set ROOT = "../" so pictures and links still work
 var ROOT = window.ROOT || "";
 
 var CONFIG = {
-  // MAJOR: Paste your Supabase Project URL and anon key here. Leave "" to use Demo Mode (browser storage).
+
   SUPABASE_URL: "https://wuunqfxyejxwrawtjdrf.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1dW5xZnh5ZWp4d3Jhd3RqZHJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTE3MTEsImV4cCI6MjEwNzcyNzcxMX0.4Wt-6pJpLS4OUf_93bFn1513omGESvMn_E0ulnONf2g",
 
-  // MAJOR: Python FastAPI server (OpenCV, PaddleOCR, Ollama, Resend)
   API_URL: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("8001") !== -1) ? window.location.origin : "http://127.0.0.1:8001",
 
-  // MAJOR: Where website pictures come from: "supabase" (website-assets bucket), "server" (FastAPI), or "local"
   ASSET_SOURCE: "supabase",
 
-  // Google reCAPTCHA v2 Site Key Configuration
-  // Registered Production Key: 6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV
-  // Google Official Localhost Dev Key: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI (allows localhost & 127.0.0.1)
   RECAPTCHA_PRODUCTION_KEY: "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
   RECAPTCHA_LOCALHOST_KEY: "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
   RECAPTCHA_SITE_KEY: (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
     ? "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
     : "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
 
-  // Red Fiber plans (the Manager can edit these in Content > Plans)
   PLANS: [
     { id: "1000", name: "Plan 1000", speed: 100, price: 1000, tag: "Fiber for your home", featured: false },
     { id: "1400", name: "Plan 1400", speed: 300, price: 1400, tag: "Most chosen", featured: true },
     { id: "1900", name: "Plan 1900", speed: 500, price: 1900, tag: "Fiber for your home", featured: false }
   ],
 
-  // Inclusions shown on every plan card
   PLAN_INCLUSIONS: [
     "Unlimited pure fiber internet",
     "No lock-in",
@@ -40,13 +28,10 @@ var CONFIG = {
     "50% discount on the ₱2,000 one-time installation fee"
   ],
 
-  // Application statuses in order
-  STATUSES: ["Processing", "Needs Correction", "Ready for Encoding", "Provider Processing", "Approved", "Rejected"],
+  STATUSES: ["Pending Review", "Under Agent Review", "Encoding", "Approved", "Rejected", "Needs Correction"],
 
-  // Map starting point (Dasmariñas City, Cavite)
   MAP_CENTER: [14.3294, 120.9367],
 
-  // Service areas. If the pinned address does not contain one of these, the customer gets a warning.
   SERVICE_AREAS: [
     "metro manila", "ncr", "national capital region", "manila", "quezon city", "makati", "pasig", "taguig",
     "caloocan", "pasay", "paranaque", "parañaque", "las pinas", "las piñas", "muntinlupa", "marikina",
@@ -56,8 +41,6 @@ var CONFIG = {
 
   UNIT_TYPES: ["House", "Townhouse", "Apartment", "Condominium", "Dormitory", "Commercial"],
 
-  // Valid ID types (same list as the Red Fiber form).
-  // "pattern" is a basic check of the ID number AFTER removing spaces and dashes. "hint" is shown to the customer.
   ID_TYPES: [
     { name: "National ID", hint: "PhilSys Card Number: 16 digits (1234-5678-9012-3456) or PSN: 12 digits.", pattern: /^(\d{12}|\d{16})$/ },
     { name: "Philippine Passport", hint: "1-2 letters, 7 digits, optional letter at the end (P1234567A).", pattern: /^[A-Z]{1,2}\d{7}[A-Z]?$/ },
@@ -87,7 +70,6 @@ var CONFIG = {
   ]
 };
 
-// Default public website content (the Manager can edit all of this in Content CMS)
 var DEFAULT_CONTENT = {
   logo_image: "logo.png",
   hero_slides: [
@@ -103,7 +85,7 @@ var DEFAULT_CONTENT = {
     { tag: "ESTABLISHED 2021", image: "Banners/about-banner-2.png", title: "Serving since 2021", text: "Established on December 28, 2021." },
     { tag: "TRUSTED PARTNER", image: "Banners/about-banner-3.png", title: "Complete telecommunication support", text: "Guided installation and responsive local coordination." }
   ],
-  // Active strips shown on Home and About pages
+
   client_images: ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"],
   vehicle_images: [
     "Vehicles/vehicle-1.png", "Vehicles/vehicle-2.png", "Vehicles/vehicle-3.png",
@@ -114,7 +96,7 @@ var DEFAULT_CONTENT = {
     "Permits/permit-4.png", "Permits/permit-5.png", "Permits/permit-6.png",
     "Permits/permit-7.png", "Permits/permit-8.png", "Permits/permit-9.png"
   ],
-  // Saved bucket image library (Manager can upload 10+ banners/assets and switch anytime)
+
   asset_library: {
     Banners: [
       "Banners/home-banner-1.png", "Banners/home-banner-2.png", "Banners/home-banner-3.png",
@@ -150,11 +132,6 @@ var DEFAULT_CONTENT = {
   ]
 };
 
-// ============================================================
-// Website pictures (Supabase Storage, Python server, or local folder)
-// ============================================================
-
-// MAJOR: Build the address of a website picture
 function getImageUrl(filePath) {
   if (!filePath) return ROOT + "assets/images/placeholder.png";
   if (filePath.indexOf("data:") === 0 || filePath.indexOf("http") === 0) return filePath;
@@ -169,7 +146,6 @@ function getImageUrl(filePath) {
 
 var cloudAssetFailures = 0;
 
-// If a picture fails to load from Supabase Cloud storage, use placeholder and trigger maintenance notice
 function imageFallback(img, filePath) {
   cloudAssetFailures++;
   img.onerror = null;
@@ -185,13 +161,12 @@ function showSystemMaintenanceNotice(customMsg) {
   var banner = document.createElement("div");
   banner.id = "sys-maintenance-banner";
   banner.style.cssText = "background:#dc2626; color:#ffffff; padding:12px 18px; font-size:13.5px; text-align:center; position:sticky; top:0; z-index:99999; font-weight:700; box-shadow:0 3px 10px rgba(0,0,0,0.25);";
-  banner.innerHTML = "⚠️ <b>System Notice:</b> " + (customMsg || "Cloud Asset Storage &amp; Database is temporarily degraded or undergoing maintenance. Public application services are operating under maintenance mode. Hotline: 101-733 (RED) | (046) 458-0908.");
+  banner.innerHTML = "<b>System Notice:</b> " + (customMsg || "Cloud Asset Storage &amp; Database is temporarily degraded or undergoing maintenance. Public application services are operating under maintenance mode. Hotline: 101-733 (RED) | (046) 458-0908.");
   if (document.body) {
     document.body.insertBefore(banner, document.body.firstChild);
   }
 }
 
-// Load every <img data-img="..."> on the page (and apply active CMS logo)
 function loadPageImages() {
   var wc = getWebsiteContent();
   var activeLogo = wc.logo_image || "logo.png";
@@ -204,7 +179,6 @@ function loadPageImages() {
     images[i].src = getImageUrl(filePath);
   }
 
-  // Also update static brand logos if Manager switched the logo in CMS
   if (activeLogo !== "logo.png") {
     var brandImgs = document.querySelectorAll(".brand img, .logo img, .simple-bar img");
     for (var b = 0; b < brandImgs.length; b++) {
@@ -212,10 +186,6 @@ function loadPageImages() {
     }
   }
 }
-
-// ============================================================
-// Saved settings (Synced with Supabase + cached in localStorage)
-// ============================================================
 
 function readSaved(key, defaultValue) {
   var raw = localStorage.getItem(key);
@@ -256,10 +226,6 @@ function saveSystemSettings(settings) {
   if (typeof dbSaveLiveSystemSettings === "function") dbSaveLiveSystemSettings(settings);
 }
 
-// ============================================================
-// Small formatting helpers
-// ============================================================
-
 function formatPeso(amount) {
   return "₱" + Number(amount).toLocaleString("en-US");
 }
@@ -289,7 +255,6 @@ function getIdType(name) {
   return { name: name, hint: "Type the number exactly as printed.", pattern: /^[A-Z0-9]{4,25}$/ };
 }
 
-// Join the address parts of an application into one line
 function formatAddress(app) {
   var parts = [
     app.house_no ? app.house_no + (app.house_suffix ? " " + app.house_suffix : "") : "",
@@ -309,7 +274,6 @@ function formatAddress(app) {
   return clean.join(", ");
 }
 
-// Is this address inside the Red Fiber service areas?
 function isServiceArea(addressText) {
   var text = String(addressText || "").toLowerCase();
   for (var i = 0; i < CONFIG.SERVICE_AREAS.length; i++) {
@@ -318,7 +282,6 @@ function isServiceArea(addressText) {
   return false;
 }
 
-// Message shown to the customer for each status
 function getDefaultStatusInstruction(status, note) {
   if (status === "Needs Correction") return note || "Please update the information or ID requested below.";
   if (status === "Ready for Encoding") return "Your requirements are complete. We are preparing your application for the provider.";
@@ -332,10 +295,6 @@ function makeBadge(status) {
   var cssName = String(status || "Processing").toLowerCase().replace(/ /g, "-");
   return '<span class="badge status-' + cssName + '">' + status + "</span>";
 }
-
-// ============================================================
-// Popups and alert messages
-// ============================================================
 
 function openPopup(htmlContent, isWide) {
   closePopup();
@@ -352,7 +311,6 @@ function closePopup() {
   if (existing) existing.remove();
 }
 
-// Simple message popup with an OK button (used instead of red error text)
 function showAlert(title, message, type) {
   openPopup(
     "<h3>" + title + "</h3>" +
@@ -361,7 +319,6 @@ function showAlert(title, message, type) {
   );
 }
 
-// Bigger picture preview (client logos, vehicles, permits)
 function previewImage(filePath, titleText) {
   openPopup(
     '<div class="row between"><h3>' + titleText + '</h3><button class="btn btn-small" onclick="closePopup()">Close</button></div>' +
@@ -370,16 +327,10 @@ function previewImage(filePath, titleText) {
   );
 }
 
-// ============================================================
-// Public website: phone menu, hero slider, picture strips
-// ============================================================
-
-// Open or close the phone side menu
 function toggleMenu() {
   document.body.classList.toggle("menu-open");
 }
 
-// Build a hero slider that changes picture every 5 seconds
 var sliderTimers = {};
 function startSlider(sliderId, slides) {
   var box = document.getElementById(sliderId);
@@ -430,7 +381,6 @@ function moveSlide(sliderId, step) {
 
 var stripTimers = {};
 
-// Build a horizontal strip of pictures that scrolls automatically AND allows manual scrolling/dragging
 function buildStrip(stripId, files, titlePrefix) {
   var box = document.getElementById(stripId);
   if (!box) return;
@@ -485,7 +435,6 @@ function buildStrip(stripId, files, titlePrefix) {
   }, 25);
 }
 
-// Role landing pages
 function getHomeForRole(role) {
   if (role === "admin") return ROOT + "admin.html";
   if (role === "manager") return ROOT + "manager.html";
@@ -493,7 +442,6 @@ function getHomeForRole(role) {
   return ROOT + "customer.html";
 }
 
-// Global password eye toggle helper
 function initPasswordEyeToggles(rootEl) {
   var container = rootEl || document;
   var pwInputs = container.querySelectorAll('input[type="password"]');
@@ -531,7 +479,6 @@ function initPasswordEyeToggles(rootEl) {
   }
 }
 
-// Change "Customer Login" to "Apply" + "My Account" when a customer is already signed in
 async function setupPublicHeader() {
   if (typeof dbGetCurrentUser !== "function") return;
   var user = await dbGetCurrentUser();
@@ -549,7 +496,6 @@ async function setupPublicHeader() {
   }
 }
 
-// Check if the current tab is a Manager or Admin previewing the site during Maintenance Mode
 function isManagerOrAdminPreview() {
   if (window.location.search.indexOf("preview_cms=1") !== -1) {
     sessionStorage.setItem("pigem_cms_preview", "1");
@@ -561,8 +507,6 @@ function isManagerOrAdminPreview() {
   return false;
 }
 
-// Block Public Website, Application Form, and Account Activation for customers during Maintenance Mode,
-// while allowing the Manager/Admin to preview live changes.
 function checkPublicMaintenance() {
   var path = window.location.pathname.toLowerCase();
   var isCoveredPage =
@@ -584,7 +528,6 @@ function checkPublicMaintenance() {
     return;
   }
 
-  // Manager / Admin can still preview the live site while Maintenance Mode is ON
   if (isManagerOrAdminPreview()) {
     if (!document.getElementById("mgr-preview-bar")) {
       var bar = document.createElement("div");
@@ -593,13 +536,12 @@ function checkPublicMaintenance() {
       bar.style.borderRadius = "0";
       bar.style.textAlign = "center";
       bar.innerHTML =
-        "<b>🛠 Manager Preview Mode:</b> The Public Website, Application Form, and Account Activation are currently <b>Under Maintenance</b> for customers while you edit content.";
+        "<b>Manager Preview Mode:</b> The Public Website, Application Form, and Account Activation are currently <b>Under Maintenance</b> for customers while you edit content.";
       document.body.insertBefore(bar, document.body.firstChild);
     }
     return;
   }
 
-  // Customer / Public Visitor: block the page completely
   closePopup();
   document.body.innerHTML =
     '<main class="auth-page">' +
@@ -613,7 +555,6 @@ function checkPublicMaintenance() {
     '</main>';
 }
 
-// Run on every page after it loads
 window.addEventListener("DOMContentLoaded", async function () {
   if (typeof initPasswordEyeToggles === "function") {
     initPasswordEyeToggles();
@@ -626,3 +567,67 @@ window.addEventListener("DOMContentLoaded", async function () {
   setupPublicHeader();
 });
 
+class BaseFieldValidator {
+  constructor() {
+    this._emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    this._mobileRegex = /^09\d{9}$/;
+    this._stripSeparatorsRegex = /[\s\-]+/g;
+  }
+
+  validate(value) {
+    throw new Error("Subclasses must implement validate().");
+  }
+
+  cleanIdValue(rawValue) {
+    return String(rawValue || "").toUpperCase().replace(this._stripSeparatorsRegex, "");
+  }
+}
+
+class ApplicantFormValidator extends BaseFieldValidator {
+  isValidEmail(email) {
+    var clean = String(email || "").trim();
+    if (!clean) return false;
+    return this._emailRegex.test(clean);
+  }
+
+  isValidMobile(phone) {
+    var digits = String(phone || "").replace(/\D/g, "");
+    if (digits.length === 11) {
+      if (this._mobileRegex.test(digits)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  validateIdByType(idTypeName, rawNumber) {
+    var cleaned = this.cleanIdValue(rawNumber);
+    if (!cleaned) {
+      return { valid: false, message: "Please enter your Valid ID number." };
+    }
+    var spec = getIdType(idTypeName);
+    if (spec && spec.pattern) {
+      if (!spec.pattern.test(cleaned)) {
+        return { valid: false, message: spec.hint || "Invalid ID format." };
+      }
+    }
+    return { valid: true, message: "Valid format." };
+  }
+
+  validate(formFields) {
+    if (!formFields) return { valid: false, field: "form" };
+    if (!this.isValidEmail(formFields.email)) {
+      return { valid: false, field: "email" };
+    }
+    if (!this.isValidMobile(formFields.phone)) {
+      return { valid: false, field: "phone" };
+    }
+    var idCheck = this.validateIdByType(formFields.id_type, formFields.id_number);
+    if (!idCheck.valid) {
+      return { valid: false, field: "id_number", message: idCheck.message };
+    }
+    return { valid: true, field: "" };
+  }
+}
+
+var FORM_VALIDATOR = new ApplicantFormValidator();

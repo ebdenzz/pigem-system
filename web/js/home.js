@@ -1,7 +1,3 @@
-// ============================================================
-// HOME PAGE SCRIPT (Hero Slider, Plans, and Closed-by-Default FAQs)
-// ============================================================
-
 var pendingApplyPlanId = null;
 
 function openApplyWithCaptcha(planId) {
@@ -16,7 +12,7 @@ function openApplyWithCaptcha(planId) {
 function showGoogleCaptchaPopup() {
   openPopup(
     '<div class="center" style="padding:10px 4px;">' +
-      '<div style="width:48px;height:48px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;">🛡️</div>' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px;"><img src="assets/images/placeholder.png" data-icon="shield.png" alt="Security" class="icon-placeholder" title="Flaticon placeholder: shield.png" /></div>' +
       '<h3 style="font-size:18px;margin-bottom:4px;">Security Verification</h3>' +
       '<p class="small muted" style="margin-bottom:16px;">Please confirm you are not a robot before proceeding to the application form.</p>' +
       '<div id="g-recaptcha-wrap" style="display:flex;justify-content:center;margin:16px auto;min-height:78px;">' +
@@ -51,7 +47,7 @@ function showGoogleCaptchaPopup() {
         }
       });
     } catch (e) {
-      // Fallback is available
+
     }
   }
 }
@@ -82,7 +78,6 @@ function triggerHomeCaptcha() {
   }, 600);
 }
 
-// Build one Red Fiber plan card (opens apply.html in a new tab)
 function buildPlanCard(plan) {
   var borderClass = plan.featured ? "card plan red-border" : "card plan";
   var buttonClass = plan.featured ? "btn btn-red btn-full" : "btn btn-full";
@@ -104,20 +99,16 @@ function buildPlanCard(plan) {
   );
 }
 
-// Render Hero Slider, Plans, and FAQs on load
 function initHomePage() {
   var content = getWebsiteContent();
 
-  // 1. Start auto-sliding Hero Banner
   startSlider("home-slider", content.hero_slides || DEFAULT_CONTENT.hero_slides);
 
-  // 2. Service area strip text
   var areaBar = document.getElementById("area-bar");
   if (areaBar && content.area_text) {
     areaBar.textContent = content.area_text;
   }
 
-  // 3. Render Internet Plans
   var plans = getActivePlans();
   var planBox = document.getElementById("plan-cards");
   if (planBox) {
@@ -128,7 +119,6 @@ function initHomePage() {
     planBox.innerHTML = html;
   }
 
-  // 4. Render FAQs (all closed on page load/refresh)
   var faqBox = document.getElementById("faq-list");
   if (faqBox && content.faqs) {
     var faqHtml = "";
@@ -142,7 +132,6 @@ function initHomePage() {
     faqBox.innerHTML = faqHtml;
   }
 
-  // 5. Render Client / Partner logos if a .logos container exists on the page
   var logosBox = document.querySelector(".logos");
   var clientImgs = content.client_images || DEFAULT_CONTENT.client_images;
   if (logosBox && clientImgs && clientImgs.length) {
@@ -154,4 +143,3 @@ function initHomePage() {
 
 window.onLiveContentSynced = initHomePage;
 initHomePage();
-

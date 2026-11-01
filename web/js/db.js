@@ -1,24 +1,11 @@
-// ============================================================
-// SUPABASE: LOGIN, DATABASE, AND FILE STORAGE
-// Demo Mode (no Supabase keys) saves everything in browser storage.
-// ============================================================
-
-// MAJOR: Which system is this page part of?
-//   "customer" = public website + customer account
-//   "staff"    = Application Management System (agents and manager)
-//   "admin"    = Technical Management System
 var SYSTEM = window.SYSTEM || "customer";
 
-// Roles allowed to sign in to each system
 var SYSTEM_ROLES = {
   customer: ["customer"],
   staff: ["agent", "manager"],
   admin: ["admin"]
 };
 
-// MAJOR: Each system keeps its own login session so they never mix.
-// Staff and admin use sessionStorage (one session per browser tab), so two agents,
-// or an agent and the manager, can work in different tabs without replacing each other.
 var SESSION_KEY = "pigem_session_" + SYSTEM;
 var sessionStore = SYSTEM === "customer" ? localStorage : sessionStorage;
 
@@ -26,15 +13,12 @@ var IS_DEMO_MODE = (CONFIG.SUPABASE_URL === "" || CONFIG.SUPABASE_ANON_KEY === "
 var supabaseClient = null;
 
 if (!IS_DEMO_MODE && window.supabase) {
-  // MAJOR: Connect to Supabase with a separate saved session for each system
+
   supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: { storageKey: "pigem-" + SYSTEM, storage: sessionStore }
   });
 }
 
-// Demo accounts (password: demo123)
-
-// SHA-256 Client-Side Password Hasher
 async function hashPassword(plainText) {
   if (!plainText) return "";
   try {
@@ -52,7 +36,7 @@ var DEFAULT_DEMO_USERS = [];
 function getDemoUsers() {
   var users = readSaved("pigem_users", []);
   if (!Array.isArray(users)) users = [];
-  // Purge any lingering demo accounts from local cache
+
   var clean = users.filter(function (u) {
     return u && u.id && u.id.indexOf("demo-") !== 0 && (u.email || "").indexOf("@demo.test") === -1;
   });
@@ -70,20 +54,14 @@ function findDemoUserByEmail(email) {
   return null;
 }
 
-// Address of the login page for this system
 function getLoginPage() {
   if (SYSTEM === "staff") return ROOT + "staff-login.html";
   if (SYSTEM === "admin") return ROOT + "admin-login.html";
   return ROOT + "login.html";
 }
 
-// ============================================================
-// 1. Login and accounts
-// ============================================================
-
-// MAJOR: Get the user signed in to THIS system
 async function dbGetCurrentUser() {
-  // Check tab/system session first (works for built-in staff/demo accounts and local sessions)
+
   var currentId = sessionStore.getItem(SESSION_KEY);
   if (currentId) {
     var localUsers = getDemoUsers();
@@ -102,7 +80,6 @@ async function dbGetCurrentUser() {
   var session = sessionRes.data.session;
   if (!session) return null;
 
-  // MAJOR: Read the role from the "users" table (create a customer row on first login)
   var authUser = session.user;
   var res = await supabaseClient.from("users").select("*").eq("email", authUser.email).maybeSingle();
   if (!res.data) {
@@ -121,12 +98,10 @@ async function dbGetCurrentUser() {
   return res.data;
 }
 
-// MAJOR: Sign in. The account role must belong to this system.
 async function dbSignIn(email, password) {
   var cleanEmail = email.trim().toLowerCase();
   var user = null;
 
-  // 1. Check built-in/local accounts first (so Agent, Manager, Admin, and Demo accounts always work)
   var found = findDemoUserByEmail(cleanEmail);
   var enteredHash = await hashPassword(password);
   if (found && (found.password === password || found.password_hash === enteredHash || found.password === enteredHash)) {
@@ -146,9 +121,9 @@ async function dbSignIn(email, password) {
       }, { onConflict: "email" });
     }
   } else if (!IS_DEMO_MODE) {
-    // 2. Check if password was reset/stored in public.users or sign in via Supabase Authentication
+
     var dbRow = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
-    if (dbRow.data && dbRow.data.activation_code === ("PW:" + password)) {
+    if (dbRow.data && (dbRow.data.activation_code === ("PW:" + password) || dbRow.data.activation_code === ("PW:" + enteredHash) || dbRow.data.activation_code === password)) {
       if (!dbRow.data.active) throw new Error("This account is disabled. Please contact PIGEM.");
       user = dbRow.data;
     } else {
@@ -171,7 +146,6 @@ async function dbSignIn(email, password) {
   return user;
 }
 
-// MAJOR: Sign out of this system only
 async function dbSignOut() {
   var user = await dbGetCurrentUser();
   if (user) await dbAddLoginHistory(user, "logout");
@@ -181,21 +155,18 @@ async function dbSignOut() {
   }
 }
 
-// MAJOR: Send a password reset email (Supabase Authentication)
 async function dbResetPassword(email) {
   if (IS_DEMO_MODE) return;
   var res = await supabaseClient.auth.resetPasswordForEmail(email.trim().toLowerCase());
   if (res.error) throw new Error(res.error.message);
 }
 
-// MAJOR: Token sent to the Python server so it knows who is calling
 async function dbGetToken() {
   if (IS_DEMO_MODE) return "";
   var res = await supabaseClient.auth.getSession();
   return res.data.session ? res.data.session.access_token : "";
 }
 
-// Stop the page if the signed-in user does not have the right role
 async function checkPageAccess(allowedRoles) {
   if (typeof allowedRoles === "string") allowedRoles = [allowedRoles];
   var user = await dbGetCurrentUser();
@@ -206,9 +177,6 @@ async function checkPageAccess(allowedRoles) {
   return user;
 }
 
-// MAJOR: Create a customer account when an application is submitted.
-// Returns status "new" (activation email sent), "pending" (not yet activated, email sent again),
-// or "active" (already has an account, just log in).
 async function dbCreateAccountFromApplication(fullName, email) {
   var cleanEmail = email.trim().toLowerCase();
   var code = String(Math.floor(100000 + Math.random() * 900000));
@@ -238,13 +206,11 @@ async function dbCreateAccountFromApplication(fullName, email) {
     return { user: newUser, status: "new", code: code };
   }
 
-  // Live mode: if the email already has an activated account, do not send activation again
   var existing = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
   if (existing.data && existing.data.activated) {
     return { user: existing.data, status: "active", code: "" };
   }
 
-  // Save pending customer row with 6-digit activation_code (emailed via Resend by apply.js)
   var pendingRow = {
     id: (existing.data && existing.data.id) || ("cust-" + Date.now()),
     email: cleanEmail,
@@ -258,7 +224,6 @@ async function dbCreateAccountFromApplication(fullName, email) {
   return { user: pendingRow, status: "new", code: code };
 }
 
-// MAJOR: Activate a customer account ONE time (code from email + new password)
 async function dbActivateCustomerAccount(email, code, newPassword) {
   var cleanEmail = email.trim().toLowerCase();
 
@@ -280,7 +245,6 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
     throw new Error("No application was found for this email.");
   }
 
-  // Live Supabase mode: check activation_code in public.users, then register in Supabase Auth
   var existing = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
   if (!existing.data) throw new Error("No application was found for this email.");
   if (existing.data.activated) throw new Error("This account is already activated. Please log in.");
@@ -311,7 +275,6 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
   return user || existing.data;
 }
 
-// Check if an email already activated its account (used by activate.html)
 async function dbIsAccountActivated(email) {
   var cleanEmail = String(email || "").trim().toLowerCase();
   if (IS_DEMO_MODE) {
@@ -322,7 +285,6 @@ async function dbIsAccountActivated(email) {
   return Boolean(res.data && res.data.activated);
 }
 
-// MAJOR: Manager creates an agent account
 async function dbCreateAgentAccount(fullName, email, password) {
   var cleanEmail = email.trim().toLowerCase();
 
@@ -344,14 +306,9 @@ async function dbCreateAgentAccount(fullName, email, password) {
   return row;
 }
 
-// Update the signed-in user's own profile (name, photo, intro)
 async function dbUpdateMyProfile(userId, changes) {
   return await dbUpdateProfile(userId, changes);
 }
-
-// ============================================================
-// 2. login_history table
-// ============================================================
 
 async function dbAddLoginHistory(user, action) {
   var row = { user_id: user.id, email: user.email, role: user.role, action: action, created_at: new Date().toISOString() };
@@ -370,11 +327,6 @@ async function dbListLoginHistory() {
   return res.data || [];
 }
 
-// ============================================================
-// 3. applications table
-// ============================================================
-
-// MAJOR: Customers only see their own applications (matched by email). Staff see all.
 async function dbListApplications(user) {
   if (IS_DEMO_MODE) {
     var all = readSaved("pigem_applications", []);
@@ -402,17 +354,18 @@ async function dbGetApplication(appId) {
   return res.data;
 }
 
-// MAJOR: Save a new application. A copy of what the customer first sent is kept in original_copy.
 async function dbCreateApplication(appData) {
   var now = new Date().toISOString();
   var refNo = "PIGEM-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
 
   var row = Object.assign({}, appData, {
     ref_no: refNo,
-    status: "Processing",
+    reference_no: refNo,
+    status: appData.status || "Pending Review",
     original_copy: Object.assign({}, appData),
+    original_submission: Object.assign({}, appData),
     corrected_copy: null,
-    ai_log: [{ at: now, who: "System", text: "Application received." }],
+    ai_log: [{ at: now, who: "System", text: "Application submitted and queued for document screening." }],
     customer_instruction: getDefaultStatusInstruction("Processing", ""),
     created_at: now,
     updated_at: now
@@ -430,7 +383,6 @@ async function dbCreateApplication(appData) {
   return res.data;
 }
 
-// MAJOR: Update an application (claim, status, correction, encoding, provider result)
 async function dbUpdateApplication(appId, changes) {
   changes.updated_at = new Date().toISOString();
   if (IS_DEMO_MODE) {
@@ -449,7 +401,6 @@ async function dbUpdateApplication(appId, changes) {
   return res.data;
 }
 
-// Add one line to the AI activity of an application (shown to agents like a chat)
 async function dbAddAiLog(appId, who, text) {
   var app = await dbGetApplication(appId);
   if (!app) return;
@@ -458,18 +409,12 @@ async function dbAddAiLog(appId, who, text) {
   await dbUpdateApplication(appId, { ai_log: log });
 }
 
-// ============================================================
-// 4. File storage (documents bucket)
-// ============================================================
-
-// MAJOR: Upload an ID picture or encoding screenshot directly to Supabase Storage Bucket (documents)
 async function dbUploadDocument(file, folder, label) {
   if (!file) return null;
   var ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   var fileName = Date.now() + "-" + (label || "doc") + "." + ext;
   var path = (folder || "ids") + "/" + fileName;
 
-  // 1. Direct Cloud Bucket Upload to Supabase 'documents' bucket
   if (!IS_DEMO_MODE && supabaseClient && supabaseClient.storage) {
     try {
       var res = await supabaseClient.storage.from("documents").upload(path, file, {
@@ -487,7 +432,6 @@ async function dbUploadDocument(file, folder, label) {
     }
   }
 
-  // 2. Fallback to base64 Data URL so customer application NEVER fails
   return await new Promise(function (resolve, reject) {
     var reader = new FileReader();
     reader.onload = function () { resolve(reader.result); };
@@ -496,7 +440,6 @@ async function dbUploadDocument(file, folder, label) {
   });
 }
 
-// MAJOR: Get a short-lived link to view a private file
 async function dbGetDocumentLink(path) {
   if (!path) return null;
   if (path.indexOf("data:") === 0 || path.indexOf("http") === 0 || IS_DEMO_MODE) return path;
@@ -504,18 +447,13 @@ async function dbGetDocumentLink(path) {
   return res.error ? null : res.data.signedUrl;
 }
 
-// ============================================================
-// 5. notifications and system_logs tables
-// ============================================================
-
-// MAJOR: Save a notification. Send to one person (user_id / email) or to everyone with a role (role: "agent").
 async function dbAddNotification(note) {
   var row = {
     user_id: note.user_id || null,
     email: note.email || null,
     role: note.role || null,
-    subject: note.subject,
-    body: note.body,
+    title: note.title || note.subject || "Notification",
+    message: note.message || note.body || "",
     is_read: false,
     created_at: new Date().toISOString()
   };
@@ -559,10 +497,6 @@ async function dbListActivity() {
   return res.data || [];
 }
 
-// ============================================================
-// 6. users table
-// ============================================================
-
 async function dbListProfiles() {
   if (IS_DEMO_MODE) return getDemoUsers();
   var res = await supabaseClient.from("users").select("*").order("created_at", { ascending: false });
@@ -586,18 +520,12 @@ async function dbUpdateProfile(userId, changes) {
   return res.data;
 }
 
-// Clear all Demo Mode records
 function dbResetDemoData() {
   var keys = ["pigem_users", "pigem_applications", "pigem_notifications", "pigem_activity", "pigem_login_history",
     "pigem_plans", "pigem_website_content", "pigem_system_settings", "pigem_session_customer"];
   for (var i = 0; i < keys.length; i++) localStorage.removeItem(keys[i]);
   sessionStorage.clear();
 }
-
-
-// ============================================================
-// 7. Convenience helpers & Demo Seed Data for Dashboards
-// ============================================================
 
 var DEFAULT_DEMO_APPS = [
   {
@@ -637,7 +565,7 @@ var DEFAULT_DEMO_APPS = [
       issues: []
     },
     ai_log: [
-      { at: new Date(Date.now() - 7200000).toISOString(), who: "AI Screening Engine", text: "OpenCV & PaddleOCR check passed: ID is sharp (blur score 142.5) and name/ID number match." }
+      { at: new Date(Date.now() - 7200000).toISOString(), who: "Application Screening", text: "Document screening passed: ID image is clear and entered details match." }
     ],
     created_at: new Date(Date.now() - 7200000).toISOString(),
     updated_at: new Date(Date.now() - 7200000).toISOString()
@@ -680,7 +608,7 @@ var DEFAULT_DEMO_APPS = [
       issues: ["Slight glare detected on ID number area"]
     },
     ai_log: [
-      { at: new Date(Date.now() - 18000000).toISOString(), who: "AI Screening Engine", text: "Flagged slight glare on ID number area (blur score 48.2)." },
+      { at: new Date(Date.now() - 18000000).toISOString(), who: "Application Screening", text: "Flagged slight glare on the ID number area." },
       { at: new Date(Date.now() - 14400000).toISOString(), who: "Agent (Alex Rivera)", text: "Requested clearer ID photo from customer." }
     ],
     created_at: new Date(Date.now() - 18000000).toISOString(),
@@ -713,7 +641,7 @@ var DEFAULT_DEMO_APPS = [
     longitude: 120.9560,
     status: "Approved",
     assigned_agent: "agent@demo.test",
-    agent_remarks: "Application verified and encoded. Please wait 3–5 business days for installation dispatch.",
+    agent_remarks: "Application verified and encoded. Please wait 3-5 business days for installation dispatch.",
     encoded: true,
     has_correction: true,
     original_submission: {
@@ -756,16 +684,32 @@ function normalizeAppRecord(a) {
   if (!a.id_image_url) a.id_image_url = a.id_front_path || a.id_front_url || "";
   if (a.latitude == null && a.lat != null) a.latitude = a.lat;
   if (a.longitude == null && a.lng != null) a.longitude = a.lng;
-  if (!a.ai_result && a.screening) {
+  if (a.screening && typeof a.screening === "object") {
+    a.cropped_id_url = a.screening.cropped_id_url || (a.ai_result && a.ai_result.cropped_id_url) || "";
     var q = a.screening.quality || {};
     var ai = a.screening.ai || {};
-    a.ai_result = {
-      overall_status: (q.issues && q.issues.length > 0) ? "Needs Review" : "Verified",
-      blur_score: q.blur_score || q.sharpness || "OK",
-      name_match: true,
-      id_number_match: true,
-      issues: (ai.findings && ai.findings.length) ? ai.findings : (q.issues || [])
-    };
+    var comps = Array.isArray(a.screening.comparisons) ? a.screening.comparisons : [];
+    var nMatch = true, bMatch = true, idMatch = true;
+    for (var ci = 0; ci < comps.length; ci++) {
+      var ck = String(comps[ci].key || comps[ci].field || "").toLowerCase();
+      if (comps[ci].result === "mismatch") {
+        if (ck.indexOf("name") !== -1) nMatch = false;
+        else if (ck.indexOf("birth") !== -1) bMatch = false;
+        else if (ck.indexOf("id") !== -1) idMatch = false;
+      }
+    }
+    if (!a.ai_result || a.screening.state) {
+      var findingsList = a.screening.findings || (ai.findings && ai.findings.length ? ai.findings : (q.issues || []));
+      a.ai_result = Object.assign({}, a.ai_result || {}, {
+        overall_status: (a.ai_result && a.ai_result.overall_status) || ((findingsList.length > 0 && (!nMatch || !idMatch || !bMatch || (q.issues && q.issues.length > 0))) ? "Needs Review" : "Verified"),
+        blur_score: q.blur_score != null ? q.blur_score : ((a.ai_result && a.ai_result.blur_score) || "OK"),
+        name_match: (a.ai_result && a.ai_result.name_match != null) ? a.ai_result.name_match : nMatch,
+        birth_date_match: (a.ai_result && a.ai_result.birth_date_match != null) ? a.ai_result.birth_date_match : bMatch,
+        id_number_match: (a.ai_result && a.ai_result.id_number_match != null) ? a.ai_result.id_number_match : idMatch,
+        cropped_id_url: a.cropped_id_url,
+        issues: findingsList
+      });
+    }
   }
   if (!a.original_submission && a.original_copy) a.original_submission = a.original_copy;
   if (!a.correction_fields && a.screening && a.screening.correction_fields) {
@@ -818,10 +762,27 @@ function statusBadge(status) {
   var st = status || "Pending Review";
   var cls = "badge-gray";
   if (st === "Approved" || st === "Submitted to Provider") cls = "badge-green";
+  else if (st === "Encoding") cls = "badge-blue";
   else if (st === "Needs Correction") cls = "badge-yellow";
   else if (st === "Rejected") cls = "badge-red";
   else if (st === "Under Agent Review" || st === "Pending Review" || st === "Processing") cls = "badge-blue";
   return '<span class="badge ' + cls + '">' + escapeHtml(st) + '</span>';
+}
+
+function getCustomerStatus(rawStatus) {
+  if (rawStatus === "Approved") return "Approved";
+  if (rawStatus === "Rejected") return "Rejected";
+  return "Processing";
+}
+
+function customerStatusBadge(rawStatus) {
+  var vis = getCustomerStatus(rawStatus);
+  var cls = vis === "Approved" ? "badge-green" : (vis === "Rejected" ? "badge-red" : "badge-blue");
+  var html = '<span class="badge ' + cls + '">' + escapeHtml(vis) + '</span>';
+  if (rawStatus === "Needs Correction") {
+    html += ' <span class="badge badge-yellow">Needs Correction</span>';
+  }
+  return html;
 }
 
 function isAiEnabled() {
@@ -939,7 +900,7 @@ async function dbStartPasswordReset(email) {
       found = true;
       await supabaseClient.from("users").update({ activation_code: code }).eq("email", clean);
     } else {
-      // Check if an application exists under this email
+
       var appCheck = await supabaseClient.from("applications").select("*").eq("email", clean).limit(1);
       if (appCheck.data && appCheck.data.length > 0) {
         found = true;
@@ -995,7 +956,6 @@ async function dbFinishPasswordReset(email, code, newPw) {
         activation_code: "PW:" + newPw
       }).eq("email", clean);
 
-      // Sync to local cache as well so sign-in is instant
       if (!updatedLocal) {
         users.push({
           id: existing.data.id,
@@ -1096,7 +1056,7 @@ async function dbListAiLogs(appId) {
     for (var j = 0; j < logs.length; j++) {
       merged.push({
         reference_no: all[i].reference_no || all[i].ref_no,
-        actor: logs[j].who || "AI",
+        actor: logs[j].who || "Application Screening",
         message: logs[j].text || "",
         created_at: logs[j].at || all[i].created_at
       });
@@ -1159,28 +1119,33 @@ async function dbCreateUserAccount(fullName, email, password, role) {
   var cleanEmail = email.trim().toLowerCase();
   var users = getDemoUsers();
   var userId = (role || "agent") + "-" + Date.now();
+  var pwHash = await hashPassword(password || "demo123");
 
   if (!IS_DEMO_MODE && supabaseClient) {
     var existing = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
-    if (existing.data) throw new Error("Email is already registered in Supabase.");
-    var signUpRes = await supabaseClient.auth.signUp({
-      email: cleanEmail,
-      password: password,
-      options: { data: { full_name: fullName, role: role || "agent" } }
-    });
-    if (signUpRes.error && signUpRes.error.message.toLowerCase().indexOf("already registered") === -1) {
-      throw new Error(signUpRes.error.message);
+    if (existing.data) throw new Error("Email is already registered in the database.");
+
+    try {
+      var signUpRes = await supabaseClient.auth.signUp({
+        email: cleanEmail,
+        password: password,
+        options: { data: { full_name: fullName, role: role || "agent" } }
+      });
+      if (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) {
+        userId = signUpRes.data.user.id;
+      }
+    } catch (authErr) {
+      console.warn("Supabase auth.signUp notice:", authErr);
     }
-    if (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) {
-      userId = signUpRes.data.user.id;
-    }
+
     var dbRow = {
       id: userId,
       email: cleanEmail,
       full_name: fullName,
       role: role || "agent",
       active: true,
-      activated: true
+      activated: true,
+      activation_code: "PW:" + password
     };
     var upRes = await supabaseClient.from("users").upsert(dbRow, { onConflict: "email" });
     if (upRes.error) throw new Error(upRes.error.message);
@@ -1188,17 +1153,16 @@ async function dbCreateUserAccount(fullName, email, password, role) {
     if (findDemoUserByEmail(cleanEmail)) throw new Error("Email is already registered.");
   }
 
-  // Also cache locally so sign-in works immediately even before email confirmation
-  var pwHash = await hashPassword(password || "demo123");
   var u = {
     id: userId,
     email: cleanEmail,
     password_hash: pwHash,
-    password: pwHash,
+    password: password,
     full_name: fullName,
     role: role || "agent",
     active: true,
-    activated: true
+    activated: true,
+    activation_code: "PW:" + password
   };
   var filtered = users.filter(function (x) { return x.email !== cleanEmail; });
   filtered.push(u);
@@ -1210,10 +1174,6 @@ async function dbCreateUserAccount(fullName, email, password, role) {
 async function dbUpdateUser(userId, changes) {
   return await dbUpdateProfile(userId, changes);
 }
-
-// ============================================================
-// 8. Live Supabase Sync for Website Content, Plans, Settings & Bucket Assets
-// ============================================================
 
 async function dbSaveLiveWebsiteContent(content) {
   if (IS_DEMO_MODE || !supabaseClient) return;
@@ -1257,8 +1217,6 @@ async function dbSaveLiveSystemSettings(settings) {
   } catch (e) {}
 }
 
-// Upload a banner, logo, client logo, vehicle photo, or permit image to the `website-assets` bucket
-// and keep it saved in website_content.asset_library[category] so the Manager can switch between saved images anytime!
 async function dbUploadWebsiteAsset(file, category) {
   if (!file) throw new Error("Please select an image file first.");
   var folder = category || "Banners";
@@ -1290,7 +1248,6 @@ async function dbUploadWebsiteAsset(file, category) {
   return savedPath;
 }
 
-// Sync live Supabase website_content, plans, and system_settings into localStorage on page load
 async function dbSyncLiveSettingsAndContent() {
   if (IS_DEMO_MODE || !supabaseClient) return;
   try {
@@ -1339,7 +1296,7 @@ async function apiCheckIdPhoto(file, details) {
 }
 
 async function apiSendOtpEmail(toEmail, code, title, recipientName) {
-  var subject = "PIGEM Account Security — " + (title || "Verification Code");
+  var subject = "PIGEM Account Security - " + (title || "Verification Code");
   var body =
     "Dear Valued Client,\n\n" +
     "We received a verification request for your PIGEM Combined Facilities Support Services account (" + toEmail + ").\n\n" +
@@ -1361,16 +1318,17 @@ async function apiSendOtpEmail(toEmail, code, title, recipientName) {
 async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
   var st = (status || "").toLowerCase();
   var isCorrection = st.indexOf("correction") !== -1 || st.indexOf("need") !== -1;
+  var custSt = (st.indexOf("approv") !== -1) ? "Approved" : ((st.indexOf("reject") !== -1) ? "Rejected" : "Processing");
   var subject = isCorrection
-    ? "PIGEM Action Required — Update Needed for Reference No. " + refNo
-    : "PIGEM Application Update — Reference No. " + refNo + " [" + status + "]";
+    ? "PIGEM Action Required - Update Needed for Reference No. " + refNo
+    : "PIGEM Application Update - Reference No. " + refNo + " [" + custSt + "]";
   var body =
     "Dear " + (fullName || "Valued Subscriber") + ",\n\n" +
     "Please be advised that there is an official status update regarding your Red Fiber Internet Service Application with PIGEM Combined Facilities Support Services.\n\n" +
     "APPLICATION STATUS UPDATE\n" +
-    "• Reference Number: " + refNo + "\n" +
-    "• Current Status: " + status + "\n" +
-    (remarks ? "• Verification Remarks / Instructions:\n" + remarks + "\n\n" : "\n") +
+    "- Reference Number: " + refNo + "\n" +
+    "- Current Status: " + custSt + "\n" +
+    (remarks ? "- Verification Remarks / Instructions:\n" + remarks + "\n\n" : "\n") +
     "You may sign in to your PIGEM Customer Portal account at any time to view the full details of your application or submit any requested updates.\n\n" +
     "Thank you for choosing PIGEM Combined Facilities Support Services.\n\n" +
     "Sincerely,\n" +
@@ -1383,10 +1341,9 @@ async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
     payload: {
       ref_no: refNo,
       customer_name: fullName,
-      status: status,
+      status: custSt,
       remarks: remarks || "",
-      portal_link: "https://pigem-system-web.vercel.app/customer.html"
+      portal_link: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0 ? window.location.origin : "http://127.0.0.1:8001") + "/customer.html"
     }
   });
 }
-

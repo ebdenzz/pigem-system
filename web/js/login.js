@@ -1,9 +1,3 @@
-// ============================================================
-// SHARED LOGIN & PASSWORD RESET LOGIC
-// Used by login.html (Customer), staff-login.html (Internal Staff),
-// and admin-login.html (Admin).
-// ============================================================
-
 var resetTargetEmail = "";
 var loginCaptchaVerified = false;
 var loginAttempts = 0;
@@ -173,7 +167,6 @@ async function handleLogin(event) {
   }
 }
 
-// Step 1 of Forgot Password: enter email address to receive 6-digit reset code
 function openForgotModal() {
   openPopup(
     '<h3>Reset Your Password</h3>' +
@@ -198,7 +191,7 @@ async function sendResetCode() {
   try {
     var code = await dbStartPasswordReset(email);
     resetTargetEmail = email;
-    var subject = "PIGEM Account Security — Password Reset Verification Code";
+    var subject = "PIGEM Account Security - Password Reset Verification Code";
     var body =
       "Dear Valued Client,\n\n" +
       "We received a request to reset the password associated with your PIGEM account (" + email + ").\n\n" +
@@ -213,7 +206,6 @@ async function sendResetCode() {
   }
 }
 
-// Step 2 of Forgot Password: enter the 6-digit code + new password
 function openFinishResetModal() {
   openPopup(
     '<h3>Enter Verification Code</h3>' +

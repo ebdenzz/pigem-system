@@ -9,7 +9,6 @@
 </head>
 <body class="gray-bg">
 
-  <!-- Simple Top Bar -->
   <header class="simple-bar">
     <div class="container" style="display:flex; align-items:center; gap:12px;">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
@@ -66,7 +65,7 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-    async function initActivatePage() {
+async function initActivatePage() {
       var params = new URLSearchParams(window.location.search);
       var email = params.get("email") || "";
       var code = params.get("code") || "";
@@ -113,6 +112,6 @@
     }
 
     initActivatePage();
-  </script>
+</script>
 </body>
 </html>

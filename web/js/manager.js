@@ -1,12 +1,55 @@
-// ============================================================
-// MANAGER DASHBOARD LOGIC (Application Monitoring Management)
-// ============================================================
-
 var currentManager = null;
 var mgrApps = [];
 var mgrUsers = [];
 var activeMgrTab = "overview";
 var activeMgrAppId = null;
+
+function isMgrScreeningActive(app) {
+  var scr = (app && app.screening) || {};
+  return scr.state === "queued" || scr.state === "layer1_running" || scr.state === "layer2_running";
+}
+
+function formatMgrEta(seconds) {
+  var sec = Number(seconds || 0);
+  if (!sec || sec <= 0) return "";
+  if (sec >= 60) {
+    var mins = Math.ceil(sec / 60);
+    return "~" + mins + (mins === 1 ? " min" : " mins") + " left";
+  }
+  return "~" + sec + "s left";
+}
+
+function getMgrScreeningBadge(app) {
+  if (!isAiEnabled()) {
+    return '<span class="badge badge-gray">Manual Review</span>';
+  }
+  var scr = app.screening || {};
+  var state = scr.state || "";
+  var eta = formatMgrEta(scr.eta_seconds);
+
+  if (state === "queued" || state === "layer1_running") {
+    return '<span class="badge badge-blue">Screening in Progress' + (eta ? " (" + escapeHtml(eta) + ")" : "") + '</span>';
+  }
+  if (state === "layer2_running") {
+    if (scr.severity === "warning") {
+      return '<span class="badge badge-yellow">Enhancing Document' + (eta ? " (" + escapeHtml(eta) + ")" : "") + ' - Hold Recommended</span>';
+    }
+    return '<span class="badge badge-blue">Cropping &amp; Verifying' + (eta ? " (" + escapeHtml(eta) + ")" : "") + '</span>';
+  }
+  if (scr.auto_correction_sent) {
+    return '<span class="badge badge-yellow">Auto-Requested Update</span>';
+  }
+
+  var res = app.ai_result || {};
+  var st = res.overall_status || "Checked";
+  if (st === "Verified") {
+    return '<span class="badge badge-green">Screening Passed</span>';
+  }
+  if (st.indexOf("Needs") !== -1) {
+    return '<span class="badge badge-yellow">Review Recommended</span>';
+  }
+  return '<span class="badge badge-gray">Screening Checked</span>';
+}
 
 window.addEventListener("DOMContentLoaded", async function () {
   currentManager = await requireLogin(["manager", "admin"]);
@@ -16,6 +59,25 @@ window.addEventListener("DOMContentLoaded", async function () {
   await refreshManagerData();
   loadAllCmsEditors();
   initDashUI(currentManager, mgrApps, openMgrAppModal);
+
+  setInterval(async function () {
+    var anyRunning = false;
+    for (var i = 0; i < mgrApps.length; i++) {
+      if (isMgrScreeningActive(mgrApps[i])) {
+        anyRunning = true;
+        break;
+      }
+    }
+    var activeTag = document.activeElement ? document.activeElement.tagName : "";
+    var isTyping = (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT");
+    if (anyRunning && !isTyping) {
+      await refreshManagerData();
+      var modal = document.getElementById("mgr-modal");
+      if (modal && !modal.classList.contains("hidden") && activeMgrAppId) {
+        openMgrAppModal(activeMgrAppId);
+      }
+    }
+  }, 5000);
 });
 
 async function refreshManagerData() {
@@ -28,7 +90,7 @@ async function refreshManagerData() {
 
   for (var i = 0; i < mgrApps.length; i++) {
     var a = mgrApps[i];
-    if (a.status === "Pending Review" || a.status === "Under Agent Review") pending++;
+    if (a.status === "Pending Review" || a.status === "Under Agent Review" || a.status === "Encoding") pending++;
     else if (a.status === "Needs Correction") fix++;
     else if (a.status === "Approved" || a.status === "Submitted to Provider") approved++;
     else if (a.status === "Rejected") rejected++;
@@ -44,8 +106,8 @@ async function refreshManagerData() {
   document.getElementById("st-approved").textContent = approved;
 
   renderBars("chart-mgr-bars", [
-    { label: "Pending", value: pending, color: "#2563eb" },
-    { label: "Needs Fix", value: fix, color: "#d97706" },
+    { label: "Pending / Encoding", value: pending, color: "#2563eb" },
+    { label: "Needs Correction", value: fix, color: "#d97706" },
     { label: "Approved", value: approved, color: "#15803d" },
     { label: "Rejected", value: rejected, color: "#dc2626" }
   ]);
@@ -91,7 +153,6 @@ function showTab(tab) {
   var tabPromo = document.getElementById("tab-promo-broadcast");
   if (tabPromo) tabPromo.classList.toggle("hidden", tab !== "promo-broadcast");
 
-  // Auto-enable Maintenance Mode whenever the Manager opens any Content CMS tab
   var maintBar = document.getElementById("cms-maint-bar");
   if (maintBar) {
     maintBar.classList.toggle("hidden", !isCmsView);
@@ -110,7 +171,7 @@ function showTab(tab) {
     var headings = {
       "app-all": "All Customer Applications",
       "app-override": "Applications Needing Override / Correction",
-      "app-encoded": "Approved & Encoded Applications"
+      "app-encoded": "Encoded & Approved Applications"
     };
     document.getElementById("mgr-apps-title").textContent = headings[tab];
     renderManagerApps();
@@ -124,11 +185,11 @@ function updateCmsMaintenanceBarUI() {
   if (isMaintenanceOn()) {
     badge.className = "badge badge-yellow";
     badge.textContent = "Maintenance Mode: ON (Customers Blocked While Editing)";
-    btn.textContent = "✓ Publish & Turn Off Maintenance";
+    btn.textContent = "Publish & Turn Off Maintenance";
   } else {
     badge.className = "badge badge-green";
     badge.textContent = "Website Live (Maintenance Mode: OFF)";
-    btn.textContent = "🔒 Turn Maintenance Mode ON";
+    btn.textContent = "Turn Maintenance Mode ON";
   }
 }
 
@@ -154,7 +215,7 @@ function renderManagerApps() {
   for (var i = 0; i < mgrApps.length; i++) {
     var a = mgrApps[i];
     if (activeMgrTab === "app-override" && a.status !== "Needs Correction" && a.status !== "Rejected") continue;
-    if (activeMgrTab === "app-encoded" && a.status !== "Approved" && a.status !== "Submitted to Provider" && !a.encoded) continue;
+    if (activeMgrTab === "app-encoded" && a.status !== "Encoding" && a.status !== "Approved" && a.status !== "Submitted to Provider" && !a.encoded) continue;
     if (q) {
       var hay = ((a.full_name || "") + " " + (a.reference_no || "") + " " + (a.assigned_agent || "") + " " + (a.city || "")).toLowerCase();
       if (hay.indexOf(q) === -1) continue;
@@ -170,6 +231,14 @@ function renderManagerApps() {
   var html = "";
   for (var j = 0; j < list.length; j++) {
     var app = list[j];
+    var scr = app.screening || {};
+    var scrNote = "";
+    if (isMgrScreeningActive(app) && scr.advisory) {
+      scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">' + escapeHtml(scr.advisory) + '</div>';
+    } else if (scr.auto_correction_sent && scr.auto_correction_reason) {
+      scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">Auto-requested update from customer: <b>' + escapeHtml(scr.auto_correction_reason) + '</b></div>';
+    }
+
     html +=
       '<div class="q-card">' +
         '<div class="q-head">' +
@@ -177,9 +246,11 @@ function renderManagerApps() {
             '<div class="q-name">' + escapeHtml(app.full_name) + ' <span class="muted" style="font-weight:500; font-size:12px">(' + escapeHtml(app.reference_no) + ')</span></div>' +
             '<div class="q-sub" style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">' +
               statusBadge(app.status) +
+              getMgrScreeningBadge(app) +
               '<span class="badge badge-gray">Agent: ' + escapeHtml(app.assigned_agent || "Unassigned") + '</span>' +
-              '<span class="muted">' + escapeHtml(app.plan_name) + ' • ' + escapeHtml(app.city || "") + '</span>' +
+              '<span class="muted">' + escapeHtml(app.plan_name) + ' - ' + escapeHtml(app.city || "") + '</span>' +
             '</div>' +
+            scrNote +
           '</div>' +
           '<button type="button" class="btn btn-red btn-sm" onclick="openMgrAppModal(\'' + escapeHtml(app.id) + '\')">Manage / Override</button>' +
         '</div>' +
@@ -204,34 +275,53 @@ function openMgrAppModal(appId) {
   for (var i = 0; i < mgrUsers.length; i++) {
     if (mgrUsers[i].role === "agent") agents.push(mgrUsers[i]);
   }
-  var agentOpts = '<option value="">— Unassigned —</option>';
+  var agentOpts = '<option value="">- Unassigned -</option>';
   for (var j = 0; j < agents.length; j++) {
     var ag = agents[j];
     var sel = app.assigned_agent === ag.email ? "selected" : "";
     agentOpts += '<option value="' + escapeHtml(ag.email) + '" ' + sel + '>' + escapeHtml(ag.full_name + " (" + ag.email + ")") + '</option>';
   }
 
-  document.getElementById("mgr-modal-title").textContent = app.reference_no + " — " + app.full_name;
+  var scr = app.screening || {};
+  var res = app.ai_result || {};
+  var scrDetail = scr.advisory || ((res.issues && res.issues.length > 0) ? res.issues.join("; ") : "Document clear and details match.");
+  var docLinksHtml = "";
+  if (app.cropped_id_url || app.id_front_url) {
+    docLinksHtml = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px">';
+    if (app.cropped_id_url) {
+      docLinksHtml += '<a href="' + escapeHtml(app.cropped_id_url) + '" target="_blank" class="btn btn-outline btn-sm"><img src="assets/images/placeholder.png" data-icon="preview.png" alt="Cropped ID" class="icon-placeholder" title="Flaticon placeholder: preview.png" />View Cropped &amp; Enhanced ID</a>';
+    }
+    if (app.id_front_url) {
+      docLinksHtml += '<a href="' + escapeHtml(app.id_front_url) + '" target="_blank" class="btn btn-outline btn-sm"><img src="assets/images/placeholder.png" data-icon="camera.png" alt="Original ID" class="icon-placeholder" title="Flaticon placeholder: camera.png" />View Original Uploaded ID</a>';
+    }
+    docLinksHtml += '</div>';
+  }
+
+  document.getElementById("mgr-modal-title").textContent = app.reference_no + " - " + app.full_name;
   document.getElementById("mgr-modal-body").innerHTML =
     '<div class="grid-2">' +
       '<div class="kv">' +
-        '<div><span>Current Status</span><b>' + statusBadge(app.status) + '</b></div>' +
+        '<div><span>Internal Status</span><b>' + statusBadge(app.status) + '</b></div>' +
+        '<div><span>Customer View</span><b>' + customerStatusBadge(app.status) + '</b></div>' +
+        '<div><span>Screening</span><b>' + getMgrScreeningBadge(app) + '</b></div>' +
+        '<div><span>Screening Note</span><b style="font-weight:500">' + escapeHtml(scrDetail) + '</b></div>' +
         '<div><span>Plan</span><b>' + escapeHtml(app.plan_name) + '</b></div>' +
         '<div><span>Email &amp; Mobile</span><b>' + escapeHtml(app.email + " / " + app.phone) + '</b></div>' +
-        '<div><span>Primary ID</span><b>' + escapeHtml(app.id_type + " — " + app.id_number) + '</b></div>' +
+        '<div><span>Primary ID</span><b>' + escapeHtml(app.id_type + " - " + app.id_number) + '</b></div>' +
         '<div><span>Address</span><b>' + escapeHtml((app.street || "") + ", " + (app.barangay || "") + ", " + (app.city || "")) + '</b></div>' +
+        docLinksHtml +
       '</div>' +
       '<div>' +
         '<div class="field"><label>Assign / Reassign Verification Agent</label><select id="mgr-assign-agent">' + agentOpts + '</select></div>' +
         '<div class="field">' +
-          '<label>Override Application Status</label>' +
+          '<label>Application Status</label>' +
           '<select id="mgr-override-status">' +
-            '<option value="Pending Review" ' + (app.status === "Pending Review" ? "selected" : "") + '>Pending Review</option>' +
-            '<option value="Under Agent Review" ' + (app.status === "Under Agent Review" ? "selected" : "") + '>Under Agent Review</option>' +
-            '<option value="Needs Correction" ' + (app.status === "Needs Correction" ? "selected" : "") + '>Needs Correction</option>' +
-            '<option value="Approved" ' + (app.status === "Approved" ? "selected" : "") + '>Approved</option>' +
-            '<option value="Submitted to Provider" ' + (app.status === "Submitted to Provider" ? "selected" : "") + '>Submitted to Provider (Encoded)</option>' +
-            '<option value="Rejected" ' + (app.status === "Rejected" ? "selected" : "") + '>Rejected</option>' +
+            '<option value="Pending Review" ' + (app.status === "Pending Review" ? "selected" : "") + '>Pending Review (Customer sees Processing)</option>' +
+            '<option value="Under Agent Review" ' + (app.status === "Under Agent Review" ? "selected" : "") + '>Under Agent Review (Customer sees Processing)</option>' +
+            '<option value="Encoding" ' + (app.status === "Encoding" ? "selected" : "") + '>Encoding - Forwarded to Validator (Customer sees Processing)</option>' +
+            '<option value="Approved" ' + (app.status === "Approved" ? "selected" : "") + '>Approved - Validator Approved</option>' +
+            '<option value="Rejected" ' + (app.status === "Rejected" ? "selected" : "") + '>Rejected - Validator Rejected</option>' +
+            '<option value="Needs Correction" ' + (app.status === "Needs Correction" ? "selected" : "") + '>Needs Correction (Branch inside Processing)</option>' +
           '</select>' +
         '</div>' +
         '<div class="field"><label>Manager Remarks</label><textarea id="mgr-remarks" rows="2">' + escapeHtml(app.agent_remarks || "") + '</textarea></div>' +
@@ -257,13 +347,12 @@ async function saveMgrOverride() {
     assigned_agent: agentEmail,
     status: newStatus,
     agent_remarks: remarks,
-    encoded: (newStatus === "Approved" || newStatus === "Submitted to Provider") ? true : app.encoded
+    encoded: (newStatus === "Encoding" || newStatus === "Approved" || newStatus === "Submitted to Provider") ? true : app.encoded
   });
 
   await dbAddAiLog(app.id, app.reference_no, "Manager (" + currentManager.full_name + ")", "Manager set status to " + newStatus + " (Agent: " + (agentEmail || "Unassigned") + ")");
   await dbAddLog(currentManager.email, "Manager updated " + app.reference_no + " -> " + newStatus);
 
-  // Notify assigned agent via Email & in-app
   if (agentEmail && agentEmail !== app.assigned_agent) {
     await dbAddNotification(
       agentEmail,
@@ -278,20 +367,25 @@ async function saveMgrOverride() {
       app.full_name,
       app.plan_name || "Red Fiber",
       app.city || "Dasmariñas City",
-      "Assigned by Manager " + currentManager.full_name + (remarks ? " — Remarks: " + remarks : "")
+      "Assigned by Manager " + currentManager.full_name + (remarks ? " - Remarks: " + remarks : "")
     );
   }
 
-  // Notify customer if status was changed
-  if (newStatus !== app.status) {
+  if (newStatus !== app.status && (newStatus === "Approved" || newStatus === "Rejected" || newStatus === "Needs Correction")) {
+    var custLabel = (newStatus === "Needs Correction") ? "Update Needed" : newStatus;
     await dbAddNotification(
       app.email,
       "customer",
-      "Application " + newStatus + " (" + app.reference_no + ")",
-      remarks || ("Manager updated application status to " + newStatus)
+      "Application " + custLabel + " (" + app.reference_no + ")",
+      remarks || ("Your application status has been updated to " + custLabel + ".")
     );
-    await apiSendStatusEmail(app.email, app.full_name, app.reference_no, newStatus, remarks);
+    if (newStatus === "Needs Correction") {
+      await apiSendCorrectionEmail(app.email, app.full_name, app.reference_no, remarks || "Please log in to review and update the highlighted field.");
+    } else {
+      await apiSendStatusEmail(app.email, app.full_name, app.reference_no, newStatus, remarks);
+    }
   }
+
   closeMgrModal();
   await refreshManagerData();
   showAlert("Saved", "Application " + app.reference_no + " has been updated.");
@@ -311,7 +405,7 @@ function renderAgentPerformance() {
         total++;
         if (a.status === "Pending Review" || a.status === "Under Agent Review") active++;
         else if (a.status === "Needs Correction") fix++;
-        else if (a.status === "Approved" || a.status === "Submitted to Provider") done++;
+        else if (a.status === "Encoding" || a.status === "Approved" || a.status === "Submitted to Provider") done++;
       }
     }
     html +=
@@ -349,10 +443,6 @@ async function renderManagerLinks() {
   body.innerHTML = html;
 }
 
-// ============================================================
-// CONTENT CMS EDITORS (4-Slide Hero Banners, Bucket Media Assets, About, Plans, FAQs)
-// ============================================================
-
 function ensureFourSlides(slides, fallbackSlides) {
   var arr = (slides || []).slice();
   var fb = fallbackSlides || [];
@@ -367,16 +457,13 @@ function loadAllCmsEditors() {
   var c = getSiteContent();
   var lib = c.asset_library || DEFAULT_CONTENT.asset_library;
 
-  // 1. Hero Banners (4 Home + 4 About Slides with Bucket Banner Switcher)
   c.home_slides = ensureFourSlides(c.home_slides, DEFAULT_CONTENT.hero_slides);
   c.about_slides = ensureFourSlides(c.about_slides, DEFAULT_CONTENT.about_slides);
   renderSlideEditorList("cms-home-slides", "home", c.home_slides, lib.Banners || []);
   renderSlideEditorList("cms-about-slides", "about", c.about_slides, lib.Banners || []);
 
-  // 2. Media & Bucket Assets (Logo, Clients, Vehicles, Permits)
   renderMediaAssetsEditor(c);
 
-  // 3. About Company text
   document.getElementById("cms-about-lead").value = c.about_lead || "";
   document.getElementById("cms-about-s1").value = c.about_story_1 || "";
   document.getElementById("cms-about-s2").value = c.about_story_2 || "";
@@ -384,7 +471,6 @@ function loadAllCmsEditors() {
   document.getElementById("cms-contact-phone").value = c.contact_phone || "";
   document.getElementById("cms-contact-addr").value = c.contact_address || "";
 
-  // 4. Plans
   var plansBox = document.getElementById("cms-plans-list");
   var plansHtml = "";
   var plans = c.plans || [];
@@ -402,7 +488,6 @@ function loadAllCmsEditors() {
   }
   plansBox.innerHTML = plansHtml;
 
-  // 5. FAQs
   renderFaqEditorRows(c.faqs || []);
 }
 
@@ -433,7 +518,7 @@ function renderSlideEditorList(boxId, prefix, slides, savedBanners) {
               '<div class="field"><label>Slide ' + (i + 1) + ' Tag</label><input id="' + prefix + '-tag-' + i + '" type="text" value="' + escapeHtml(s.tag || "") + '" /></div>' +
               '<div class="field"><label>Headline Title</label><input id="' + prefix + '-title-' + i + '" type="text" value="' + escapeHtml(s.title || "") + '" /></div>' +
               '<div class="field">' +
-                '<label>Switch Saved Banner from Bucket (' + allChoices.length + ' available)</label>' +
+                '<label>Switch Saved Banner (' + allChoices.length + ' available)</label>' +
                 '<select id="' + prefix + '-img-' + i + '" onchange="document.getElementById(\'' + prefix + '-prev-' + i + '\').src = getImageUrl(this.value)">' + optionsHtml + '</select>' +
               '</div>' +
             '</div>' +
@@ -448,7 +533,6 @@ function renderSlideEditorList(boxId, prefix, slides, savedBanners) {
 function renderMediaAssetsEditor(c) {
   var lib = c.asset_library || DEFAULT_CONTENT.asset_library;
 
-  // 1. Logo selector
   var logoSelect = document.getElementById("cms-active-logo");
   var logoPrev = document.getElementById("cms-logo-preview");
   if (logoSelect && logoPrev) {
@@ -462,7 +546,6 @@ function renderMediaAssetsEditor(c) {
     logoPrev.src = getImageUrl(activeLogo);
   }
 
-  // 2. Checkable galleries for Clients, Vehicles, Permits
   renderAssetCheckboxGallery("cms-clients-gallery", "client", lib.Clients || [], c.client_images || []);
   renderAssetCheckboxGallery("cms-vehicles-gallery", "vehicle", lib.Vehicles || [], c.vehicle_images || []);
   renderAssetCheckboxGallery("cms-permits-gallery", "permit", lib.Permits || [], c.permit_images || []);
@@ -498,7 +581,7 @@ async function uploadNewBucketAsset(category, fileInputId, msgId) {
     return;
   }
   try {
-    showMsg(msgId, "info", "Uploading " + file.name + " to website-assets/" + category + "...");
+    showMsg(msgId, "info", "Uploading " + file.name + " to " + category + " library...");
     var savedPath = await dbUploadWebsiteAsset(file, category);
     var c = getSiteContent();
     if (category === "Logos") {
@@ -516,7 +599,7 @@ async function uploadNewBucketAsset(category, fileInputId, msgId) {
     saveSiteContent(c);
     inp.value = "";
     loadAllCmsEditors();
-    showMsg(msgId, "ok", "Uploaded to bucket (" + savedPath + ")! It is now saved in your bucket library and ready to select.");
+    showMsg(msgId, "ok", "Uploaded (" + savedPath + ")! It is now saved in your media library and ready to select.");
   } catch (e) {
     showMsg(msgId, "err", e.message || "Upload failed.");
   }
@@ -534,7 +617,7 @@ function saveMediaAssetsCms() {
   saveSiteContent(c);
   loadPageImages();
   dbAddLog(currentManager.email, "Updated active Logo, Clients, Vehicles & Permits in Content CMS");
-  showMsg("cms-assets-msg", "ok", "Active Website Assets saved to Supabase! Click 'Preview Live Website' above to view.");
+  showMsg("cms-assets-msg", "ok", "Active Website Assets saved! Click 'Preview Live Website' above to view.");
 }
 
 function getCheckedAssetValues(groupName) {
@@ -563,7 +646,7 @@ function saveBannersCms() {
   }
   saveSiteContent(c);
   dbAddLog(currentManager.email, "Updated 4 Home & 4 About Hero Banners in Content CMS");
-  showMsg("cms-banners-msg", "ok", "4-Slide Hero Banners saved to Supabase! Click 'Preview Live Website' to inspect.");
+  showMsg("cms-banners-msg", "ok", "4-Slide Hero Banners saved! Click 'Preview Live Website' to inspect.");
 }
 
 function saveAboutCms() {
@@ -576,7 +659,7 @@ function saveAboutCms() {
   c.contact_address = document.getElementById("cms-contact-addr").value.trim();
   saveSiteContent(c);
   dbAddLog(currentManager.email, "Updated About PIGEM text in Content CMS");
-  showMsg("cms-about-msg", "ok", "About PIGEM & Contact information saved to Supabase!");
+  showMsg("cms-about-msg", "ok", "About PIGEM & Contact information saved!");
 }
 
 function savePlansCms() {
@@ -594,7 +677,7 @@ function savePlansCms() {
   }
   saveSiteContent(c);
   dbAddLog(currentManager.email, "Updated Red Fiber Plans in Content CMS");
-  showMsg("cms-plans-msg", "ok", "Internet Plans saved to Supabase!");
+  showMsg("cms-plans-msg", "ok", "Internet Plans saved!");
 }
 
 var currentEditingFaqs = [];
@@ -635,9 +718,8 @@ function saveFaqsCms() {
   c.faqs = currentEditingFaqs.filter(function (item) { return item.q !== ""; });
   saveSiteContent(c);
   dbAddLog(currentManager.email, "Updated FAQs in Content CMS");
-  showMsg("cms-faqs-msg", "ok", "FAQs saved to Supabase!");
+  showMsg("cms-faqs-msg", "ok", "FAQs saved!");
 }
-
 
 function togglePromoTarget() {
   var t = document.getElementById("promo-target").value;
@@ -658,8 +740,8 @@ async function sendManagerPromoBroadcast() {
   }
 
   btn.disabled = true;
-  btn.textContent = "Broadcasting via Resend...";
-  showMsg("promo-msg", "info", "Sending promotional communication...");
+  btn.textContent = "Sending Campaign Email...";
+  showMsg("promo-msg", "info", "Dispatching promotional email...");
 
   try {
     var plans = [
@@ -672,16 +754,14 @@ async function sendManagerPromoBroadcast() {
       if (!recipient) {
         showMsg("promo-msg", "error", "Please specify a recipient email address.");
         btn.disabled = false;
-        btn.textContent = "✉️ Send Promotional Campaign Email";
+        btn.textContent = "Send Promotional Campaign Email";
         return;
       }
       var res = await apiSendPromotionalEmail(recipient, "Valued Customer", headline, body, plans);
       if (res && res.sent) {
-        showMsg("promo-msg", "ok", "✓ Promotional email sent successfully to " + recipient + " via Resend!");
-      } else if (res && res.sandbox_restricted) {
-        showMsg("promo-msg", "error", "Resend Free Sandbox: Can only deliver to registered account owner (" + recipient + "). To deliver to other emails, verify a domain in Resend.");
+        showMsg("promo-msg", "ok", "Promotional email sent successfully to " + recipient + "!");
       } else if (res && res.offline) {
-        showMsg("promo-msg", "error", "Local FastAPI server is offline. Please start START-AI.bat to enable live emailing.");
+        showMsg("promo-msg", "error", "Email dispatch service is currently offline. Please contact the Admin to start the system service.");
       } else {
         showMsg("promo-msg", "error", "Delivery failed: " + ((res && res.reason) || "Error sending email"));
       }
@@ -695,7 +775,7 @@ async function sendManagerPromoBroadcast() {
           sentCount++;
         }
       }
-      showMsg("promo-msg", "ok", "✓ Campaign broadcasted to " + sentCount + " customer accounts!");
+      showMsg("promo-msg", "ok", "Campaign broadcasted to " + sentCount + " customer accounts!");
     }
 
     if (currentManager) {
@@ -705,41 +785,48 @@ async function sendManagerPromoBroadcast() {
     showMsg("promo-msg", "error", "Error: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "✉️ Send Promotional Campaign Email";
+    btn.textContent = "Send Promotional Campaign Email";
   }
 }
 
-
-// ============================================================
-// AGENT PROVISIONING (Manager)
-// ============================================================
 function openAddAgentModal() {
   var modal = document.getElementById("modal-add-agent");
   if (!modal) return;
+
   document.getElementById("new-agent-name").value = "";
   document.getElementById("new-agent-email").value = "";
   document.getElementById("new-agent-pw").value = "";
-  document.getElementById("new-agent-area").value = "";
+
   var msg = document.getElementById("new-agent-msg");
-  if (msg) { msg.textContent = ""; msg.className = "msg"; }
+  if (msg) {
+    msg.textContent = "";
+    msg.className = "msg";
+  }
+
   modal.classList.remove("hidden");
+  modal.style.display = "flex";
 }
 
 function closeAddAgentModal() {
   var modal = document.getElementById("modal-add-agent");
-  if (modal) modal.classList.add("hidden");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.style.display = "none";
 }
 
 async function submitNewAgent() {
   var name = document.getElementById("new-agent-name").value.trim();
   var email = document.getElementById("new-agent-email").value.trim().toLowerCase();
   var pw = document.getElementById("new-agent-pw").value;
-  var area = document.getElementById("new-agent-area").value.trim();
   var msg = document.getElementById("new-agent-msg");
   var btn = document.getElementById("btn-submit-new-agent");
 
   if (!name || !email || !pw) {
-    showAlert("Missing Required Information", "Please enter full name, email address, and password for the agent.");
+    showAlert("Missing Information", "Please enter the agent's full name, email address, and password.");
+    return;
+  }
+  if (!email.includes("@") || !email.includes(".")) {
+    showAlert("Invalid Email", "Please enter a valid email address (e.g. agent@gmail.com).");
     return;
   }
   if (pw.length < 6) {
@@ -748,22 +835,21 @@ async function submitNewAgent() {
   }
 
   btn.disabled = true;
-  btn.textContent = "Provisioning in Database...";
+  btn.textContent = "Creating Agent...";
   try {
-    var created = await dbCreateUserAccount(name, email, pw, "agent");
-    if (area) await dbUpdateProfile(created.id, { intro: area });
-    await dbAddActivity("agent_provisioned", "Manager " + currentManager.full_name + " provisioned verification agent: " + name + " (" + email + ")");
+    await dbCreateUserAccount(name, email, pw, "agent");
+    await dbAddActivity("agent_provisioned", "Manager " + currentManager.full_name + " registered verification agent: " + name + " (" + email + ")");
     await refreshManagerData();
     closeAddAgentModal();
-    showAlert("Agent Provisioned", "Verification agent " + name + " (" + email + ") has been successfully provisioned.");
+    showAlert("Agent Created", "Verification agent " + name + " (" + email + ") has been registered.");
   } catch (err) {
     if (msg) {
       msg.textContent = "Error: " + (err.message || "Failed to create agent");
       msg.className = "msg bad";
     }
-    showAlert("Provisioning Failed", err.message || "Could not provision agent.");
+    showAlert("Registration Failed", err.message || "Could not create agent.");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Provision Agent";
+    btn.textContent = "Create Agent";
   }
 }
