@@ -10,6 +10,12 @@ window.addEventListener("DOMContentLoaded", async function () {
   document.getElementById("top-user-name").textContent = currentAdmin.full_name;
   await refreshAdminData();
   initDashUI(currentAdmin, adminApps, function () { showTab("reports"); });
+
+  setTimeout(function () {
+    if (typeof POPUP_GUIDE_MANAGER !== "undefined") {
+      POPUP_GUIDE_MANAGER.autoShowForPortal("admin_technical_guide");
+    }
+  }, 220);
 });
 
 async function refreshAdminData() {
@@ -57,6 +63,7 @@ async function refreshAdminData() {
   renderCalendar("admin-full-calendar", adminApps);
 
   renderMaintState();
+  await renderAdminPopupGuides();
   await renderAiState();
   await checkApiHealth();
   renderAdminUsers();
@@ -85,11 +92,57 @@ function renderMaintState() {
   }
 }
 
-async function toggleMaintMode() {
+function toggleMaintMode() {
   var next = !isMaintenanceOn();
-  setMaintenanceOn(next);
-  await dbAddLog(currentAdmin.email, "Set Maintenance Mode to " + (next ? "ON" : "OFF"));
-  await refreshAdminData();
+  openConfirmPopup(
+    next ? "Confirm Enabling Public Maintenance Mode" : "Confirm Returning Public Website to Live",
+    next
+      ? "Mutating <code>public.system_settings.maintenance_mode = true</code> will temporarily block external customer access to <code>index.html</code>, <code>apply.html</code>, and <code>activate.html</code> while keeping staff/admin portals operational."
+      : "Mutating <code>public.system_settings.maintenance_mode = false</code> will immediately restore public visitor access to the live website and application form.",
+    next ? "Enable Maintenance Mode" : "Disable Maintenance Mode",
+    async function () {
+      setMaintenanceOn(next);
+      await dbAddLog(currentAdmin.email, "Set Maintenance Mode to " + (next ? "ON" : "OFF"));
+      await refreshAdminData();
+    },
+    next
+  );
+}
+
+async function renderAdminPopupGuides() {
+  var body = document.getElementById("admin-popup-guides-body");
+  if (!body || typeof dbListPopupGuides !== "function") return;
+  var guides = await dbListPopupGuides();
+  var html = "";
+  for (var i = 0; i < guides.length; i++) {
+    var g = guides[i];
+    var isTech = g.audience_tone === "technical";
+    html +=
+      '<tr>' +
+        '<td><b>' + escapeHtml(g.id) + '</b><div class="tiny muted">Portal: ' + escapeHtml(g.portal) + '</div></td>' +
+        '<td><span class="badge ' + (isTech ? "badge-gray" : "badge-green") + '">' + (isTech ? "Technical (Admin)" : "Polite & Simple") + '</span></td>' +
+        '<td>' + escapeHtml(g.title) + '</td>' +
+        '<td>' + (g.auto_show !== false ? '<span class="badge badge-green">Enabled</span>' : '<span class="badge badge-gray">Manual Only</span>') + '</td>' +
+        '<td>' +
+          '<div style="display:flex; gap:6px; flex-wrap:wrap">' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="showPortalGuide(\'' + escapeHtml(g.id) + '\')">Preview</button>' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="adminToggleGuideAutoShow(\'' + escapeHtml(g.id) + '\', ' + (g.auto_show === false) + ')">' +
+              (g.auto_show !== false ? "Disable Auto-Show" : "Enable Auto-Show") +
+            '</button>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+  }
+  body.innerHTML = html || '<tr><td colspan="5" class="muted">No pop-up guides configured.</td></tr>';
+}
+
+async function adminToggleGuideAutoShow(guideId, nextAutoShow) {
+  var guide = POPUP_GUIDE_MANAGER.getGuide(guideId);
+  if (!guide) return;
+  guide.auto_show = Boolean(nextAutoShow);
+  await dbSavePopupGuide(guide);
+  await dbAddLog(currentAdmin.email, "Set popup_guides[" + guideId + "].auto_show = " + guide.auto_show);
+  await renderAdminPopupGuides();
 }
 
 var lastHealthData = null;
@@ -142,11 +195,25 @@ async function renderAiState() {
   box.innerHTML = html;
 }
 
-async function toggleAiMode() {
+function toggleAiMode() {
   var next = !isAiEnabled();
-  setAiEnabled(next);
-  await dbAddLog(currentAdmin.email, "Set AI Screening Engine to " + (next ? "ENABLED" : "DISABLED"));
-  await refreshAdminData();
+  openConfirmPopup(
+    next ? "Enable 2-Layer Background Screening Engine?" : "Disable 2-Layer Background Screening Engine?",
+    next
+      ? "Enabling <code>public.system_settings.ai_enabled = true</code> resumes asynchronous OpenCV + PaddleOCR + Ollama background screening via <code>POST /screen-async</code>."
+      : "Disabling <code>public.system_settings.ai_enabled = false</code> pauses automated screening. Customer submissions will continue without interruption using original uploaded ID copies, and all Agents &amp; Managers will receive a manual-review notification.",
+    next ? "Enable AI Screening" : "Disable AI Screening",
+    async function () {
+      setAiEnabled(next);
+      await dbAddLog(currentAdmin.email, "Set AI Screening Engine to " + (next ? "ENABLED" : "DISABLED"));
+      if (!next) {
+        await dbAddNotification(null, "agent", "Auto-Screening Paused", "Auto-screening is currently paused. Customer applications continue normally using original uploaded ID copies for manual review.");
+        await dbAddNotification(null, "manager", "Auto-Screening Paused", "Auto-screening is currently paused. Customer applications continue normally using original uploaded ID copies for manual review.");
+      }
+      await refreshAdminData();
+    },
+    !next
+  );
 }
 
 async function checkApiHealth() {

@@ -101,6 +101,11 @@ function initApplyPage() {
       cCard.classList.add("verified");
       cCheck.innerHTML = "&#10003;";
     }
+    setTimeout(function () {
+      if (typeof POPUP_GUIDE_MANAGER !== "undefined") {
+        POPUP_GUIDE_MANAGER.autoShowForPortal("apply_before_start");
+      }
+    }, 200);
   }
 }
 
@@ -157,6 +162,12 @@ function onApplyCaptchaVerified() {
     cCard.classList.add("verified");
     cCheck.innerHTML = "&#10003;";
   }
+
+  setTimeout(function () {
+    if (typeof POPUP_GUIDE_MANAGER !== "undefined") {
+      POPUP_GUIDE_MANAGER.autoShowForPortal("apply_before_start");
+    }
+  }, 180);
 }
 
 function triggerApplyPopupCaptcha() {
@@ -622,7 +633,7 @@ function useCurrentLocation() {
   function onGeoSuccess(pos) {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = "&#128205; Use My Location";
+      btn.innerHTML = '<img src="assets/images/placeholder.png" data-icon="location.png" alt="Location" class="icon-placeholder" title="Flaticon placeholder: location.png"> Use My Location';
     }
     var lat = pos.coords.latitude;
     var lng = pos.coords.longitude;
@@ -640,7 +651,7 @@ function useCurrentLocation() {
       function (err) {
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = "&#128205; Use My Location";
+          btn.innerHTML = '<img src="assets/images/placeholder.png" data-icon="location.png" alt="Location" class="icon-placeholder" title="Flaticon placeholder: location.png"> Use My Location';
         }
         var msg = "Location permission denied or unavailable. Please search your street/barangay in the box above.";
         if (statusEl) statusEl.textContent = msg;
@@ -756,8 +767,28 @@ async function submitRegistration() {
       screening: screening
     }));
 
-    if (getSystemSettings().ai_enabled && typeof apiStartBackgroundScreening === "function") {
-      apiStartBackgroundScreening(saved.id);
+    var screeningActive = Boolean(getSystemSettings().ai_enabled);
+    var bgRes = { queued: false };
+    if (screeningActive && typeof apiStartBackgroundScreening === "function") {
+      bgRes = await apiStartBackgroundScreening(saved.id);
+    }
+    if (!screeningActive || !bgRes || !bgRes.queued) {
+      var fallbackScreening = Object.assign({}, screening, {
+        state: screeningActive ? "unavailable" : "paused",
+        phase: "Original Copy Ready (Manual Review)",
+        eta_seconds: 0,
+        fallback_original_only: true,
+        severity: "info",
+        advisory: "Auto-screening is currently not active. Original uploaded ID copies are ready for manual verification."
+      });
+      await dbUpdateApplication(saved.id, { screening: fallbackScreening });
+      if (typeof dbNotifyScreeningUnavailable === "function") {
+        await dbNotifyScreeningUnavailable(
+          saved.ref_no,
+          fullName,
+          "Original uploaded ID copies are ready for manual verification."
+        );
+      }
     }
 
     advanceLoadingStep(4);

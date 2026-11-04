@@ -1271,6 +1271,8 @@ async function dbSyncLiveSettingsAndContent() {
       writeSaved("pigem_plans", plansRes.data);
     }
 
+    await dbSyncPopupGuides();
+
     if (typeof loadPageImages === "function") loadPageImages();
     if (typeof window.onLiveContentSynced === "function") window.onLiveContentSynced();
   } catch (e) {
@@ -1278,6 +1280,77 @@ async function dbSyncLiveSettingsAndContent() {
       showSystemMaintenanceNotice("Cloud Database and asset storage is temporarily unreachable. Public services are operating in maintenance mode.");
     }
   }
+}
+
+async function dbSyncPopupGuides() {
+  if (IS_DEMO_MODE || !supabaseClient) return getPopupGuides();
+  try {
+    var res = await supabaseClient.from("popup_guides").select("*");
+    if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
+      writeSaved("pigem_popup_guides", res.data);
+      return res.data;
+    }
+  } catch (err) {}
+  return getPopupGuides();
+}
+
+async function dbListPopupGuides() {
+  await dbSyncPopupGuides();
+  return getPopupGuides();
+}
+
+async function dbSavePopupGuide(guideRow) {
+  if (!guideRow || !guideRow.id) return false;
+  var current = getPopupGuides();
+  var updated = [];
+  var found = false;
+  for (var i = 0; i < current.length; i++) {
+    if (current[i].id === guideRow.id) {
+      updated.push(Object.assign({}, current[i], guideRow, { updated_at: new Date().toISOString() }));
+      found = true;
+    } else {
+      updated.push(current[i]);
+    }
+  }
+  if (!found) updated.push(guideRow);
+  writeSaved("pigem_popup_guides", updated);
+
+  if (!IS_DEMO_MODE && supabaseClient) {
+    try {
+      await supabaseClient.from("popup_guides").upsert({
+        id: guideRow.id,
+        portal: guideRow.portal,
+        audience_tone: guideRow.audience_tone || "polite_simple",
+        title: guideRow.title,
+        intro: guideRow.intro || "",
+        steps: Array.isArray(guideRow.steps) ? guideRow.steps : [],
+        footer_note: guideRow.footer_note || "",
+        button_label: guideRow.button_label || "Got It",
+        auto_show: guideRow.auto_show !== false,
+        active: guideRow.active !== false,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "id" });
+    } catch (err) {}
+  }
+  return true;
+}
+
+async function dbNotifyScreeningUnavailable(refNo, customerName, detailText) {
+  var dedupKey = "pigem_unavail_alert_" + (refNo || "session");
+  if (sessionStorage.getItem(dedupKey) === "1") return;
+  sessionStorage.setItem(dedupKey, "1");
+
+  var title = refNo
+    ? "Auto-Screening Unavailable (" + refNo + ")"
+    : "Auto-Screening Currently Unavailable";
+  var body =
+    (refNo ? ("Application " + refNo + (customerName ? " (" + customerName + ")" : "") + " was submitted while auto-screening is unavailable. ") : "Auto-screening is currently not active. ") +
+    (detailText || "The customer's original uploaded ID copies are ready for manual verification.");
+
+  try {
+    await dbAddNotification(null, "agent", title, body);
+    await dbAddNotification(null, "manager", title, body);
+  } catch (e) {}
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1295,55 +1368,60 @@ async function apiCheckIdPhoto(file, details) {
   };
 }
 
-async function apiSendOtpEmail(toEmail, code, title, recipientName) {
-  var subject = "PIGEM Account Security - " + (title || "Verification Code");
-  var body =
-    "Dear Valued Client,\n\n" +
-    "We received a verification request for your PIGEM Combined Facilities Support Services account (" + toEmail + ").\n\n" +
-    "Your 6-Digit Verification Code is: " + code + "\n\n" +
-    "Please enter this code on the verification screen to complete your request. For your security, do not share this code with anyone.\n\n" +
-    "Sincerely,\n" +
-    "Customer Security & Verification Team\n" +
-    "PIGEM Combined Facilities Support Services";
-  return await apiSendEmail(toEmail, subject, body, {
-    template_type: "otp",
-    payload: {
-      code: String(code),
-      purpose: title || "Account Verification",
-      customer_name: recipientName || "Valued Client"
-    }
-  });
+if (typeof apiSendOtpEmail === "undefined") {
+  window.apiSendOtpEmail = async function (toEmail, code, title, recipientName) {
+    var subject = "PIGEM Account Security - " + (title || "Verification Code");
+    var body =
+      "Dear Valued Client,\n\n" +
+      "We received a verification request for your PIGEM Combined Facilities Support Services account (" + toEmail + ").\n\n" +
+      "Your 6-Digit Verification Code is: " + code + "\n\n" +
+      "Please enter this code on the verification screen to complete your request. For your security, do not share this code with anyone.\n\n" +
+      "Sincerely,\n" +
+      "Customer Security & Verification Team\n" +
+      "PIGEM Combined Facilities Support Services";
+    return await apiSendEmail(toEmail, subject, body, {
+      template_type: "otp",
+      payload: {
+        code: String(code),
+        purpose: title || "Account Verification",
+        customer_name: recipientName || "Valued Client"
+      }
+    });
+  };
 }
 
-async function apiSendStatusEmail(toEmail, fullName, refNo, status, remarks) {
-  var st = (status || "").toLowerCase();
-  var isCorrection = st.indexOf("correction") !== -1 || st.indexOf("need") !== -1;
-  var custSt = (st.indexOf("approv") !== -1) ? "Approved" : ((st.indexOf("reject") !== -1) ? "Rejected" : "Processing");
-  var subject = isCorrection
-    ? "PIGEM Action Required - Update Needed for Reference No. " + refNo
-    : "PIGEM Application Update - Reference No. " + refNo + " [" + custSt + "]";
-  var body =
-    "Dear " + (fullName || "Valued Subscriber") + ",\n\n" +
-    "Please be advised that there is an official status update regarding your Red Fiber Internet Service Application with PIGEM Combined Facilities Support Services.\n\n" +
-    "APPLICATION STATUS UPDATE\n" +
-    "- Reference Number: " + refNo + "\n" +
-    "- Current Status: " + custSt + "\n" +
-    (remarks ? "- Verification Remarks / Instructions:\n" + remarks + "\n\n" : "\n") +
-    "You may sign in to your PIGEM Customer Portal account at any time to view the full details of your application or submit any requested updates.\n\n" +
-    "Thank you for choosing PIGEM Combined Facilities Support Services.\n\n" +
-    "Sincerely,\n" +
-    "Customer Verification & Provisioning Team\n" +
-    "PIGEM Combined Facilities Support Services\n" +
-    "Tel: (046) 458-0908 | Hotline: 101-733 (RED)";
+if (typeof apiSendStatusEmail === "undefined") {
+  window.apiSendStatusEmail = async function (toEmail, fullName, refNo, status, remarks, targetSummary) {
+    var st = (status || "").toLowerCase();
+    var isCorrection = st.indexOf("correction") !== -1 || st.indexOf("need") !== -1;
+    var custSt = (st.indexOf("approv") !== -1) ? "Approved" : ((st.indexOf("reject") !== -1) ? "Rejected" : "Processing");
+    var subject = isCorrection
+      ? "PIGEM Action Required - Update Needed for Reference No. " + refNo
+      : "PIGEM Application Update - Reference No. " + refNo + " [" + custSt + "]";
+    var body =
+      "Dear " + (fullName || "Valued Subscriber") + ",\n\n" +
+      "Please be advised that there is an official status update regarding your Red Fiber Internet Service Application with PIGEM Combined Facilities Support Services.\n\n" +
+      "APPLICATION STATUS UPDATE\n" +
+      "- Reference Number: " + refNo + "\n" +
+      "- Current Status: " + custSt + "\n" +
+      (remarks ? "- Verification Remarks / Instructions:\n" + remarks + "\n\n" : "\n") +
+      "You may sign in to your PIGEM Customer Portal account at any time to view the full details of your application or submit any requested updates.\n\n" +
+      "Thank you for choosing PIGEM Combined Facilities Support Services.\n\n" +
+      "Sincerely,\n" +
+      "Customer Verification & Provisioning Team\n" +
+      "PIGEM Combined Facilities Support Services\n" +
+      "Tel: (046) 458-0908 | Hotline: 101-733 (RED)";
 
-  return await apiSendEmail(toEmail, subject, body, {
-    template_type: isCorrection ? "correction_notice" : "status_update",
-    payload: {
-      ref_no: refNo,
-      customer_name: fullName,
-      status: custSt,
-      remarks: remarks || "",
-      portal_link: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0 ? window.location.origin : "http://127.0.0.1:8001") + "/customer.html"
-    }
-  });
+    return await apiSendEmail(toEmail, subject, body, {
+      template_type: isCorrection ? "correction_notice" : "status_update",
+      payload: {
+        ref_no: refNo,
+        customer_name: fullName,
+        status: custSt,
+        remarks: remarks || "",
+        target_summary: targetSummary || "Information / Document Clarification Required",
+        portal_link: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0 ? window.location.origin : "http://127.0.0.1:8001") + "/customer.html"
+      }
+    });
+  };
 }

@@ -9,20 +9,26 @@ function apiStartBackgroundScreening(applicationId) {
   if (!applicationId) return Promise.resolve({ queued: false });
 
   return (async function () {
+    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 3500) : null;
     try {
       var headers = { "Content-Type": "application/json" };
       if (typeof dbGetToken === "function") {
         var token = await dbGetToken();
         if (token) headers["Authorization"] = "Bearer " + token;
       }
-      var res = await fetch(CONFIG.API_URL + "/screen-async", {
+      var fetchOpts = {
         method: "POST",
         headers: headers,
         body: JSON.stringify({ application_id: String(applicationId) })
-      });
-      if (!res.ok) return { queued: false };
+      };
+      if (controller) fetchOpts.signal = controller.signal;
+      var res = await fetch(CONFIG.API_URL + "/screen-async", fetchOpts);
+      if (timer) clearTimeout(timer);
+      if (!res.ok) return { queued: false, offline: true };
       return await res.json();
     } catch (err) {
+      if (timer) clearTimeout(timer);
       return { queued: false, offline: true };
     }
   })();
@@ -168,24 +174,25 @@ async function apiSendApplicationConfirmationEmail(toEmail, customerName, refNo,
   });
 }
 
-async function apiSendCorrectionEmail(toEmail, customerName, refNo, remarks) {
+async function apiSendCorrectionEmail(toEmail, customerName, refNo, remarks, targetSummary) {
   var subj = "PIGEM Action Required - Update Needed for Reference No. " + refNo;
-  var msg = "Action required on your application " + refNo + ". Please sign in to your Customer Account to submit the requested update.";
+  var msg = remarks || ("Action required on your application " + refNo + ". Please sign in to your Customer Account to submit the requested update.");
   return await apiSendEmail(toEmail, subj, msg, {
     template_type: "correction_notice",
     payload: {
       ref_no: refNo,
       customer_name: customerName,
+      remarks: remarks || "",
       portal_link: _getPortalBaseUrl() + "/customer.html",
-      target_summary: "Information / Document Clarification Required"
+      target_summary: targetSummary || "Information / Document Clarification Required"
     }
   });
 }
 
-async function apiSendStatusEmail(toEmail, customerName, refNo, status, remarks) {
+async function apiSendStatusEmail(toEmail, customerName, refNo, status, remarks, targetSummary) {
   var st = (status || "").toLowerCase();
   if (st.indexOf("correction") !== -1 || st.indexOf("need") !== -1) {
-    return await apiSendCorrectionEmail(toEmail, customerName, refNo, remarks);
+    return await apiSendCorrectionEmail(toEmail, customerName, refNo, remarks, targetSummary);
   }
   var customerStatus = "Processing";
   if (st.indexOf("approv") !== -1) customerStatus = "Approved";
@@ -250,11 +257,16 @@ async function apiSendPromotionalEmail(toEmail, customerName, headline, bodyText
 }
 
 async function apiCheckHealth() {
+  var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  var timer = controller ? setTimeout(function () { controller.abort(); }, 3000) : null;
   try {
-    var response = await fetch(CONFIG.API_URL + "/health");
+    var opts = controller ? { signal: controller.signal } : {};
+    var response = await fetch(CONFIG.API_URL + "/health", opts);
+    if (timer) clearTimeout(timer);
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
+    if (timer) clearTimeout(timer);
     return null;
   }
 }

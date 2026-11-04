@@ -78,11 +78,19 @@
         </div>
 
         <div class="top-actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="showPortalGuide('agent_workspace_guide')">Guide</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
             <img src="assets/images/placeholder.png" data-icon="bell.png" alt="Notifications" class="icon-placeholder" title="Flaticon placeholder: bell.png" /> <span id="notif-count" class="badge badge-red hidden">0</span>
           </button>
           <button id="avatar-btn" type="button" class="avatar-btn" onclick="toggleProfileDrawer()" title="Account & Theme">AG</button>
         </div>
+      </div>
+
+      <div id="agent-screening-banner" class="status-banner warn hidden">
+        <div>
+          <b>Auto-Screening Currently Unavailable:</b> Automatic document checking is temporarily inactive. Applications continue normally using each customer's <b>Original Uploaded ID Copy</b> for manual review.
+        </div>
+        <span class="badge badge-yellow">Original ID Copy Active</span>
       </div>
 
       <section id="tab-overview">
@@ -197,7 +205,9 @@
     </div>
   </div>
 
-  <script>window.SYSTEM = "staff";</script>
+  <script>
+window.SYSTEM = "staff";
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

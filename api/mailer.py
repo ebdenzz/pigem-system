@@ -1,95 +1,167 @@
 import html
+
 import os
+
 import re
+
 import smtplib
+
 import ssl
+
 from email.header import Header
+
 from email.mime.multipart import MIMEMultipart
+
 from email.mime.text import MIMEText
+
 from email.utils import formataddr, formatdate, make_msgid, parseaddr
+
 from typing import Any, Dict, List, Optional
+
 from dotenv import load_dotenv
 
 _ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
 
 COMPANY_NAME = "PIGEM Combined Facilities Support Services"
+
 COMPANY_SHORT = "PIGEM"
+
 BRAND_RED = "#c8102e"
+
 BRAND_DARK = "#101828"
+
 BRAND_MUTED = "#475467"
+
 BRAND_BG = "#f4f6f8"
+
 BRAND_CARD = "#ffffff"
+
 BRAND_BORDER = "#e4e7ec"
 
 OFFICE_ADDRESS = "Blk 42 Lot 19 Tokya St., Summerwind Village M., Brgy. Burol Main, Dasmariñas City, Cavite"
+
 TELEPHONE = "(046) 458-0908"
+
 HOTLINE = "101-733 (RED) / (02) 8899-9733"
+
 DEFAULT_PORTAL_URL = "http://127.0.0.1:8001/customer.html"
+
 DEFAULT_AGENT_URL = "http://127.0.0.1:8001/agent.html"
+
 DEFAULT_MANAGER_URL = "http://127.0.0.1:8001/manager.html"
 
 def _reload_env() -> None:
+
     if os.path.exists(_ENV_FILE):
+
         load_dotenv(_ENV_FILE, override=True)
 
 def _get_smtp_config() -> Dict[str, Any]:
+
     _reload_env()
+
     host = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
+
     try:
+
         port = int((os.getenv("SMTP_PORT") or "587").strip())
+
     except ValueError:
+
         port = 587
+
     user = (os.getenv("SMTP_USER") or "").strip()
+
     password = (os.getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
+
     raw_from = (os.getenv("SMTP_FROM") or "").strip()
+
     return {
+
         "host": host,
+
         "port": port,
+
         "user": user,
+
         "password": password,
+
         "raw_from": raw_from,
+
     }
 
 def is_configured() -> bool:
+
     cfg = _get_smtp_config()
+
     user = cfg["user"]
+
     pw = cfg["password"]
+
     if not user or not pw:
+
         return False
+
     placeholders = {
+
         "your_email@gmail.com",
+
         "yourgmail@gmail.com",
+
         "your_16_char_app_password",
+
         "xxxx",
+
     }
+
     if user.lower() in placeholders or pw.lower() in placeholders:
+
         return False
+
     return True
 
 def _escape(val: Any) -> str:
+
     if val is None:
+
         return ""
+
     return html.escape(str(val))
 
 def _clean_text(val: Any) -> str:
+
     if not val:
+
         return ""
+
     return str(val).strip()
 
 def _wrap_email_layout(
+
     subject: str,
+
     preheader: str,
+
     content_html: str,
+
     accent_color: str = BRAND_RED,
+
     badge_text: str = "Official Communication",
+
     unsubscribe_url: Optional[str] = None,
+
 ) -> str:
+
     safe_subject = _escape(subject)
+
     safe_preheader = _escape(preheader or subject)
+
     safe_badge = _escape(badge_text)
 
     unsub_html = ""
+
     if unsubscribe_url:
+
         unsub_html = f"""
         <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #e4e7ec;font-size:11px;color:#98a2b3;">
           You are receiving this communication based on your marketing preferences.
@@ -127,7 +199,7 @@ def _wrap_email_layout(
     <tr>
       <td align="center" style="padding:0;">
         <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:{BRAND_CARD};border:1px solid {BRAND_BORDER};border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(16,24,40,0.04);">
-          
+
           <!-- Corporate Header -->
           <tr>
             <td style="background-color:{accent_color};padding:22px 28px;color:#ffffff;">
@@ -187,15 +259,25 @@ def _wrap_email_layout(
 </html>"""
 
 def build_otp_html(
+
     code: str,
+
     recipient_name: str = "Valued Applicant",
+
     purpose: str = "Contact Verification",
+
     expiry_minutes: int = 10,
+
 ) -> str:
+
     safe_code = _escape(code)
+
     safe_name = _escape(recipient_name or "Valued Client")
+
     safe_purpose = _escape(purpose)
+
     subject = f"PIGEM Account Security - Your {purpose} Code is {code}"
+
     preheader = f"Your 6-digit verification code is {code}. It expires in {expiry_minutes} minutes."
 
     content = f"""
@@ -230,7 +312,7 @@ def build_otp_html(
     <!-- Security Advisory Box -->
     <div style="background:#f8f9fa;border-left:4px solid #f04438;border-radius:6px;padding:14px 16px;margin:22px 0;font-size:12.5px;color:#344054;line-height:1.55;">
       <div style="font-weight:700;color:#101828;margin-bottom:3px;display:flex;align-items:center;">
-        &#9888; Security &amp; Anti-Fraud Warning
+        Security &amp; Anti-Fraud Warning
       </div>
       PIGEM staff, agents, and customer service representatives will <b>never</b> call or message you asking for your 6-digit OTP. Never share this code with anyone. If you did not initiate this request, please disregard this email or report it to our security desk immediately.
     </div>
@@ -243,35 +325,61 @@ def build_otp_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color=BRAND_RED,
+
         badge_text="Security Verification",
+
     )
 
 def build_application_confirmation_html(
+
     ref_no: str,
+
     customer_name: str,
+
     plan_name: str,
+
     speed: str,
+
     price: str,
+
     address: str,
+
     activation_link: str = "",
+
     activation_code: str = "",
+
     is_existing_account: bool = False,
+
     portal_link: str = DEFAULT_PORTAL_URL,
+
 ) -> str:
+
     safe_ref = _escape(ref_no)
+
     safe_name = _escape(customer_name or "Subscriber")
+
     safe_plan = _escape(plan_name)
+
     safe_speed = _escape(speed)
+
     safe_price = _escape(price)
+
     safe_addr = _escape(address)
+
     subject = f"PIGEM Application Confirmation - Reference No. {ref_no}"
+
     preheader = f"Your application {ref_no} for {plan_name} has been received and is under verification."
 
     if is_existing_account or not activation_code:
+
         account_section = f"""
         <div style="background:#eff8ff;border:1px solid #b2ddff;border-radius:8px;padding:16px 18px;margin:20px 0;">
           <div style="font-size:13px;font-weight:700;color:#175cd3;margin-bottom:4px;">
@@ -287,7 +395,9 @@ def build_application_confirmation_html(
           </div>
         </div>
         """
+
     else:
+
         account_section = f"""
         <div style="background:#fef6ee;border:1px solid #f9dbaf;border-radius:8px;padding:18px 20px;margin:22px 0;">
           <div style="font-size:13px;font-weight:700;color:#b54708;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">
@@ -387,24 +497,41 @@ def build_application_confirmation_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color=BRAND_RED,
+
         badge_text="Application Confirmation",
+
     )
 
 def build_correction_notice_html(
+
     ref_no: str,
+
     customer_name: str,
+
     portal_link: str = DEFAULT_PORTAL_URL,
+
     target_summary: str = "Document or Information Clarification",
+
 ) -> str:
+
     safe_ref = _escape(ref_no)
+
     safe_name = _escape(customer_name or "Subscriber")
+
     safe_target = _escape(target_summary)
+
     safe_portal = _escape(portal_link)
+
     subject = f"PIGEM Action Required - Update Needed for Reference No. {ref_no}"
+
     preheader = f"Action required on application {ref_no}. Please log in to your authenticated portal to submit updates."
 
     content = f"""
@@ -465,67 +592,123 @@ def build_correction_notice_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color="#d92d20",
+
         badge_text="Correction Required",
+
     )
 
 def build_status_update_html(
+
     ref_no: str,
+
     customer_name: str,
+
     new_status: str,
+
     remarks: str = "",
+
     portal_link: str = DEFAULT_PORTAL_URL,
+
 ) -> str:
+
     raw_lower = (new_status or "").lower()
+
     if "approved" in raw_lower:
+
         customer_status = "Approved"
+
     elif "reject" in raw_lower:
+
         customer_status = "Rejected"
+
     else:
+
         customer_status = "Processing"
+
     safe_ref = _escape(ref_no)
+
     safe_name = _escape(customer_name or "Subscriber")
+
     safe_status = _escape(customer_status)
+
     safe_remarks = _escape(remarks)
+
     safe_portal = _escape(portal_link)
+
     subject = f"PIGEM Application Update - Reference No. {ref_no} [{customer_status}]"
+
     preheader = f"Your application {ref_no} status is {customer_status}."
 
     status_lower = (new_status or "").lower()
+
     if customer_status == "Approved":
+
         badge_bg = "#ecfdf3"
+
         badge_border = "#a6f4c5"
+
         badge_color = "#027a48"
+
         accent = "#027a48"
+
         guide_headline = "Facility Provisioning & Installation Schedule"
+
         guide_text = "Your application documents and service coverage have been verified. Our technical operations team has encoded your order to the telecom provider network. An authorized installation crew will contact you within 3 to 5 business days to confirm dispatch."
+
     elif "correction" in status_lower or "needs" in status_lower:
+
         badge_bg = "#fffcf5"
+
         badge_border = "#fecdca"
+
         badge_color = "#b42318"
+
         accent = "#d92d20"
+
         guide_headline = "Clarification / Action Required"
+
         guide_text = "Our agent requested an update regarding your application details or submitted files. Please sign in to the Customer Portal to update your application."
+
     elif "reject" in status_lower:
+
         badge_bg = "#fef3f2"
+
         badge_border = "#fee4e2"
+
         badge_color = "#b42318"
+
         accent = "#b42318"
+
         guide_headline = "Application Decision Notice"
+
         guide_text = "Following our verification and facility assessment, this application cannot be completed at this time due to facility limitations or eligibility criteria. You may contact our support hotline for further details."
+
     else:
+
         badge_bg = "#eff8ff"
+
         badge_border = "#b2ddff"
+
         badge_color = "#175cd3"
+
         accent = "#175cd3"
+
         guide_headline = "Application Under Active Review"
+
         guide_text = "Our verification specialists are actively processing your application. We will notify you immediately once the next milestone is reached."
 
     remarks_block = ""
+
     if safe_remarks:
+
         remarks_block = f"""
         <div style="background:#f9fafb;border-left:4px solid {accent};border-radius:4px;padding:12px 16px;margin:18px 0;font-size:13px;color:#344054;">
           <div style="font-weight:700;color:#101828;margin-bottom:4px;">Official Agent Remarks:</div>
@@ -588,31 +771,55 @@ def build_status_update_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color=accent,
+
         badge_text="Status Update",
+
     )
 
 def build_agent_alert_html(
+
     agent_name: str,
+
     event_type: str,
+
     ref_no: str,
+
     customer_name: str,
+
     plan_name: str,
+
     barangay: str,
+
     portal_link: str = DEFAULT_AGENT_URL,
+
     details: str = "",
+
 ) -> str:
+
     safe_agent = _escape(agent_name or "Agent")
+
     safe_event = _escape(event_type or "Application Alert")
+
     safe_ref = _escape(ref_no)
+
     safe_customer = _escape(customer_name)
+
     safe_plan = _escape(plan_name)
+
     safe_brgy = _escape(barangay)
+
     safe_details = _escape(details)
+
     subject = f"[PIGEM Agent Desk] {event_type} - Ref {ref_no}"
+
     preheader = f"Attention: {event_type} for application {ref_no} ({customer_name})."
 
     content = f"""
@@ -660,36 +867,58 @@ def build_agent_alert_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color="#175cd3",
+
         badge_text="Agent Operational Notice",
+
     )
 
 def build_manager_alert_html(
+
     manager_name: str,
+
     alert_title: str,
+
     summary_text: str,
+
     metrics: Optional[Dict[str, Any]] = None,
+
     portal_link: str = DEFAULT_MANAGER_URL,
+
 ) -> str:
+
     safe_manager = _escape(manager_name or "Manager")
+
     safe_title = _escape(alert_title)
+
     safe_summary = _escape(summary_text)
+
     subject = f"[PIGEM Management] {alert_title}"
+
     preheader = f"Management Briefing: {alert_title}."
 
     metrics_rows = ""
+
     if metrics:
+
         metrics_rows = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin:18px 0;">'
+
         for k, v in metrics.items():
+
             metrics_rows += f"""
             <div style="background:#f8f9fa;border:1px solid #eaecf0;border-radius:8px;padding:12px 16px;min-width:120px;flex:1;">
               <div style="font-size:11px;color:#667085;text-transform:uppercase;font-weight:700;">{_escape(k)}</div>
               <div style="font-size:20px;font-weight:800;color:#101828;margin-top:2px;">{_escape(v)}</div>
             </div>
             """
+
         metrics_rows += "</div>"
 
     content = f"""
@@ -718,32 +947,55 @@ def build_manager_alert_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color=BRAND_DARK,
+
         badge_text="Executive Operations",
+
     )
 
 def build_promotional_html(
+
     customer_name: str,
+
     headline: str,
+
     body_text: str,
+
     promo_plans: Optional[List[Dict[str, str]]] = None,
+
     cta_text: str = "Explore Fiber Plans",
+
     cta_url: str = "http://127.0.0.1:8001/plans.html",
+
     unsubscribe_url: str = "http://127.0.0.1:8001/customer.html?tab=settings",
+
 ) -> str:
+
     safe_name = _escape(customer_name or "Valued Subscriber")
+
     safe_headline = _escape(headline)
+
     safe_body = _escape(body_text).replace("\n", "<br>")
+
     subject = f"Special Announcement: {headline} &bull; PIGEM Red Fiber"
+
     preheader = f"Exciting new offers and fiber updates for Dasmariñas subscribers."
 
     plans_html = ""
+
     if promo_plans:
+
         plans_html = '<div style="margin:22px 0;">'
+
         for p in promo_plans:
+
             plans_html += f"""
             <div style="background:#ffffff;border:1px solid #eaecf0;border-left:4px solid {BRAND_RED};border-radius:6px;padding:12px 16px;margin-bottom:10px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -760,6 +1012,7 @@ def build_promotional_html(
               </table>
             </div>
             """
+
         plans_html += "</div>"
 
     content = f"""
@@ -788,16 +1041,25 @@ def build_promotional_html(
     """
 
     return _wrap_email_layout(
+
         subject=subject,
+
         preheader=preheader,
+
         content_html=content,
+
         accent_color=BRAND_RED,
+
         badge_text="Promotional Communication",
+
         unsubscribe_url=unsubscribe_url,
+
     )
 
 def build_business_html(subject: str, message: str) -> str:
+
     safe_subject = _escape(subject or "Official Notification")
+
     safe_body = _escape(message or "").replace("\n", "<br>")
 
     content = f"""
@@ -812,173 +1074,319 @@ def build_business_html(subject: str, message: str) -> str:
     """
 
     return _wrap_email_layout(
+
         subject=safe_subject,
+
         preheader=safe_subject,
+
         content_html=content,
+
         accent_color=BRAND_RED,
+
         badge_text="Business Notification",
+
     )
 
 def send(
+
     to: str,
+
     subject: str,
+
     message: str = "",
+
     html_content: Optional[str] = None,
+
     template_type: str = "general",
+
     payload: Optional[Dict[str, Any]] = None,
+
 ) -> Dict[str, Any]:
+
     recipient = _clean_text(to)
+
     if not recipient or "@" not in recipient:
+
         return {
+
             "sent": False,
+
             "reason": "Recipient email address is invalid or empty.",
+
             "sandbox_restricted": False,
+
         }
 
     if not is_configured():
+
         print(f"[email skipped - Gmail SMTP not configured] to={recipient} subject={subject}")
+
         return {
+
             "sent": False,
+
             "unconfigured": True,
+
             "reason": "Gmail SMTP is not configured yet. Set SMTP_USER and your 16-character Google App Password in C:/pigem-system/api/.env",
+
             "sandbox_restricted": False,
+
         }
 
     cfg = _get_smtp_config()
+
     smtp_host = cfg["host"]
+
     smtp_port = cfg["port"]
+
     smtp_user = cfg["user"]
+
     smtp_pass = cfg["password"]
+
     raw_from = cfg["raw_from"]
 
     final_html = html_content
+
     payload = payload or {}
 
     if not final_html:
+
         lowered_subj = (subject or "").lower()
+
         if template_type == "otp" or "otp" in lowered_subj or "verification code" in lowered_subj:
+
             code_match = re.search(r"\b(\d{6})\b", message) or re.search(r"\b(\d{6})\b", subject)
+
             extracted_code = payload.get("code") or (code_match.group(1) if code_match else "000000")
+
             final_html = build_otp_html(
+
                 code=extracted_code,
+
                 recipient_name=payload.get("customer_name") or payload.get("full_name") or "Valued Client",
+
                 purpose=payload.get("purpose") or "Contact Verification",
+
             )
+
         elif template_type == "application_confirmation" or "application confirmation" in lowered_subj:
+
             final_html = build_application_confirmation_html(
+
                 ref_no=payload.get("ref_no") or "PENDING",
+
                 customer_name=payload.get("customer_name") or payload.get("full_name") or "",
+
                 plan_name=payload.get("plan_name") or "Red Fiber",
+
                 speed=payload.get("speed") or "Standard Speed",
+
                 price=payload.get("price") or "₱1,299",
+
                 address=payload.get("address") or "Dasmariñas City, Cavite",
+
                 activation_link=payload.get("activation_link") or "",
+
                 activation_code=payload.get("activation_code") or "",
+
                 is_existing_account=payload.get("is_existing_account", False),
+
             )
+
         elif template_type == "correction_notice" or "correction" in lowered_subj or "update needed" in lowered_subj:
+
             final_html = build_correction_notice_html(
+
                 ref_no=payload.get("ref_no") or "APPLICATION",
+
                 customer_name=payload.get("customer_name") or payload.get("full_name") or "",
+
                 portal_link=payload.get("portal_link") or DEFAULT_PORTAL_URL,
-                target_summary=payload.get("target_summary") or "Document / Address Update",
+
+                target_summary=payload.get("target_summary") or payload.get("issue_category") or "Document / Address Update",
+
             )
+
         elif template_type == "status_update" or "status update" in lowered_subj or "application update" in lowered_subj:
+
             final_html = build_status_update_html(
+
                 ref_no=payload.get("ref_no") or "APPLICATION",
+
                 customer_name=payload.get("customer_name") or payload.get("full_name") or "",
+
                 new_status=payload.get("status") or "Updated",
+
                 remarks=payload.get("remarks") or message,
+
                 portal_link=payload.get("portal_link") or DEFAULT_PORTAL_URL,
+
             )
+
         elif template_type == "agent_alert":
+
             final_html = build_agent_alert_html(
+
                 agent_name=payload.get("agent_name") or "Agent",
+
                 event_type=payload.get("event_type") or "Application Notification",
+
                 ref_no=payload.get("ref_no") or "APPLICATION",
+
                 customer_name=payload.get("customer_name") or "",
+
                 plan_name=payload.get("plan_name") or "",
+
                 barangay=payload.get("barangay") or "",
+
                 details=payload.get("details") or message,
+
                 portal_link=payload.get("portal_link") or DEFAULT_AGENT_URL,
+
             )
+
         elif template_type == "manager_alert":
+
             final_html = build_manager_alert_html(
+
                 manager_name=payload.get("manager_name") or "Manager",
+
                 alert_title=payload.get("alert_title") or subject,
+
                 summary_text=payload.get("summary_text") or message,
+
                 metrics=payload.get("metrics"),
+
                 portal_link=payload.get("portal_link") or DEFAULT_MANAGER_URL,
+
             )
+
         elif template_type == "promotional":
+
             final_html = build_promotional_html(
+
                 customer_name=payload.get("customer_name") or "Valued Client",
+
                 headline=payload.get("headline") or subject,
+
                 body_text=payload.get("body") or message,
+
                 promo_plans=payload.get("promo_plans"),
+
             )
+
         else:
+
             final_html = build_business_html(subject, message)
 
     display_name = "PIGEM Combined Facilities Support Services"
+
     if raw_from:
+
         parsed_name, _ = parseaddr(raw_from)
+
         if parsed_name:
+
             display_name = parsed_name
 
     plain_fallback = _clean_text(message) or f"{subject}\n\n{COMPANY_NAME}\nTel: {TELEPHONE} | Hotline: {HOTLINE}"
+
     msg_id = make_msgid(domain="gmail.com")
 
     mime_msg = MIMEMultipart("alternative")
+
     mime_msg["From"] = formataddr((display_name, smtp_user))
+
     mime_msg["To"] = recipient
+
     mime_msg["Subject"] = Header(subject or "PIGEM Notification", "utf-8")
+
     mime_msg["Date"] = formatdate(localtime=True)
+
     mime_msg["Message-ID"] = msg_id
 
     mime_msg.attach(MIMEText(plain_fallback, "plain", "utf-8"))
+
     mime_msg.attach(MIMEText(final_html, "html", "utf-8"))
 
     try:
+
         ssl_ctx = ssl.create_default_context()
+
         if smtp_port == 465:
+
             with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20, context=ssl_ctx) as server:
+
                 server.login(smtp_user, smtp_pass)
+
                 server.sendmail(smtp_user, [recipient], mime_msg.as_string())
+
         else:
+
             with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+
                 server.ehlo()
+
                 server.starttls(context=ssl_ctx)
+
                 server.ehlo()
+
                 server.login(smtp_user, smtp_pass)
+
                 server.sendmail(smtp_user, [recipient], mime_msg.as_string())
 
         print(f"[email sent via Gmail SMTP] to={recipient} subject={subject} id={msg_id}")
+
         return {
+
             "sent": True,
+
             "id": msg_id.strip("<>"),
+
             "provider": "gmail_smtp",
+
             "reason": "",
+
             "sandbox_restricted": False,
+
         }
 
     except smtplib.SMTPAuthenticationError:
+
         err_text = (
+
             "Gmail SMTP authentication failed for "
+
             f"{smtp_user}. Please verify that 2-Step Verification is enabled and "
+
             "SMTP_PASSWORD in api/.env is a valid 16-character Google App Password "
+
             "(not your regular Gmail password)."
+
         )
+
         print(f"[email auth error] {err_text}")
+
         return {
+
             "sent": False,
+
             "reason": err_text,
+
             "sandbox_restricted": False,
+
         }
+
     except Exception as error:
+
         print(f"[email send error] to={recipient} err={error}")
+
         return {
+
             "sent": False,
+
             "reason": str(error),
+
             "sandbox_restricted": False,
+
         }

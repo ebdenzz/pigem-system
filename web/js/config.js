@@ -631,3 +631,233 @@ class ApplicantFormValidator extends BaseFieldValidator {
 }
 
 var FORM_VALIDATOR = new ApplicantFormValidator();
+
+var DEFAULT_POPUP_GUIDES = [
+  {
+    id: "home_welcome",
+    portal: "home",
+    audience_tone: "polite_simple",
+    title: "Welcome to PIGEM Red Fiber Online Services",
+    intro: "Thank you for visiting PIGEM Combined Facilities Support Services. Here is a quick guide on how to explore plans and apply online:",
+    steps: [
+      "Browse our pure fiber plans below to compare monthly rates and speeds.",
+      "Click Apply Now on your preferred plan when you are ready to register.",
+      "Prepare one clear photo of a valid government or company ID and an active email address.",
+      "Already applied? Click Customer Login at the top right to check your application status anytime."
+    ],
+    footer_note: "Need assistance? Call our local desk at (046) 458-0908 or Hotline 101-733 (RED).",
+    button_label: "Got It",
+    auto_show: false,
+    active: true
+  },
+  {
+    id: "apply_before_start",
+    portal: "apply",
+    audience_tone: "polite_simple",
+    title: "Before You Start Your Application",
+    intro: "Welcome! To make your Red Fiber registration smooth and hassle-free, please take note of these simple reminders:",
+    steps: [
+      "Step 1 - Choose Your Plan & Location: Select your fiber plan and pin your exact installation address on the map.",
+      "Step 2 - Verify Your Email & Details: Enter your complete name and active email address to receive your 6-digit verification code.",
+      "Step 3 - Upload Clear Valid ID Photos: Make sure your ID name, birth date, and ID number are clear and readable with good lighting.",
+      "Step 4 - Quick Submission: Once submitted, you will immediately receive your Reference Number while our team reviews your application."
+    ],
+    footer_note: "Your personal information and ID photos are protected under the Data Privacy Act of 2012 (RA 10173).",
+    button_label: "Proceed to Application Form",
+    auto_show: true,
+    active: true
+  },
+  {
+    id: "customer_portal_guide",
+    portal: "customer",
+    audience_tone: "polite_simple",
+    title: "Welcome to Your Customer Account",
+    intro: "Here you can conveniently monitor your Red Fiber application and respond to any update requests from our team:",
+    steps: [
+      "Processing: Our team is verifying your details and coordinating your application.",
+      "Action Needed (Under Processing): If an update box appears on your card, simply edit the requested detail or upload a clearer ID photo and click Submit.",
+      "Approved: Your application passed verification. Please allow 3 to 5 business days for installation scheduling.",
+      "Rejected: View the remarks on your card or contact our support desk if you wish to re-apply."
+    ],
+    footer_note: "You can reopen this guide anytime using the Guide button at the top bar.",
+    button_label: "Continue to My Account",
+    auto_show: true,
+    active: true
+  },
+  {
+    id: "agent_workspace_guide",
+    portal: "agent",
+    audience_tone: "polite_simple",
+    title: "Agent Workspace Quick Guide",
+    intro: "Welcome! Everything in your workspace is organized into clear sections so you can review applications smoothly:",
+    steps: [
+      "1. Screening Banner & Queue: New applications undergo automatic document checking in the background (~30-40s). If Auto-Screening is unavailable, you will receive a notice and can review the customer's original uploaded ID right away.",
+      "2. Applicant Details & Valid ID Check: Open any application to compare the customer's form details side-by-side with their Cropped Copy or Original ID Photo.",
+      "3. Update Application Status: Record your verification progress (Under Agent Review, Encoding) and save the final Validator decision (Approved or Rejected).",
+      "4. Optional Customer Update Request: If a name, birth date, ID number, address, or ID photo needs a correction, expand Section 4 to send a polite update notice."
+    ],
+    footer_note: "Tip: Always check if a Hold Recommended notice is shown while document checking is finishing.",
+    button_label: "Start Reviewing",
+    auto_show: true,
+    active: true
+  },
+  {
+    id: "manager_dashboard_guide",
+    portal: "manager",
+    audience_tone: "polite_simple",
+    title: "Manager Dashboard & CMS Guide",
+    intro: "Welcome to the Management Portal. Use the organized sidebar sections to oversee operations and website content safely:",
+    steps: [
+      "Operations & Analytics: Monitor daily applications, conversion rates, barangay heatmaps, and agent assignments.",
+      "Application Oversight: Inspect any customer record, reassign applications between agents, or apply a status override when needed.",
+      "Website Content (CMS): Update banners, plans, company story, strips, and FAQs. Opening CMS tabs will NOT turn off the public website automatically.",
+      "Auto-Screening Notice: If automatic document screening goes offline, both Managers and Agents are notified and applications continue using original ID copies."
+    ],
+    footer_note: "To put the public website in Maintenance Mode during major edits, use the explicit confirmation button inside CMS or coordinate with Admin.",
+    button_label: "Open Dashboard",
+    auto_show: true,
+    active: true
+  },
+  {
+    id: "admin_technical_guide",
+    portal: "admin",
+    audience_tone: "technical",
+    title: "Technical Administration & Architecture Reference",
+    intro: "Technical overview of runtime services, background worker pipelines, security controls, and database governance:",
+    steps: [
+      "FastAPI + Uvicorn (127.0.0.1:8001): Serves static web portals and REST endpoints (/health, /screen-async, /screen, /notify, /polite-remark) using a 4-worker ThreadPoolExecutor.",
+      "2-Layer Screening Fail-Safe: Layer 1 runs OpenCV blur/glare/orientation metrics + initial PaddleOCR; Layer 2 runs 4-corner perspective warp + CLAHE + Supabase Storage upload. If ai_enabled=false or FastAPI is unreachable, records fall back cleanly to state='unavailable' using original uploaded ID paths and alert Agents/Managers.",
+      "Transactional SMTP Engine: Dispatches RFC-compliant HTML emails via smtp.gmail.com:587 (STARTTLS + App Password) with RA 10173 privacy-safe Needs Correction templates.",
+      "Maintenance, AI & Pop-up Controls: All state switches require explicit confirmation before mutating public.system_settings or public.popup_guides."
+    ],
+    footer_note: "All administrative toggles and RBAC changes are recorded in public.system_logs.",
+    button_label: "Acknowledge Technical Guide",
+    auto_show: true,
+    active: true
+  }
+];
+
+function getPopupGuides() {
+  var saved = readSaved("pigem_popup_guides", null);
+  if (!Array.isArray(saved) || saved.length === 0) return DEFAULT_POPUP_GUIDES;
+  var map = {};
+  for (var i = 0; i < saved.length; i++) {
+    if (saved[i] && saved[i].id) map[saved[i].id] = saved[i];
+  }
+  var merged = [];
+  for (var j = 0; j < DEFAULT_POPUP_GUIDES.length; j++) {
+    var def = DEFAULT_POPUP_GUIDES[j];
+    merged.push(map[def.id] ? Object.assign({}, def, map[def.id]) : def);
+  }
+  return merged;
+}
+
+class PopupGuideManager {
+  constructor() {
+    this._sessionPrefix = "pigem_guide_seen_";
+  }
+
+  getGuide(guideId) {
+    var list = getPopupGuides();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === guideId) return list[i];
+    }
+    return null;
+  }
+
+  renderGuideModal(guide, onDone) {
+    if (!guide) return;
+    var isTech = guide.audience_tone === "technical";
+    var badgeHtml = isTech
+      ? '<span class="badge badge-gray">Technical Admin Reference</span>'
+      : '<span class="badge badge-green">Quick Guide</span>';
+
+    var stepsArr = Array.isArray(guide.steps) ? guide.steps : [];
+    var stepsHtml = "";
+    for (var i = 0; i < stepsArr.length; i++) {
+      stepsHtml +=
+        '<div class="guide-step-row">' +
+          '<span class="guide-step-num">' + (i + 1) + '</span>' +
+          '<div>' + stepsArr[i] + '</div>' +
+        '</div>';
+    }
+
+    window._activeGuideDoneCallback = typeof onDone === "function" ? onDone : null;
+
+    var html =
+      '<div class="row between" style="margin-bottom:8px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+          '<h3 style="margin:0;">' + guide.title + '</h3>' +
+          badgeHtml +
+        '</div>' +
+        '<button type="button" class="btn btn-outline btn-sm" onclick="finishPortalGuide()">Close</button>' +
+      '</div>' +
+      '<p class="small muted" style="margin-bottom:10px;line-height:1.55;">' + (guide.intro || "") + '</p>' +
+      '<div class="guide-steps">' + stepsHtml + '</div>' +
+      (guide.footer_note
+        ? '<div class="notice mt" style="font-size:12.5px;">' + guide.footer_note + '</div>'
+        : '') +
+      '<div class="row mt" style="justify-content:flex-end;">' +
+        '<button type="button" class="btn btn-red" onclick="finishPortalGuide()">' + (guide.button_label || "Continue") + '</button>' +
+      '</div>';
+
+    openPopup(html, true);
+  }
+
+  showGuide(guideId, onDone) {
+    var guide = this.getGuide(guideId);
+    if (!guide) return;
+    sessionStorage.setItem(this._sessionPrefix + guideId, "1");
+    this.renderGuideModal(guide, onDone);
+  }
+
+  autoShowForPortal(guideId, onDone) {
+    var guide = this.getGuide(guideId);
+    if (!guide || guide.active === false || guide.auto_show === false) {
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+    if (sessionStorage.getItem(this._sessionPrefix + guideId) === "1") {
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+    sessionStorage.setItem(this._sessionPrefix + guideId, "1");
+    this.renderGuideModal(guide, onDone);
+  }
+}
+
+var POPUP_GUIDE_MANAGER = new PopupGuideManager();
+
+function showPortalGuide(guideId, onDone) {
+  POPUP_GUIDE_MANAGER.showGuide(guideId, onDone);
+}
+
+function finishPortalGuide() {
+  var cb = window._activeGuideDoneCallback;
+  window._activeGuideDoneCallback = null;
+  closePopup();
+  if (typeof cb === "function") cb();
+}
+
+function openConfirmPopup(title, messageHtml, confirmLabel, onConfirm, isDanger) {
+  window._pendingConfirmAction = typeof onConfirm === "function" ? onConfirm : null;
+  var btnClass = isDanger ? "btn btn-red" : "btn btn-green";
+  openPopup(
+    '<div class="row between" style="margin-bottom:8px;">' +
+      '<h3>' + title + '</h3>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="closePopup()">Cancel</button>' +
+    '</div>' +
+    '<div class="notice ' + (isDanger ? "warn" : "") + ' mt" style="font-size:13.5px;line-height:1.55;">' + messageHtml + '</div>' +
+    '<div class="row mt" style="justify-content:flex-end;gap:8px;">' +
+      '<button type="button" class="btn btn-outline" onclick="closePopup()">Cancel</button>' +
+      '<button type="button" class="' + btnClass + '" onclick="runPendingConfirmAction()">' + (confirmLabel || "Confirm") + '</button>' +
+    '</div>'
+  );
+}
+
+function runPendingConfirmAction() {
+  var fn = window._pendingConfirmAction;
+  window._pendingConfirmAction = null;
+  closePopup();
+  if (typeof fn === "function") fn();
+}

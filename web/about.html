@@ -128,7 +128,7 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-function initAboutPage() {
+    function initAboutPage() {
       var content = getWebsiteContent();
       startSlider("about-slider", content.about_slides || DEFAULT_CONTENT.about_slides);
 
@@ -153,6 +153,6 @@ function initAboutPage() {
     }
     window.onLiveContentSynced = initAboutPage;
     initAboutPage();
-</script>
+  </script>
 </body>
 </html>

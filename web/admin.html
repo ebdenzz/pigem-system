@@ -71,6 +71,7 @@
         </div>
 
         <div class="top-actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="showPortalGuide('admin_technical_guide')">Technical Guide</button>
           <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
             <img src="assets/images/placeholder.png" data-icon="bell.png" alt="Notifications" class="icon-placeholder" title="Flaticon placeholder: bell.png" /> <span id="notif-count" class="badge badge-red hidden">0</span>
           </button>
@@ -104,16 +105,35 @@
       </section>
 
       <section id="tab-maintenance" class="hidden">
-        <div class="card">
+        <div class="card" style="margin-bottom:18px">
           <h2 style="font-size:20px; margin-bottom:6px">Website &amp; Form Maintenance Mode</h2>
-          <p class="muted" style="font-size:13px; margin-bottom:16px">When Maintenance Mode is enabled, public visitors attempting to submit new applications will see a maintenance notice while internal staff continue working.</p>
+          <p class="muted" style="font-size:13px; margin-bottom:16px">When Maintenance Mode is enabled (with explicit confirmation), public visitors attempting to access the website or submit new applications see a maintenance notice while internal staff continue working.</p>
           <div id="maint-msg" class="msg"></div>
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--soft); margin-bottom:14px">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--soft); margin-bottom:14px; flex-wrap:wrap; gap:10px">
             <div>
-              <b>Public Application Maintenance Mode</b>
+              <b>Public Application Maintenance Mode (<code>public.system_settings</code>)</b>
               <div id="maint-status-label" class="muted" style="font-size:13px">Currently OFF (Public website is accepting applications)</div>
             </div>
             <button id="btn-toggle-maint" type="button" class="btn btn-red" onclick="toggleMaintMode()">Enable Maintenance Mode</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:6px">System-Wide Pop-up Instructions &amp; Portal Guides (<code>public.popup_guides</code>)</h3>
+          <p class="muted" style="font-size:13px; margin-bottom:14px">Manage polite instruction pop-ups across external &amp; internal portals (Customer, Agent, Manager) and technical reference pop-ups for Admin.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Guide ID / Portal</th>
+                  <th>Audience Tone</th>
+                  <th>Title</th>
+                  <th>Auto-Show on Entry</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-popup-guides-body"></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -288,7 +308,9 @@
     </div>
   </div>
 
-  <script>window.SYSTEM = "admin";</script>
+  <script>
+window.SYSTEM = "admin";
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

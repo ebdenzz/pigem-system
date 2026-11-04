@@ -3,6 +3,30 @@ var mgrApps = [];
 var mgrUsers = [];
 var activeMgrTab = "overview";
 var activeMgrAppId = null;
+var isMgrScreeningOnline = true;
+
+async function checkMgrScreeningService() {
+  var banner = document.getElementById("mgr-screening-banner");
+  if (!isAiEnabled()) {
+    isMgrScreeningOnline = false;
+    if (banner) banner.classList.remove("hidden");
+    return false;
+  }
+  if (typeof apiCheckHealth === "function") {
+    var health = await apiCheckHealth();
+    if (!health || health.status !== "ok" || health.auto_screening_ready === false) {
+      isMgrScreeningOnline = false;
+      if (banner) banner.classList.remove("hidden");
+      if (typeof dbNotifyScreeningUnavailable === "function") {
+        await dbNotifyScreeningUnavailable("", "", "Auto-screening service is currently offline. Applications continue using original uploaded ID copies.");
+      }
+      return false;
+    }
+  }
+  isMgrScreeningOnline = true;
+  if (banner) banner.classList.add("hidden");
+  return true;
+}
 
 function isMgrScreeningActive(app) {
   var scr = (app && app.screening) || {};
@@ -20,11 +44,11 @@ function formatMgrEta(seconds) {
 }
 
 function getMgrScreeningBadge(app) {
-  if (!isAiEnabled()) {
-    return '<span class="badge badge-gray">Manual Review</span>';
-  }
   var scr = app.screening || {};
   var state = scr.state || "";
+  if (!isAiEnabled() || !isMgrScreeningOnline || state === "unavailable" || state === "paused" || scr.fallback_original_only) {
+    return '<span class="badge badge-gray">Original ID Copy (Manual Review)</span>';
+  }
   var eta = formatMgrEta(scr.eta_seconds);
 
   if (state === "queued" || state === "layer1_running") {
@@ -56,9 +80,20 @@ window.addEventListener("DOMContentLoaded", async function () {
   if (!currentManager) return;
 
   document.getElementById("top-user-name").textContent = currentManager.full_name;
+  await checkMgrScreeningService();
   await refreshManagerData();
   loadAllCmsEditors();
   initDashUI(currentManager, mgrApps, openMgrAppModal);
+
+  setTimeout(function () {
+    if (typeof POPUP_GUIDE_MANAGER !== "undefined") {
+      POPUP_GUIDE_MANAGER.autoShowForPortal("manager_dashboard_guide");
+    }
+  }, 220);
+
+  setInterval(function () {
+    checkMgrScreeningService();
+  }, 20000);
 
   setInterval(async function () {
     var anyRunning = false;
@@ -157,12 +192,6 @@ function showTab(tab) {
   if (maintBar) {
     maintBar.classList.toggle("hidden", !isCmsView);
     if (isCmsView) {
-      if (!isMaintenanceOn()) {
-        setMaintenanceOn(true);
-        if (currentManager) {
-          dbAddLog(currentManager.email, "Auto-enabled Maintenance Mode while editing Content CMS");
-        }
-      }
       updateCmsMaintenanceBarUI();
     }
   }
@@ -184,25 +213,43 @@ function updateCmsMaintenanceBarUI() {
   if (!badge || !btn) return;
   if (isMaintenanceOn()) {
     badge.className = "badge badge-yellow";
-    badge.textContent = "Maintenance Mode: ON (Customers Blocked While Editing)";
-    btn.textContent = "Publish & Turn Off Maintenance";
+    badge.textContent = "Maintenance Mode: ON (Customers Paused)";
+    btn.className = "btn btn-green btn-sm";
+    btn.textContent = "Return Website to Live";
   } else {
     badge.className = "badge badge-green";
-    badge.textContent = "Website Live (Maintenance Mode: OFF)";
-    btn.textContent = "Turn Maintenance Mode ON";
+    badge.textContent = "Website Status: LIVE";
+    btn.className = "btn btn-outline btn-sm";
+    btn.textContent = "Enable Maintenance Mode";
   }
 }
 
 function finishCmsAndDisableMaintenance() {
   if (isMaintenanceOn()) {
-    setMaintenanceOn(false);
-    if (currentManager) dbAddLog(currentManager.email, "Published CMS changes & turned OFF Maintenance Mode");
-    updateCmsMaintenanceBarUI();
-    showAlert("Website is Live", "Maintenance Mode is now OFF. Customers can access the public website, application form, and account activation.");
+    openConfirmPopup(
+      "Return Public Website to Live?",
+      "Customers will immediately regain access to the public website, application form, and account activation.",
+      "Yes, Make Website Live",
+      function () {
+        setMaintenanceOn(false);
+        if (currentManager) dbAddLog(currentManager.email, "Disabled Maintenance Mode from Website Content (CMS)");
+        updateCmsMaintenanceBarUI();
+        showAlert("Website is Live", "Maintenance Mode is now OFF. Customers can browse plans and submit applications.");
+      },
+      false
+    );
   } else {
-    setMaintenanceOn(true);
-    if (currentManager) dbAddLog(currentManager.email, "Turned ON Maintenance Mode from Content CMS");
-    updateCmsMaintenanceBarUI();
+    openConfirmPopup(
+      "Enable Public Website Maintenance Mode?",
+      "Turning ON Maintenance Mode will temporarily pause customer access to the public website and application form until you turn it back off.",
+      "Yes, Enable Maintenance Mode",
+      function () {
+        setMaintenanceOn(true);
+        if (currentManager) dbAddLog(currentManager.email, "Enabled Maintenance Mode from Website Content (CMS)");
+        updateCmsMaintenanceBarUI();
+      },
+      true
+    );
   }
 }
 
@@ -343,10 +390,14 @@ async function saveMgrOverride() {
   var newStatus = document.getElementById("mgr-override-status").value;
   var remarks = document.getElementById("mgr-remarks").value.trim();
 
+  var effectiveRemarks = remarks || (newStatus === "Needs Correction" ? "Please sign in to your Customer Account to review and update your application details." : (app.agent_remarks || ""));
+
   await dbUpdateApplication(app.id, {
     assigned_agent: agentEmail,
     status: newStatus,
-    agent_remarks: remarks,
+    agent_remarks: effectiveRemarks,
+    correction_note: newStatus === "Needs Correction" ? effectiveRemarks : (app.correction_note || ""),
+    customer_instruction: effectiveRemarks,
     encoded: (newStatus === "Encoding" || newStatus === "Approved" || newStatus === "Submitted to Provider") ? true : app.encoded
   });
 
@@ -367,22 +418,30 @@ async function saveMgrOverride() {
       app.full_name,
       app.plan_name || "Red Fiber",
       app.city || "Dasmariñas City",
-      "Assigned by Manager " + currentManager.full_name + (remarks ? " - Remarks: " + remarks : "")
+      "Assigned by Manager " + currentManager.full_name + (effectiveRemarks ? " - Remarks: " + effectiveRemarks : "")
     );
   }
 
-  if (newStatus !== app.status && (newStatus === "Approved" || newStatus === "Rejected" || newStatus === "Needs Correction")) {
+  var shouldNotifyCust = (newStatus === "Needs Correction") || (newStatus !== app.status && (newStatus === "Approved" || newStatus === "Rejected"));
+  if (shouldNotifyCust) {
     var custLabel = (newStatus === "Needs Correction") ? "Update Needed" : newStatus;
+    var custEmail = (app.corrected_copy && app.corrected_copy.contact_email) || app.email;
     await dbAddNotification(
-      app.email,
+      custEmail,
       "customer",
       "Application " + custLabel + " (" + app.reference_no + ")",
-      remarks || ("Your application status has been updated to " + custLabel + ".")
+      effectiveRemarks || ("Your application status has been updated to " + custLabel + ".")
     );
     if (newStatus === "Needs Correction") {
-      await apiSendCorrectionEmail(app.email, app.full_name, app.reference_no, remarks || "Please log in to review and update the highlighted field.");
+      await apiSendCorrectionEmail(
+        custEmail,
+        app.full_name,
+        app.reference_no,
+        effectiveRemarks,
+        "Information / Document Clarification Required"
+      );
     } else {
-      await apiSendStatusEmail(app.email, app.full_name, app.reference_no, newStatus, remarks);
+      await apiSendStatusEmail(custEmail, app.full_name, app.reference_no, newStatus, effectiveRemarks);
     }
   }
 
@@ -616,7 +675,7 @@ function saveMediaAssetsCms() {
 
   saveSiteContent(c);
   loadPageImages();
-  dbAddLog(currentManager.email, "Updated active Logo, Clients, Vehicles & Permits in Content CMS");
+  dbAddLog(currentManager.email, "Updated active Logo, Clients, Vehicles & Permits in Website Content (CMS)");
   showMsg("cms-assets-msg", "ok", "Active Website Assets saved! Click 'Preview Live Website' above to view.");
 }
 
@@ -645,7 +704,7 @@ function saveBannersCms() {
     c.about_slides[j].text = document.getElementById("about-text-" + j).value.trim();
   }
   saveSiteContent(c);
-  dbAddLog(currentManager.email, "Updated 4 Home & 4 About Hero Banners in Content CMS");
+  dbAddLog(currentManager.email, "Updated 4 Home & 4 About Hero Banners in Website Content (CMS)");
   showMsg("cms-banners-msg", "ok", "4-Slide Hero Banners saved! Click 'Preview Live Website' to inspect.");
 }
 
@@ -658,7 +717,7 @@ function saveAboutCms() {
   c.contact_phone = document.getElementById("cms-contact-phone").value.trim();
   c.contact_address = document.getElementById("cms-contact-addr").value.trim();
   saveSiteContent(c);
-  dbAddLog(currentManager.email, "Updated About PIGEM text in Content CMS");
+  dbAddLog(currentManager.email, "Updated About PIGEM text in Website Content (CMS)");
   showMsg("cms-about-msg", "ok", "About PIGEM & Contact information saved!");
 }
 
@@ -676,7 +735,7 @@ function savePlansCms() {
     c.plans[i].features = cleanFeats;
   }
   saveSiteContent(c);
-  dbAddLog(currentManager.email, "Updated Red Fiber Plans in Content CMS");
+  dbAddLog(currentManager.email, "Updated Red Fiber Plans in Website Content (CMS)");
   showMsg("cms-plans-msg", "ok", "Internet Plans saved!");
 }
 
@@ -717,7 +776,7 @@ function saveFaqsCms() {
   var c = getSiteContent();
   c.faqs = currentEditingFaqs.filter(function (item) { return item.q !== ""; });
   saveSiteContent(c);
-  dbAddLog(currentManager.email, "Updated FAQs in Content CMS");
+  dbAddLog(currentManager.email, "Updated FAQs in Website Content (CMS)");
   showMsg("cms-faqs-msg", "ok", "FAQs saved!");
 }
 

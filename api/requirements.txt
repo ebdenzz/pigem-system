@@ -1,14 +1,11 @@
-# Web API server
 fastapi
 uvicorn
 python-multipart
 python-dotenv
 httpx
 
-# Image quality check and auto-deskew (OpenCV)
 opencv-python-headless
 numpy
 
-# ID text extraction (PaddleOCR - requires Python 3.11)
 paddlepaddle
 paddleocr

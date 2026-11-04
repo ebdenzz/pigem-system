@@ -16,6 +16,7 @@
         <div><b style="cursor:default; user-select:none;">Combined Facilities Support Services</b></div>
       </div>
       <nav class="nav-links">
+        <button type="button" class="btn btn-outline btn-sm" onclick="showPortalGuide('customer_portal_guide')">Guide</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
           <img src="assets/images/placeholder.png" data-icon="bell.png" alt="Notifications" class="icon-placeholder" title="Flaticon placeholder: bell.png" /> <span id="notif-count" class="badge badge-red hidden">0</span>
         </button>
@@ -72,7 +73,9 @@
     </div>
   </div>
 
-  <script>window.SYSTEM = "customer";</script>
+  <script>
+window.SYSTEM = "customer";
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>

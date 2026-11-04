@@ -7,8 +7,8 @@
   <title>Account Setup - Admin &amp; Manager</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-.role-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-</style>
+    .role-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+  </style>
 </head>
 <body>
 
@@ -134,7 +134,7 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-async function registerAdminAccount() {
+    async function registerAdminAccount() {
       var name = document.getElementById("adm-name").value.trim();
       var email = document.getElementById("adm-email").value.trim().toLowerCase();
       var phone = document.getElementById("adm-phone").value.trim();
@@ -250,6 +250,6 @@ async function registerAdminAccount() {
     document.addEventListener("DOMContentLoaded", function() {
       loadRegisteredAccounts();
     });
-</script>
+  </script>
 </body>
 </html>

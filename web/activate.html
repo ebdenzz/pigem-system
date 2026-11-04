@@ -65,7 +65,7 @@
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
   <script>
-async function initActivatePage() {
+    async function initActivatePage() {
       var params = new URLSearchParams(window.location.search);
       var email = params.get("email") || "";
       var code = params.get("code") || "";
@@ -112,6 +112,6 @@ async function initActivatePage() {
     }
 
     initActivatePage();
-</script>
+  </script>
 </body>
 </html>

@@ -17,7 +17,10 @@
         <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
         <span style="font-weight:700; font-size:18px; cursor:default; user-select:none;">Application Form</span>
       </div>
-      <a href="index.html" class="btn btn-small">&#8592; Back</a>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="btn btn-small btn-outline" onclick="showPortalGuide('apply_before_start')">Application Guide</button>
+        <a href="index.html" class="btn btn-small">&#8592; Back</a>
+      </div>
     </div>
   </header>
 
@@ -124,7 +127,7 @@
       <div class="row mt" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">
         <input id="map-search" type="text" placeholder="Search street, barangay, or city (e.g. Burol Main, Dasmariñas)" style="flex:1; min-width:210px;">
         <button type="button" class="btn btn-small" onclick="searchMapAddress()">Search Map</button>
-        <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()">&#128205; Use My Location</button>
+        <button type="button" id="btn-use-loc" class="btn btn-small btn-red" onclick="useCurrentLocation()"><img src="assets/images/placeholder.png" data-icon="location.png" alt="Location" class="icon-placeholder" title="Flaticon placeholder: location.png"> Use My Location</button>
       </div>
 
       <div id="map"></div>
@@ -208,7 +211,7 @@
           <h3>Valid Government ID Upload (Front &amp; Back)</h3>
           <p class="small muted">Upload clear photos of both the <b>Front</b> and <b>Back</b> of your valid government-issued ID.</p>
         </div>
-        <button type="button" id="btn-phone-qr" class="btn btn-small btn-outline" onclick="openPhoneQrModal()">&#128242; Continue on Phone (QR Code)</button>
+        <button type="button" id="btn-phone-qr" class="btn btn-small btn-outline" onclick="openPhoneQrModal()"><img src="assets/images/placeholder.png" data-icon="qr-phone.png" alt="Phone QR" class="icon-placeholder" title="Flaticon placeholder: qr-phone.png"> Continue on Phone (QR Code)</button>
       </div>
 
       <div class="notice mt" style="background:var(--bg-soft); border:1px solid var(--line);">
@@ -288,8 +291,8 @@
             <input id="id_front" type="file" accept="image/*" style="display:none" onchange="handleIdFileSelect('front', this)">
             <input id="id_front_cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleIdFileSelect('front', this)">
             <div class="upload-btns">
-              <button type="button" class="btn btn-small" onclick="document.getElementById('id_front').click()">&#128444; Choose from Files</button>
-              <button type="button" id="btn-front-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_front_cam').click()">&#128247; Take Photo (Camera)</button>
+              <button type="button" class="btn btn-small" onclick="document.getElementById('id_front').click()"><img src="assets/images/placeholder.png" data-icon="upload.png" alt="Choose File" class="icon-placeholder" title="Flaticon placeholder: upload.png"> Choose from Files</button>
+              <button type="button" id="btn-front-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_front_cam').click()"><img src="assets/images/placeholder.png" data-icon="camera.png" alt="Camera" class="icon-placeholder" title="Flaticon placeholder: camera.png"> Take Photo (Camera)</button>
             </div>
             <div id="id-front-preview-box" class="mt" hidden>
               <img id="id-front-preview" class="id-preview" alt="Front ID Preview">
@@ -304,8 +307,8 @@
             <input id="id_back" type="file" accept="image/*" style="display:none" onchange="handleIdFileSelect('back', this)">
             <input id="id_back_cam" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleIdFileSelect('back', this)">
             <div class="upload-btns">
-              <button type="button" class="btn btn-small" onclick="document.getElementById('id_back').click()">&#128444; Choose from Files</button>
-              <button type="button" id="btn-back-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_back_cam').click()">&#128247; Take Photo (Camera)</button>
+              <button type="button" class="btn btn-small" onclick="document.getElementById('id_back').click()"><img src="assets/images/placeholder.png" data-icon="upload.png" alt="Choose File" class="icon-placeholder" title="Flaticon placeholder: upload.png"> Choose from Files</button>
+              <button type="button" id="btn-back-cam" class="btn btn-small btn-red phone-only-btn" onclick="document.getElementById('id_back_cam').click()"><img src="assets/images/placeholder.png" data-icon="camera.png" alt="Camera" class="icon-placeholder" title="Flaticon placeholder: camera.png"> Take Photo (Camera)</button>
             </div>
             <div id="id-back-preview-box" class="mt" hidden>
               <img id="id-back-preview" class="id-preview" alt="Back ID Preview">

@@ -1,90 +1,148 @@
-# PIGEM Web-Based Internet Service Application System - Complete Technical Study Guide
+# PIGEM Web-Based Internet Service Application System - Complete Blended-Taglish Study Guide
 
-Ang study guide na ito ay kumpletong reviewer para maintindihan mo nang buo ang buong **PIGEM Web-Based Internet Service Application System** mula frontend hanggang backend, database queries, API routes, programming concepts (OOP, Regex, at nested logic), at lahat ng functions at methods na ginagamit sa system.
+Ang study guide na ito ay ginawa para maintindihan mo nang buong-buo, malinaw, at walang kalituhan ang buong **PIGEM Web-Based Internet Service Application System**—mula sa pinakasimpleng paliwanag ng mga technical terms, hanggang sa bawat SQL table, Python backend class/method, JavaScript function, UI structure, fail-safe mechanisms, at setup commands.
 
 ---
 
-## 1. System Overview at End-to-End Application Flow
+## 1. Simple Everyday Dictionary: Mga Nakakalitong Terms na Ipinaliwanag nang Pinakasimple
 
-Ang system ay dinevelop para sa **PIGEM Combined Facilities Support Services** sa Dasmarinas City, Cavite bilang online application, document screening, at monitoring platform para sa residential **Red Fiber** internet plans.
+Bago tayo pumasok sa malalim na code, intindihin muna natin sa parang pang-araw-araw na kwento ang mga salitang madalas nakakalito kapag binabasa sa documentation o tinatanong sa defense:
 
-### 1.1 Apat na User Roles at Separation ng Portals
+### 1.1 Ano ang `CMS` (`Content Management System`)?
+- **Ibig sabihin:** Ang **CMS** ay **Content Management System** (kaya mali o paulit-ulit kapag sinabing *"Content CMS"*—ang tamang tawag ay **Website Content (CMS)** o **Content Management System**).
+- **Simpleng Analogy:** Isipin mo ang Facebook page mo. Kapag gusto mong magpalit ng Cover Photo o bio sa Facebook, hindi ka naman nagbubukas ng HTML code para mag-type ng `<img src="...">`, diba? Nagki-click ka lang ng **Upload Photo** at **Save**. Ganoon mismo ang CMS sa `web/manager.html`: isang dashboard kung saan pwedeng palitan ng Manager ang Hero Banners, Company Logo, Internet Plans, About Us, at FAQs ng public website (`index.html` at `about.html`) nang walang ginagalaw na code. Lahat ng in-edit niya ay sine-save sa `public.website_content` table at `website-assets` bucket sa Supabase.
+- **Bakit Hindi Automatic Nag-o-off ang Website Pagbukas ng CMS?** Dati, nakakagulat kung pag-click pa lang ng Manager sa CMS tab ay bigla nang magla-lock ang public website. Ngayon, malinis at safe na ito: pagbukas mo ng **Website Content (CMS)** sa `manager.html`, **nananatiling live at bukas ang website** para sa mga customers. Kung gusto lang talagang isara pansamantala ng Manager o Admin ang website habang may malaking inaayos, saka lang niya pipindutin ang **Maintenance Mode** button na may **Confirmation Pop-up** muna bago gumana.
 
-| Role | Portal File | Login Page | Main Responsibility sa System |
-| :--- | :--- | :--- | :--- |
-| **Customer** | `web/customer.html` | `web/login.html` | Nagpapasa ng internet application sa `apply.html`, nag-a-activate ng account sa `activate.html`, tumitingin ng 3 main statuses (`Processing`, `Approved`, `Rejected`), at nag-a-update ng details kapag lumabas ang `Needs Correction` sa loob ng `Processing`. |
-| **Agent** | `web/agent.html` | `web/staff-login.html` | Nagha-handle ng customer applications sa queue, nakakakita ng live progress at estimated remaining time ng background screening, nagvi-view ng `Cropped & Enhanced Copy` vs `Original Uploaded Photo`, nagfo-forward sa validator (`Encoding`), at nagre-record ng validator decision (`Approved` o `Rejected`). |
-| **Manager** | `web/manager.html` | `web/staff-login.html` | Nagmo-monitor ng lahat ng applications at workload ng mga agents, pwedeng mag-reassign o mag-override ng status, gumagawa ng bagong Agent accounts, nagpapadala ng promotional email campaigns, at nag-e-edit ng public website content sa Content CMS. |
-| **Admin** | `web/admin.html` | `web/admin-login.html` | Humahawak ng **Technical Management System**: dito lang makikita at makokontrol ang AI Screening Engine, active parallel background screening jobs, Ollama, OpenCV, PaddleOCR, Gmail SMTP, Supabase health checks, Maintenance Mode, system accounts, at audit logs. |
+### 1.2 Ano ang `FastAPI`, `Uvicorn`, `http://127.0.0.1:8001`, `ASGI`, at `REST Endpoints`?
+Madalas nakakalito kung bakit dalawa pa ang pangalan (**FastAPI** at **Uvicorn**) sa `api/main.py`. Gamitin natin ang **Fast-Food Restaurant Analogy**:
+
+1. **`http://127.0.0.1:8001` (Ang Address at Pinto ng Restaurant sa Computer Mo)**:
+   - Ang `127.0.0.1` (tinatawag ding `localhost`) ay special IP address na ang ibig sabihin ay **"itong sarili kong computer mismo"**.
+   - Ang `:8001` naman ay ang **Port Number** o **Door Number #8001**. Dahil maraming programs ang tumatakbo sa Windows (gaya ng browser, Spotify, o Ollama sa door `11434`), kailangan ng sariling pinto ng PIGEM system para alam ng browser kung saan kakatok.
+2. **`Uvicorn` at `ASGI` (Ang Kuryente, Pintuan, at Receptionist sa Door #8001)**:
+   - Ang Python code (`main.py`) mag-isa ay parang recipe book lang—hindi siya marunong makinig sa network port `8001` nang mag-isa.
+   - Si **Uvicorn** ang program na nagbubukas ng Door `8001`, tumatanggap ng katok mula sa browser (HTTP requests), at nagpapasa nito sa Python code mo.
+   - Ang ibig sabihin ng **ASGI** (*Asynchronous Server Gateway Interface*) ay isa siyang **mabilis na receptionist na kayang tumanggap ng maraming customers nang sabay-sabay** nang hindi sinasarado ang pinto habang may niluluto pa sa loob.
+3. **`FastAPI` at `REST Endpoints` (Ang Menu Counter Windows sa Loob ng Restaurant)**:
+   - Kung si Uvicorn ang pintuan at receptionist, si **FastAPI** naman ang **Order Counter System** sa loob ng `api/main.py` na nagdidirekta kung saang window pupunta ang bawat request.
+   - Ang **REST Endpoints** ay parang **5 magkakaibang Counter Windows** na may kanya-kanyang trabaho:
+     - **`GET /health` (Window 1 - Status Check)**: Tinatanong ng browser: *"Bukas ba ang server, OpenCV, PaddleOCR, Ollama, at email?"* Sasagot agad ito ng JSON status.
+     - **`POST /screen-async` (Window 2 - Drop-Off Screening Window)**: Ibibigay lang ng browser ang `application_id` para ipasuri sa likod (kusina), tapos aalis na agad ang browser nang hindi naghihintay.
+     - **`POST /screen` (Window 3 - Direct ID Scan)**: Backup counter kung saan pwedeng mag-upload ng ID file nang direkta.
+     - **`POST /notify` (Window 4 - Email Messenger Window)**: Tinatawagan kapag magpapadala ng OTP, confirmation, `Needs Correction` notice, status update, o promo email.
+     - **`POST /polite-remark` (Window 5 - Polite Message Writer)**: Tinatawagan kapag pinindot ng Agent ang **Generate Polite Message** para gawing magalang ang note para sa customer.
+   - Bukod sa 5 windows na iyan, sine-serve din ng FastAPI ang buong `web/` folder (`index.html`, `apply.html`, `agent.html`, at iba pa) kaya pagbukas mo ng `http://127.0.0.1:8001`, buong website at backend na agad ang kasama.
+
+### 1.3 Ano ang `Synchronous vs Asynchronous`, `POST /screen-async`, at `ThreadPoolExecutor(max_workers=4)`?
+Ito ang dahilan kung bakit **mabilis sa customer** at **kaya ang sabay-sabay na nag-a-apply**:
+
+- **Synchronous ("Hintay-sa-Harap-ng-Cashier"):**
+  Isipin mo na nag-order ka ng pagkain na 30 seconds lutuin. Kung *synchronous* ang pila, nakatayo ka lang sa harap ng cashier at naka-freeze ang screen mo hanggang maluto ang pagkain. Ganoon ang mangyayari kung pag-click ng **Submit** ng customer ay hihintayin pa niyang matapos mag-crop at magbasa ng ID bago lumabas ang Reference Number niya.
+- **Asynchronous via `POST /screen-async` ("Claim-Stub / Buzzer System"):**
+  Sa PIGEM system, pag-click ng customer ng **Submit** sa `apply.html`:
+  1. Ang loading screen na nakikita ng customer ay **pag-upload lang ng ID photo sa Supabase `documents` bucket at pag-save ng form** (ilang segundo lang).
+  2. Lalabas **agad** ang Reference Number (`PIGEM-...`) ng customer—tapos na ang paghihintay niya!
+  3. Sa likod ng eksena, bumubulong ang browser sa `POST /screen-async`: *"Pakisuri na sa background itong Application ID na ito."* Ang ibig sabihin ng `async` (*asynchronous*) ay **hindi hihintayin ng customer na matapos ang screening**; ang **Agent** sa `agent.html` ang makakakita sa queue na nag-i-screen pa ito (`Screening in Progress`).
+- **`ThreadPoolExecutor(max_workers=4)` (Apat na Taga-Suri sa Kusina nang Sabay-Sabay):**
+  Isipin mo na sa loob ng `api/screening.py`, nag-hire ka ng **4 na dedicated staff (`max_workers=4`)** na may sari-sariling lamesa.
+  - Kung may **4 na customers** na sabay-sabay nag-click ng Submit sa parehong segundo, bawat isa sa 4 workers ay kukuha ng tig-isang application at **sabay-sabay silang mag-i-screen** (parallel).
+  - Paano kung **10 customers** ang sabay nag-apply? Yung unang 4 ay gagawin agad nang sabay, at yung natitirang 6 ay ilalagay nang maayos sa waiting list (`queue`). Sa sandaling matapos ang Worker #1, kukunin niya agad ang ika-5 application. Bakit `4` ang nilagay at hindi `100`? Dahil mabigat sa CPU at RAM ang pag-crop ng larawan (OpenCV) at pagbasa ng text (PaddleOCR); ang `4 workers` ang sweet spot para mabilis ang sabay-sabay na gawa nang hindi nagha-hang ang computer.
+
+### 1.4 Ano ang `SMTP`, `Port 587`, `STARTTLS`, at `16-Character Google App Password`?
+Kapag nagpapadala ng OTP o `Needs Correction` email ang `api/mailer.py`, ito ang ginagamit niya:
+
+- **SMTP (`Simple Mail Transfer Protocol`)**: Ito ang **universal na patakaran ng Post Office sa internet** para sa pagpapadala ng papalabas na email. Kung ang browser ay gumagamit ng `HTTP` para magbukas ng webpage, ang Python email sender naman ay gumagamit ng `SMTP` para maghulog ng sulat sa Gmail.
+- **`smtp.gmail.com` at `Port 587`**: Ang `smtp.gmail.com` ang official Post Office building ni Google, at ang `Port 587` ang standard submission door para sa mga systems/apps na magpapadala ng email.
+- **`STARTTLS` (Selyadong Armored Van)**: Bago ibigay ng `mailer.py` ang login at laman ng email ng customer, tinatawag niya ang `server.starttls()`. Ginagawa nitong **encrypted (naka-lock sa kaha)** ang koneksyon para walang hacker sa Wi-Fi o network na makakasilip sa OTP code o email ng customer.
+- **`16-Character Google App Password`**: Hindi tinatanggap ng Gmail ang regular mong Gmail password sa Python code dahil may 2-Step Verification si Google. Kaya sa Google Account Security settings, gumagawa ka ng **16-letter App Password** (`abcd efgh ijkl mnop`). Espesyal na susi ito na pang-send lang ng email ng PIGEM system at ligtas kahit palitan o i-delete anumang oras.
+
+### 1.5 Ano ang `Bearer Token` (`Authorization: Bearer <token>`) at `JWT`?
+Makikita mo sa `api/auth.py` at `web/js/api.js` ang linya na `"Authorization": "Bearer " + token`. Ano ba talaga iyon?
+
+- **Kahulugan ng salitang `"Bearer"`**: Sa simpleng English, ang *bearer* ay **"ang taong may hawak nito"** (parang sa concert ticket: *"Admit the bearer of this ticket"*).
+- **Paano ito gumagana (VIP Wristband Analogy)**:
+  1. Pag nag-login ang Customer, Agent, Manager, o Admin, binibigyan siya ng Supabase ng mahabang digital pass na tinatawag na **JWT (`JSON Web Token`)**—isipin mo itong **VIP Wristband na may digital signature**.
+  2. Tuwing magre-request ang browser sa FastAPI server, ipinapakita niya sa header ang: `Authorization: Bearer eyJhbGciOiJIUzI1Ni...` na ang ibig sabihin ay: *"Papasukin mo itong request dahil hawak ko itong valid token."*
+  3. Sa `api/auth.py`, chine-check muna ng Regex (`^Bearer\s+([A-Za-z0-9._\-]+)$`) kung tama ang porma ng wristband, tapos tinatanong nito ang Supabase (`/auth/v1/user`) kung tunay at hindi pa expired ang token bago kilalanin ang user.
+
+---
+
+## 2. System Overview, Roles, Fail-Safe Flow, at Pop-up Guide Architecture
+
+Ang system ay dinevelop para sa **PIGEM Combined Facilities Support Services** sa Dasmarinas City, Cavite bilang online application, 2-layer document screening, at monitoring platform para sa residential **Red Fiber** internet plans.
+
+### 2.1 Apat na User Roles, Portals, at Tone ng Content
+
+| Role | Portal File | Login Page | Tone ng UI & Pop-ups | Main Responsibility sa System |
+| :--- | :--- | :--- | :--- | :--- |
+| **Customer** | `web/customer.html` | `web/login.html` | **Simple, Polite, Non-Technical** | Nag-a-apply sa `apply.html` (na may pre-application pop-up guide), nag-a-activate sa `activate.html`, tumitingin ng **3 statuses lang** (`Processing`, `Approved`, `Rejected`), at nag-a-update sa loob ng `Processing` kapag `Needs Correction`. |
+| **Agent** | `web/agent.html` | `web/staff-login.html` | **Clean, Structured, Non-Technical** | Humahawak ng customer applications sa 4-section organized modal, tumitingin sa `Cropped & Enhanced Copy` o `Original Uploaded Photo`, nagfo-forward sa Provider Validator (`Encoding`), at nagre-record ng Validator decision (`Approved` / `Rejected`). |
+| **Manager** | `web/manager.html` | `web/staff-login.html` | **Professional, Clear, Non-Technical** | Nagmo-monitor ng lahat ng applications at workload ng agents, nagre-reassign o nag-o-override ng status, gumagawa ng Agent accounts, nagpapadala ng promos, at humahawak ng **Website Content (CMS)** nang hindi napuputol ang live website. |
+| **Admin** | `web/admin.html` | `web/admin-login.html` | **Detailed Technical Control** | Humahawak ng **Technical Management System**: dito lang makikita ang AI Screening Engine toggle, active background worker jobs, FastAPI, OpenCV, PaddleOCR, Ollama, Gmail SMTP, Supabase health, Maintenance Mode, Popup Guides table, accounts, at audit logs. |
 
 > [!IMPORTANT]
-> **Non-Technical Terminology Rule:** Sa buong Customer, Agent, at Manager portals pati sa lahat ng customer emails, walang lumalabas na technical acronyms gaya ng `AI`, `OpenCV`, `PaddleOCR`, o `Ollama`. Ang nakikita lang ng staff at customer ay simpleng operational terms gaya ng **Screening**, **Screening in Progress**, **Cropping & Verifying**, **Document Quality**, at **Generate Polite Message**. Tanging ang **Admin** sa `admin.html` ang may access sa technical AI at API controls.
+> **Strict Non-Technical Language Rule:** Walang lumalabas na salitang `AI`, `FastAPI`, `Uvicorn`, `OpenCV`, `PaddleOCR`, o `Ollama` sa Customer, Agent, at Manager portals o sa customer emails. Tanging **Admin (`admin.html`)** lang ang gumagamit ng technical diagnostics at controls.
 
-### 1.2 Step-by-Step Flow ng Isang Application
+### 2.2 End-to-End Application Flow (Kasama ang Auto-Screening Offline Fail-Safe!)
 
 ```mermaid
 flowchart TD
-    A["1. Customer fills up apply.html + verifies Email OTP & CAPTCHA"] --> B["2. Browser uploads Valid ID directly to Supabase documents Bucket"]
-    B --> C["3. Browser inserts row in public.applications + shows Reference No. immediately"]
-    C --> D["4. Browser triggers non-blocking POST /screen-async in background"]
-    D --> E["5. Python Worker downloads ID from Supabase documents Bucket"]
-    E --> F["6. Layer 1 Fast Scan: Quick Quality + Raw OCR -> Posts early warning & ETA (~12s-20s) to Agent Queue"]
-    F --> G["7. Layer 2 Deep Scan: 4-Corner Auto-Crop + Contrast Enhancement -> Uploads Cropped JPEG to documents/cropped/"]
-    G --> H{"Simple Mismatch Detected? (Name, Birth Date, ID No, or Blurry ID)"}
-    H -- "Yes" --> I["Auto-sets status = Needs Correction + Emails & Notifies Customer automatically (Zero Agent effort)"]
-    H -- "No" --> J["Marks Screening Passed -> Ready for Agent review & forwarding"]
-    I --> K["Customer updates highlighted field in customer.html -> Triggers background re-screening"]
-    J --> L["Agent claims app, checks Cropped/Original ID, sets Encoding when forwarded to Provider Validator"]
-    L --> M["Provider Validator decides -> Agent records Approved or Rejected -> Customer sees final status"]
+    A["1. Customer opens apply.html -> Sees polite Pre-Application Instruction Pop-up"] --> B["2. Fills form, verifies Gmail OTP, pins map, uploads Valid ID to Supabase documents Bucket"]
+    B --> C["3. Row saved in public.applications -> Customer gets Reference No. immediately"]
+    C --> D{"4. Is Auto-Screening ON and Python Server Online?"}
+    D -- "NO (Disabled or Server Offline)" --> E["Fail-Safe Fallback: Sets state = unavailable / paused + Keeps Original Uploaded ID Copy"]
+    E --> F["Sends Alert Notification + Calm Banner to ALL Agents & Managers -> Direct Manual Review"]
+    D -- "YES (Online)" --> G["POST /screen-async -> ThreadPoolExecutor(max_workers=4)"]
+    G --> H["Layer 1 Fast Scan: Quick Quality + Raw OCR -> Early Hold Warning & ETA (~20s) on Agent Queue"]
+    H --> I["Layer 2 Deep Scan: 4-Corner Auto-Crop + Contrast Enhancement -> Saves Cropped JPEG to documents/cropped/"]
+    I --> J{"Simple Mismatch Detected? (Name, Birth Date, ID No, or Blurry ID)"}
+    J -- "Yes" --> K["Auto-sets Needs Correction + Sends Gmail Correction Notice & Portal Alert to Customer"]
+    J -- "No" --> L["Marks Screening Passed -> Agent reviews 4-Section Modal (Cropped vs Original ID)"]
+    F --> L
+    K --> M["Customer submits highlighted field update in customer.html -> Re-triggers screening"]
+    L --> N["Agent forwards to Provider Validator (Encoding) -> Validator decides Approved or Rejected"]
 ```
 
-1. **Instant Submission para sa Customer (`apply.html` -> Supabase)**:
-   Pagkatapos mag-fill up ng form ang customer at mag-click ng Submit, ang loading screen ay para lang sa pag-transfer ng form data, pag-upload ng Valid ID front at back derecho sa Supabase Storage bucket na `documents`, at pag-generate ng Reference Number (`PIGEM-...`). Hindi pinaghihintay ang customer sa pagbabasa o pag-enhance ng ID.
-2. **Parallel Background Screening (`POST /screen-async` -> `api/screening.py`)**:
-   Pagka-save ng application sa `public.applications`, tinatawag ng browser nang asynchronous ang `POST /screen-async`. Gumagamit ang server ng `ThreadPoolExecutor(max_workers=4)` kaya kahit maraming customer ang sabay-sabay mag-apply, sabay-sabay din silang mapoproseso sa background.
-3. **Layer 1 (Fast Scan at Early Warning para sa Agent)**:
-    Kinukuha ng Python worker ang ID mula sa `documents` bucket at nagpapatakbo agad ng mabilis na quality check at unang basa ng text. Habang tumatakbo pa lang ang screening, kita na agad ng Agent sa queue ang original submission ng customer kung gusto na niya itong buksan o ipasa, pero kung malabo ang ID o may mismatch sa unang tingin, naglalabas agad ang Layer 1 ng **"Hold Recommended"** warning kasama ang estimated time (halimbawa `~20s remaining`) para sabihan ang Agent na mas magandang hintayin matapos ang full enhancement.
-4. **Layer 2 (Auto-Crop, Enhancement, at Cropped Copy sa Bucket)**:
-   Hinahanap ng OpenCV ang 4 corners ng ID card, dine-deskew o tinutuwid ang tabinging kuha, kino-crop ang sobrang background, at nililinawan ang contrast gamit ang LAB + CLAHE. Sine-save ang bagong cropped JPEG sa `documents/cropped/` bucket para pwedeng mag-switch ang Agent sa pagitan ng **Cropped & Enhanced Copy** at **Original Uploaded Photo**.
-5. **Automatic Request sa Simpleng Mismatch**:
-   Kapag nakumpirma sa Layer 2 na may simpleng discrepancy gaya ng **Full Name mismatch**, **Birth Date mismatch**, **ID Number mismatch**, o **Blurry/Unreadable ID**, kusa nang gagawa ng magalang na mensahe ang backend, ise-set ang internal status sa `Needs Correction`, at magpapadala ng email at portal notification derecho sa customer nang hindi na kailangang mag-type o mag-click ng Agent. Makikita naman sa Agent workspace na nag-auto-request na ang system.
-6. **Strictly 3 Customer Statuses (`Processing`, `Approved`, `Rejected`)**:
-   Sa `customer.html`, tatlong status lang ang nakikita ng customer: **`Processing`**, **`Approved`**, at **`Rejected`**. Ang `Needs Correction` ay lumalabas lang bilang branch sa loob ng **`Processing`** kapag may pinapa-update sa customer, at bumabalik ulit sa normal na `Processing` pagka-resubmit niya. Sa panig naman ng Agent, nananatili ang **`Encoding`** kapag naipasa na sa Provider Validator (habang `Processing` pa rin ang tingin ng customer), at ang Validator ang nagdedesisyon kung **`Approved`** o **`Rejected`**.
+### 2.3 Paano Gumagana ang `Needs Correction` Notification Email (Automatic at Manual)?
+100% gumagana ang `Needs Correction` email sa **dalawang paraan**, at parehong dumadaan sa `POST /notify` -> `api/mailer.py` (`build_correction_notice_html`):
+1. **Automatic Screening Request (`api/screening.py`)**: Kapag natapos ang Layer 2 at nakumpirmang hindi tugma ang `Full Name`, `Birth Date`, o `ID Number`, o sobrang labo ng `ID Photo` (habang wala pang final decision ang Agent), kusang gagawa ng magalang na instruction ang backend, ise-set ang `status = "Needs Correction"`, ise-save sa `public.corrections` at `public.notifications`, at magpapadala agad ng **Action Needed: Please Update Your Application** email sa Gmail ng customer.
+2. **Manual Agent o Manager Request (`web/js/agent.js` Section 4 at `web/js/manager.js` Override Modal)**: Kapag may pinapabago ang Provider Validator o Agent (halimbawa maling house landmark o kailangang palitan ang ID), pipiliin lang ng Agent ang field sa **Section 4**, pwedeng pindutin ang **Generate Polite Message**, at pag-save ng `Needs Correction`, tatawagin ng `apiSendStatusEmail()` / `apiSendCorrectionEmail()` ang `POST /notify` kasama ang `target_summary` at `custom_note` para ma-email agad si customer.
+3. **RA 10173 Privacy Safety sa Email**: Hindi kailanman inilalagay sa email ang picture ng ID o buong ID number ng customer. Sinasabi lang sa email kung anong kategorya ang ia-update (halimbawa *Full Name on Valid ID* o *Clearer Valid ID Photo*) at may button papunta sa secure Customer Portal (`login.html`).
+
+### 2.4 Paano Gumagana ang Fail-Safe Kapag Nawala o Naka-Off ang Auto-Screening?
+Paano kung naka-off ang `ai_enabled` sa Admin, o naka-close ang `START-AI.bat` (`FastAPI` server offline), o hindi naka-load ang OpenCV/PaddleOCR?
+1. **Walang Abala sa Customer**: Sa `apply.js` (`submitRegistration`) at `customer.js` (`submitCustomerCorrection`), may 3.5-second fail-fast timeout (`AbortController`) ang `apiStartBackgroundScreening()`. Kapag offline ang server, **hindi mag-e-error ang application ng customer**. Pasok pa rin sa `public.applications` ang form niya at nasa Supabase `documents` bucket na ang **Original Uploaded ID Copy** (`id_front_path` at `id_back_path`).
+2. **Original Copy Fallback**: Sine-set ng system ang `screening` JSON sa `state: "unavailable"` (o `"paused"` kung in-off ng Admin) at `fallback_original_only: true`, kaya sa halip na maghanap ng cropped copy, automatic na **Original Uploaded Photo** ang ipinapakita sa Agent at Manager.
+3. **Automatic Notification sa Lahat ng Agents at Managers**:
+   - Kung naka-off ang Python server, tinatawag ng browser ang `dbNotifyScreeningUnavailable()` (`web/js/db.js`).
+   - Kung bukas ang Python server pero naka-disable ang AI o kulang ang OCR library, tinatawag ng `api/screening.py` ang `_notify_staff_unavailable()` (may 60-second anti-spam cooldown).
+   - Pareho silang naglalagay ng alert rows sa `public.notifications` para sa `role = 'agent'` at `role = 'manager'`, at naglalabas din ang `checkAgentScreeningService()` (`agent.js`) at `checkMgrScreeningService()` (`manager.js`) ng malinaw na info banner sa taas ng dashboard nila.
+
+### 2.5 Bagong Table para sa System-Wide Pop-up Instructions (`public.popup_guides`)
+Para hindi malito ang kahit sinong gagamit ng external at internal pages, may dedicated database table na **`public.popup_guides`** at OOP class na **`PopupGuideManager`** (`web/js/config.js`):
+- **External / Public (`index.html` at `apply.html`)**: Sa `index.html`, may **How to Apply** button (`home_welcome`). Sa `apply.html`, pagka-verify ng CAPTCHA bago pa magsimulang mag-type ang customer, automatic na lumalabas ang **`apply_before_start`** pop-up na magalang na nagpapaliwanag ng 4 steps (exact legal name, Gmail OTP, map pin, at malinaw na 4-corner ID photo).
+- **Internal Staff & Customer (`customer.html`, `agent.html`, `manager.html`)**: Unang bukas sa session ay nagpapakita ng maikli, malinis, at polite/professional na workflow guide, at pwedeng buksan ulit anumang oras gamit ang **Guide** button sa topbar.
+- **Internal Admin (`admin.html`)**: Gumagamit ng `audience_tone = 'technical'` (`admin_technical_guide`) na nagpapaliwanag ng FastAPI workers, Layer 1/Layer 2 pipeline, fail-safe fallback, at protected switches. Pwede ring i-enable o i-disable ng Admin ang `auto_show` ng bawat pop-up guide direkta sa `admin.html`.
 
 ---
 
-## 2. Technologies, Installation Commands, at Paano Patakbuhin ang System
+## 3. Commands sa Pag-download, Pag-setup, at Pag-start ng System
 
-### 2.1 Mga Ginamit na Technologies at Bakit Ito ang Pinili
-
-- **HTML5, CSS3, at Vanilla JavaScript (`web/`)**: Ginamit nang walang mabigat na frontend framework para mabilis mag-load, madaling basahin ang DOM manipulation, at malinaw ang bawat event handler.
-- **Supabase (`@supabase/supabase-js@2` + REST API)**: Cloud backend na nagbibigay ng **PostgreSQL** database, **GoTrue Authentication**, at **Storage Buckets** (`website-assets` para sa public banners/logos at `documents` para sa customer Valid IDs at cropped copies).
-- **Python 3.11 (`api/.venv311`)**: Piniling version dahil dito pinaka-compatible ang prebuilt C++ wheels ng `PaddleOCR` at `PaddlePaddle` sa Windows.
-- **FastAPI at Uvicorn (`api/main.py`)**: Ang **FastAPI** ang Python web framework na gumagawa ng REST endpoints (`/health`, `/screen-async`, `/screen`, `/notify`, `/polite-remark`) at nagse-serve ng `web/` folder. Ang **Uvicorn** naman ang ASGI web server na nagpapatakbo sa FastAPI sa `http://127.0.0.1:8001`.
-- **OpenCV (`opencv-python-headless`, `api/quality.py`)**: Computer vision library na sumusukat ng sharpness (Laplacian variance), brightness, glare, at contrast, at nagco-crop/nagtu-tuwid ng ID card gamit ang Canny edge detection at 4-point perspective transform.
-- **PaddleOCR (`paddleocr` + `paddlepaddle`, `api/ocr.py`)**: Deep-learning Optical Character Recognition engine na bumabasa ng nakaprint na pangalan, petsa, at ID number mula sa Valid ID photo nang offline sa local server.
-- **Ollama (`qwen2.5:1.5b`, `api/ai.py`)**: Local language model runner sa `http://localhost:11434` na gumagawa ng plain-English screening summary para sa staff at magalang na 2-sentence correction message para sa customer nang hindi lumalabas sa internet ang pribadong ID details (Data Privacy Act RA 10173). May built-in rule-based fallback din kapag naka-off ang Ollama.
-- **Python `smtplib` + `ssl` (`api/mailer.py`)**: Built-in Python library na kumokonekta sa Gmail SMTP (`smtp.gmail.com:587`) gamit ang 16-character Google App Password para magpadala ng branded HTML emails.
-- **Leaflet.js + OpenStreetMap + Nominatim (`apply.html`, `apply.js`)**: Libreng interactive map kung saan pwedeng mag-pin ng bahay ang customer o gamitin ang GPS (`navigator.geolocation`), tapos automatic na pupunan ang street, barangay, city, at province via reverse geocoding.
-- **Google reCAPTCHA v2 (`home.js`, `login.js`, `apply.js`)**: Anti-bot security verification bago makapag-apply o makapag-sign in.
-
-### 2.2 Commands sa Pag-download at Pag-install ng Lahat ng Technologies
-
-Patakbuhin ang mga sumusunod sa **PowerShell** kapag magse-setup sa bagong Windows PC:
+### 3.1 Pag-install ng Lahat ng Technologies (Windows PowerShell)
 
 ```powershell
-# 1. I-install ang Python 3.11 at Ollama
+# 1. I-install ang Python 3.11 (required para sa PaddleOCR C++ wheels) at Ollama
 winget install Python.Python.3.11
 winget install Ollama.Ollama
 
 # 2. I-download ang local language model para sa Ollama
 ollama pull qwen2.5:1.5b
 
-# 3. Pumunta sa api folder at gumawa ng isolated Python 3.11 virtual environment (.venv311)
+# 3. Pumunta sa api folder at gumawa ng Python 3.11 virtual environment (.venv311)
 cd C:\pigem-system\api
 py -3.11 -m venv .venv311
 
-# 4. I-activate ang virtual environment at i-install ang lahat ng Python packages
+# 4. I-activate ang virtual environment at i-install ang lahat ng libraries
 .\.venv311\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -103,16 +161,14 @@ paddlepaddle==2.6.2
 paddleocr==2.8.1
 ```
 
-### 2.3 Pag-configure ng `api/.env`
-
-Gumawa ng `C:\pigem-system\api\.env` mula sa `.env.example`:
+### 3.2 Pag-configure ng `api/.env`
 
 ```powershell
 cd C:\pigem-system\api
 copy .env.example .env
 ```
 
-Format ng laman ng `api/.env`:
+Ilagay ang iyong credentials sa `C:\pigem-system\api\.env`:
 
 ```ini
 SUPABASE_URL=https://your-project-id.supabase.co
@@ -126,15 +182,15 @@ SMTP_PASSWORD=abcd efgh ijkl mnop
 SMTP_FROM=PIGEM Combined Facilities Support Services <yourgmail@gmail.com>
 ```
 
-### 2.4 Commands sa Pag-start ng System
+### 3.3 Pag-start ng System
 
-Buksan ang unang terminal para sa Ollama model service:
+Unang terminal (para sa local Ollama language helper):
 
 ```powershell
 ollama run qwen2.5:1.5b
 ```
 
-Buksan ang pangalawang terminal (o i-double click ang `START-AI.bat`) para patakbuhin ang FastAPI + Uvicorn server:
+Pangalawang terminal (o i-double click lang ang `START-AI.bat`):
 
 ```powershell
 cd C:\pigem-system\api
@@ -143,50 +199,47 @@ $env:PYTHONDONTWRITEBYTECODE="1"
 ```
 
 > [!TIP]
-> Ang `PYTHONDONTWRITEBYTECODE=1` sa `START-AI.bat` ay pumipigil sa Python na gumawa ng `__pycache__` at `.pyc` files para manatiling malinis ang folder structure.
+> Pinipigilan ng `PYTHONDONTWRITEBYTECODE=1` ang paggawa ng `__pycache__` folders para laging malinis ang `api/` directory mo.
 
 ---
 
-## 3. Core Programming Concepts na Ginamit sa Codebase (OOP, Regex, at Nested Logic)
+## 4. Core Programming Concepts sa Codebase (OOP, Regex, at Nested Logic)
 
-Mahalagang alam mo kung saan mismo sa code ginamit ang **Object-Oriented Programming (OOP)**, **Regular Expressions (Regex)**, at **Nested Statements/Loops** dahil madalas itong tanungin ng panel sa code walkthrough.
+### 4.1 Object-Oriented Programming (OOP) Pillars
 
-### 3.1 Object-Oriented Programming (OOP) Pillars sa System
-
-| OOP Pillar | Kahulugan sa Simpleng Taglish | Saan Ginamit sa PIGEM Codebase |
+| OOP Pillar | Paano Ginamit sa Simpleng Paliwanag | Eksaktong Classes sa Codebase |
 | :--- | :--- | :--- |
-| **Abstraction** | Paggawa ng base/parent class na nagtatakda ng common template o method signature (`raise NotImplementedError`) nang hindi pa nilalagay ang specific implementation details. | `BaseTokenVerifier` (`auth.py`), `BaseImageProcessor` (`quality.py`), `BaseTextMatcher` (`ocr.py`), `BaseLanguageClient` (`ai.py`), `BaseCloudGateway` (`screening.py`), at `BaseFieldValidator` (`config.js`). |
-| **Inheritance** | Pagmana ng child class sa properties at helper methods ng parent class para hindi paulit-ulit ang code (`DRY - Don't Repeat Yourself`). | Minamana pareho ng `FastQualityScanner` (Layer 1) at `DocumentCropEnhancer` (Layer 2) ang `_decode_bytes()` at `_four_point_transform()` mula sa `BaseImageProcessor` sa `quality.py`. Sa frontend, minamana ng `ApplicantFormValidator` ang regex cleaners ng `BaseFieldValidator` sa `config.js`. |
-| **Encapsulation** | Pagtatago ng internal attributes at helper logic sa loob ng isang class gamit ang underscore prefix (`_engine`, `_lock`, `_ollama_url`, `_active_jobs`) para hindi aksidenteng mabago mula sa labas. | Sa `PaddleOcrService` (`ocr.py`), naka-encapsulate ang `_engine` at `threading.Lock()` na `_lock` sa loob ng class. Sa `BackgroundScreeningCoordinator` (`screening.py`), naka-encapsulate ang `_executor` at `_active_jobs` dictionary. |
+| **Abstraction** | Gumagawa ng base/parent class na may nakatakdang template method (`raise NotImplementedError`) para iisa ang standard contract ng mga child classes. | `BaseTokenVerifier` (`auth.py`), `BaseImageProcessor` (`quality.py`), `BaseTextMatcher` (`ocr.py`), `BaseLanguageClient` (`ai.py`), `BaseCloudGateway` (`screening.py`), at `BaseFieldValidator` (`config.js`). |
+| **Inheritance** | Minamana ng child class ang shared methods at properties ng parent class (`super()`) para malinis at walang duplicate code. | `FastQualityScanner` at `DocumentCropEnhancer` na parehong nagmamana sa `BaseImageProcessor` (`quality.py`); `ApplicantFormValidator` na nagmamana sa `BaseFieldValidator` (`config.js`). |
+| **Encapsulation** | Tinatago sa loob ng class ang internal state, locks, cache, at helper methods (`_engine`, `_lock`, `_guideMap`, `_alert_lock`) para ligtas at organisado ang data. | `PopupGuideManager` (`config.js`) na nag-e-encapsulate ng `_guideMap` at session storage keys; `BackgroundScreeningCoordinator` (`screening.py`) na nag-e-encapsulate ng `_executor`, `_active_jobs`, at `_alert_lock`. |
 
-### 3.2 Regular Expressions (Regex) sa System
+### 4.2 Regular Expressions (Regex)
 
-Ginagamit ang Regex para mag-validate ng formats, mag-extract ng dates/OTP codes, at maglinis ng text:
-1. **Bearer Token Parsing (`api/auth.py`)**: `r"^Bearer\s+([A-Za-z0-9._\-]+)$"` — sinisigurado na valid JWT/Bearer header ang pinasa bago tawagan ang Supabase Auth.
-2. **ID Format Validation (`web/js/config.js`)**: Bawat isa sa 25 Valid ID types ay may sariling Regex pattern, halimbawa `/^(\d{12}|\d{16})$/` para sa National ID at `/^[A-Z]\d{10}$/` para sa Driver's License.
-3. **OCR Text & Date Extraction (`api/ocr.py`)**: Gumagamit ng `r"[^A-Z0-9]"` para tanggalin ang spaces at dashes sa ID number bago ikumpara, at apat na date regex patterns (`_ISO_DATE_REGEX`, `_MDY_DATE_REGEX`, `_WORD_DATE_1_REGEX`, `_WORD_DATE_2_REGEX`) para mabasa kahit `1998-05-12`, `05/12/1998`, o `MAY 12, 1998` ang nakaprint sa ID.
-4. **Target Field Detection & Plain-Language Sanitizer (`api/ai.py`)**: Gumagamit ng `_TECH_TERMS_REGEX` (`r"\b(OpenCV|PaddleOCR|Ollama|Qwen\S*|CLAHE|Laplacian|AI)\b"`) para siguradong burado ang anumang technical term sa output, at `_FIELD_PATTERNS` regex list para tukuyin kung `name`, `birth_date`, `id_number`, `email`, `phone`, `id_photo`, o `address` ang kailangang i-highlight sa customer portal.
-5. **Base64 Data URL Parsing (`api/screening.py`)**: `r"^data:image/[a-zA-Z0-9.+-]+;base64,(.+)$"` — kumukuha ng raw image payload kapag naka-Data URL fallback ang ID.
+1. **Bearer Header Validation (`api/auth.py`)**: `r"^Bearer\s+([A-Za-z0-9._\-]+)$"` — sinisiguradong malinis na JWT token ang ipinasa sa `Authorization` header.
+2. **25 Valid ID Formats + Mobile/Email (`web/js/config.js`)**: Bawat government/secondary ID sa `CONFIG.ID_TYPES` ay may sariling Regex pattern (halimbawa `/^(\d{12}|\d{16})$/` sa National ID, `/^[A-Z]\d{10}$/` sa Driver's License, at `/^09\d{9}$/` sa PH mobile number).
+3. **OCR Date & ID Normalization (`api/ocr.py`)**: Gumagamit ng `r"[^A-Z0-9]"` para tanggalin ang spaces at dashes sa ID number bago ikumpara, at 4 date Regex patterns (`YYYY-MM-DD`, `MM/DD/YYYY`, `Month DD, YYYY`, `DD Month YYYY`) para i-convert sa iisang format ang birthday sa ID.
+4. **Plain-Language Sanitizer & Field Detector (`api/ai.py`)**: Hinaharang ng `_TECH_TERMS_REGEX` (`r"\b(OpenCV|PaddleOCR|Ollama|Qwen\S*|CLAHE|Laplacian|AI)\b"`) ang anumang technical jargon para mapalitan ng `"screening"`, habang hinahanap ng `_FIELD_PATTERNS` kung aling field (`name`, `birth_date`, `id_number`, `id_photo`, `email`, `phone`, `address`) ang ihahighlight sa customer portal.
+5. **Base64 Fallback Decoder (`api/screening.py`)**: `r"^data:image/[a-zA-Z0-9.+-]+;base64,(.+)$"` — kumukuha ng image bytes kung naka-Data URL fallback ang document.
 
-### 3.3 Nested Operations (Nested `if-else` at Nested `for` Loops)
+### 4.3 Nested Operations (Nested `if-else` at Nested `for` Loops)
 
-Ginamit ang malinaw na nested structures sa mga bahaging kailangan ng multi-stage decision making:
-- **Nested Quality Thresholds (`api/quality.py`)**: Sa `FastQualityScanner.process()`, chine-check muna kung `blur_score < 60.0` (blurry), at sa loob nito ay may nested `if blur_score < 42.0` para malaman kung `severe = True` (kailangan ng immediate warning) o `needs_enhancement = True`.
-- **Nested Contour Search (`api/quality.py`)**: Sa `_find_card_quad()`, may outer `for low_t, high_t in ((40, 140), (25, 100))` Canny threshold loop at inner `for cnt in contours` loop na nagche-check ng area ratio (`0.16 <= area/img_area <= 0.94`) at kung 4 corners (`len(approx) == 4`) ang hugis ng ID card.
-- **Nested Name Token Matching (`api/ocr.py`)**: Sa `compare()`, may outer loop sa bawat salita ng pangalan ng applicant (`for part in name_parts`) at inner loop sa bawat salitang nabasa sa ID (`for word in ocr_words`) gamit ang `SequenceMatcher(None, part, word).ratio() >= 0.80` para kayanin kahit may maliit na camera glare sa isang letra.
+- **Nested Quality Severity Checks (`api/quality.py`)**: Sa `FastQualityScanner.process()`, chine-check muna kung `blur_score < 60.0`, at sa loob nito ay may nested `if blur_score < 42.0` para malaman kung `severe = True` (maglalabas agad ng `"Hold Recommended"` warning sa Agent) o normal enhancement lang.
+- **Nested 4-Corner ID Detection (`api/quality.py`)**: Sa `_find_card_quad()`, may outer loop ng Canny edge thresholds `((40, 140), (25, 100))` at inner loop sa contours na sumusuri kung sakop ng hugis ang `16%` hanggang `94%` ng frame at kung eksaktong `4` ang kanto (`len(approx) == 4`).
+- **Nested Fuzzy Name Matching (`api/ocr.py`)**: Sa `compare()`, bawat salita sa pangalan ng applicant (`for part in name_parts`) ay kinukumpara sa bawat salitang nabasa sa ID (`for word in ocr_words`) gamit ang `SequenceMatcher(None, part, word).ratio() >= 0.80` para hindi magkamali kahit may kaunting glare sa isang letra.
 
 ---
 
-## 4. Database Reset (`DROP` Query) at Final PostgreSQL Schema (`schema.sql`)
+## 5. Database Reset (`DROP` Query) at Complete 13-Table `schema.sql`
 
-### 4.1 Separate `DROP` Query (Gamitin Kapag Magre-reset ng Database sa Supabase)
+### 5.1 Separate `DROP` Query (Patakbuhin Muna sa Supabase SQL Editor Kapag Magre-reset ng Database)
 
-Wala nang `DROP` commands sa loob ng `schema.sql` para malinis itong pure creation schema. Kapag may babaguhin ka at gusto mong burahin muna lahat ng lumang tables at storage policies sa Supabase **SQL Editor**, patakbuhin mo muna itong `DROP` query bago i-paste at i-run ang `schema.sql`:
+Walang `DROP` commands sa loob ng `schema.sql` para malinis itong pure creation script. Kapag gusto mong linisin muna lahat ng lumang tables bago i-import ulit ang `schema.sql`, patakbuhin muna ito:
 
 ```sql
 DROP POLICY IF EXISTS "Allow public access to website-assets" ON storage.objects;
 DROP POLICY IF EXISTS "Allow access to documents" ON storage.objects;
 
+DROP TABLE IF EXISTS public.popup_guides CASCADE;
 DROP TABLE IF EXISTS public.system_logs CASCADE;
 DROP TABLE IF EXISTS public.login_history CASCADE;
 DROP TABLE IF EXISTS public.notifications CASCADE;
@@ -201,12 +254,7 @@ DROP TABLE IF EXISTS public.plans CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 ```
 
-> [!NOTE]
-> Ang `CASCADE` ay automatic na nagtatanggal ng dependent indexes, foreign keys, at RLS policies ng bawat table kaya walang maiiwang conflict bago ka mag-import ulit ng `schema.sql`.
-
-### 4.2 Complete Final `schema.sql`
-
-Ito ang kumpletong `schema.sql` na naka-ayos mula core lookup/account tables hanggang transaction tables, indexes, Row Level Security (RLS), Storage buckets (`website-assets` at `documents`), at default seed records:
+### 5.2 Complete Final `schema.sql` (13 Tables + Storage Buckets + Seed Data)
 
 ```sql
 CREATE TABLE public.users (
@@ -400,6 +448,22 @@ CREATE TABLE public.system_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE public.popup_guides (
+  id TEXT PRIMARY KEY,
+  portal TEXT NOT NULL
+    CHECK (portal IN ('public', 'apply', 'customer', 'agent', 'manager', 'admin')),
+  audience_tone TEXT NOT NULL DEFAULT 'polite'
+    CHECK (audience_tone IN ('polite', 'professional', 'technical')),
+  title TEXT NOT NULL,
+  intro TEXT NOT NULL,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  footer_note TEXT NOT NULL DEFAULT '',
+  button_label TEXT NOT NULL DEFAULT 'Got It',
+  auto_show BOOLEAN NOT NULL DEFAULT true,
+  active BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
@@ -412,6 +476,7 @@ ALTER TABLE public.corrections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.popup_guides ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on plans" ON public.plans FOR ALL USING (true) WITH CHECK (true);
@@ -425,6 +490,7 @@ CREATE POLICY "Allow all on corrections" ON public.corrections FOR ALL USING (tr
 CREATE POLICY "Allow all on notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on login_history" ON public.login_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on system_logs" ON public.system_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on popup_guides" ON public.popup_guides FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES
@@ -467,254 +533,217 @@ VALUES (
 )
 ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
 
+INSERT INTO public.popup_guides (id, portal, audience_tone, title, intro, steps, footer_note, button_label, auto_show, active) VALUES
+  (
+    'home_welcome',
+    'public',
+    'polite',
+    'How to Apply for Red Fiber Internet Online',
+    'Welcome to PIGEM Combined Facilities Support Services. Applying for home fiber internet takes only a few minutes:',
+    '["Choose the monthly Red Fiber plan that fits your household.", "Prepare an active Gmail address, your mobile number, and one valid government ID.", "Pin your house location on the map so our local team can check fiber availability.", "Submit your form to receive your official Reference Number right away."]'::jsonb,
+    'Have an existing application? Click Customer Login anytime to check your status.',
+    'Got It',
+    false,
+    true
+  ),
+  (
+    'apply_before_start',
+    'apply',
+    'polite',
+    'Welcome! Quick Instructions Before You Apply',
+    'Thank you for applying with PIGEM Combined Facilities Support Services. To make your registration smooth and accurate, please keep these simple reminders in mind:',
+    '["Select Your Plan & Enter Legal Name: Type your name and birth date exactly as printed on your valid government ID.", "Verify Your Contact Details: Click Send OTP to receive a 6-digit code in your Gmail inbox and confirm your email and mobile number.", "Pin Your Installation Address: Drag the map pin to your exact house or building and include a nearby landmark.", "Upload Clear Front & Back ID Photos: Place your original ID flat in a bright area with all 4 corners visible and no flash glare."]'::jsonb,
+    'Once submitted, your official Reference Number appears immediately while our team reviews your application.',
+    'Start My Application',
+    true,
+    true
+  ),
+  (
+    'customer_portal_guide',
+    'customer',
+    'polite',
+    'Welcome to Your Customer Portal',
+    'Here you can comfortably monitor your internet service application from submission to installation:',
+    '["Processing: Your application is actively being reviewed and coordinated by our team.", "Needs Correction (Inside Processing): If a detail or ID photo needs a quick update, a clear update form will appear right inside your application card.", "Approved or Rejected: Once finalized, you will receive an email notice and see your final status here."]'::jsonb,
+    'You can reopen this guide anytime using the Guide button in the top navigation bar.',
+    'Continue to My Applications',
+    true,
+    true
+  ),
+  (
+    'agent_workspace_guide',
+    'agent',
+    'professional',
+    'Agent Workspace Quick Guide',
+    'Welcome to Application Handling Management. Follow this clean 4-step workflow for every customer application:',
+    '["Claim from Queue: Open Application Queue to claim incoming customer applications.", "Check Screening & ID Copies: Inspect the Cropped & Enhanced Copy alongside the Original Uploaded Photo. If Auto-Screening is unavailable, proceed directly using the Original Uploaded Photo.", "Forward for Encoding: Once verified, set status to Encoding when forwarding the application to the Provider Validator.", "Record Validator Decision: Update status to Approved or Rejected based on the Validator result, or use the optional Request Correction panel only if customer updates are needed."]'::jsonb,
+    'Customers only ever see three main statuses: Processing, Approved, and Rejected.',
+    'Open Workspace',
+    true,
+    true
+  ),
+  (
+    'manager_dashboard_guide',
+    'manager',
+    'professional',
+    'Manager Monitoring & CMS Guide',
+    'Welcome to Application Monitoring Management. Your dashboard organizes daily operations and public content cleanly:',
+    '["Queue & Override Monitoring: Track all customer applications, reassign agents, or update application statuses when needed.", "Verification Team Management: Monitor active agent workloads, view referral links, and onboard new agents.", "Website Content Management System (CMS): Update hero banners, logos, plans, company profile, and FAQs safely without interrupting the live public website.", "Promotional Campaigns: Send branded announcements and fiber offers to active customers."]'::jsonb,
+    'Note: Opening the CMS editor keeps the public website live unless Maintenance Mode is explicitly enabled.',
+    'Continue to Dashboard',
+    true,
+    true
+  ),
+  (
+    'admin_technical_guide',
+    'admin',
+    'technical',
+    'Technical Management System - Architecture & Controls',
+    'Administrator diagnostic reference for local FastAPI workers, AI screening engines, cloud storage buckets, and SMTP transport:',
+    '["FastAPI + Uvicorn (127.0.0.1:8001): Serves REST endpoints (/health, /screen-async, /screen, /notify, /polite-remark) and dispatches ThreadPoolExecutor(max_workers=4) background jobs.", "2-Layer Document Pipeline: Layer 1 runs FastQualityScanner + raw PaddleOCR for immediate queue ETA/warnings; Layer 2 runs 4-corner perspective homography + LAB CLAHE cropping to documents/cropped/ and Ollama (qwen2.5:1.5b) text synthesis.", "Fail-Safe Manual Fallback: If AI Screening is disabled or FastAPI/OCR is offline, applications proceed uninterrupted using original Supabase documents bucket files and broadcast alerts notify all Agents and Managers.", "Protected System Switches: Maintenance Mode, AI Screening toggles, and Popup Guides (public.popup_guides) require explicit admin confirmation before state changes take effect."]'::jsonb,
+    'All administrative actions and login sessions are recorded in public.system_logs and public.login_history.',
+    'Proceed to Console',
+    true,
+    true
+  )
+ON CONFLICT (id) DO UPDATE SET
+  portal = EXCLUDED.portal,
+  audience_tone = EXCLUDED.audience_tone,
+  title = EXCLUDED.title,
+  intro = EXCLUDED.intro,
+  steps = EXCLUDED.steps,
+  footer_note = EXCLUDED.footer_note,
+  button_label = EXCLUDED.button_label,
+  auto_show = EXCLUDED.auto_show,
+  active = EXCLUDED.active,
+  updated_at = now();
+
 SELECT 'Database setup complete.' AS result;
 ```
 
-### 4.3 Paliwanag sa Bawat Table sa `schema.sql`
+### 5.3 Buod ng Lahat ng 13 Tables sa Database
 
-1. **`public.users`**: Dito naka-save ang lahat ng user accounts. Ang `role` column ay may `CHECK (role IN ('admin', 'manager', 'agent', 'customer'))`. Para sa bagong customer na nag-apply, `activated = false` muna at sine-save ang 6-digit one-time code sa `activation_code` hanggang makapag-set siya ng password sa `activate.html`.
-2. **`public.plans`**: Naglalaman ng Plan 1000 (100 Mbps), Plan 1400 (300 Mbps), at Plan 1900 (500 Mbps). May `CHECK (speed > 0)` at `CHECK (price >= 0)` para iwas invalid data kapag nag-edit ang Manager sa CMS.
-3. **`public.system_settings`**: May single row na `id = 'main'`. Ang `ai_enabled` ang binabasa ng frontend at ng `screening.py` kung naka-on ang automated document screening, habang ang `maintenance_mode` ang nagba-block sa public visitors kapag nag-a-update ng website content ang Manager o Admin.
-4. **`public.website_content`**: JSONB storage (`id = 'main'`) para sa 4 Home Hero slides, 4 About slides, company profile text, FAQs, at `asset_library` list ng mga uploaded images sa bucket.
-5. **`public.agent_links`**: Mga unique referral codes (`REF-XXXXX`) na ginagawa ng Agent sa `agent.html` para ma-track kung sinong agent ang nag-assist sa walk-in o referred customer (`apply.html?ref=REF-XXXXX`).
-6. **`public.applications`**: Pinakapuso ng database. Bukod sa personal at address fields + GPS coordinates (`lat`, `lng`), sine-save dito ang:
-   - `id_front_path` at `id_back_path`: URL/path ng original Valid ID sa `documents` bucket.
-   - `cropped_id_path`: URL ng auto-cropped at contrast-enhanced ID JPEG na in-upload ng Layer 2 screening.
-   - `original_copy` / `original_submission` at `corrected_copy` (`JSONB`): Pinapanatili ang unang pinasa ng customer kahit mag-resubmit siya ng correction para pwedeng ikumpara ng Agent ang **Original Submission** at **Latest Copy**.
-   - `screening` (`JSONB`): Dito real-time na ina-update ng `screening.py` ang `state` (`queued`, `layer1_running`, `layer2_running`, `completed`), `eta_seconds`, `advisory`, `correction_fields`, at `auto_correction_sent`.
-   - `status`: Naka-restrict via `CHECK` constraint sa valid workflow states (`Pending Review`, `Under Agent Review`, `Encoding`, `Approved`, `Rejected`, `Needs Correction`, `Processing`, `Submitted to Provider`).
-7. **`public.documents`**, **`public.screenings`**, at **`public.corrections`**: Relational audit tables na may Foreign Key (`REFERENCES public.applications(id) ON DELETE CASCADE`). Nagre-record ang `screening.py` dito tuwing may na-upload na cropped ID (`documents`), natapos na screening (`screenings`), o automatic correction request (`corrections`).
-8. **`public.notifications`**: Mga in-app bell alerts na pwedeng naka-target sa isang specific `email`/`user_id` o sa buong `role` (halimbawa lahat ng `agent` o `manager`).
-9. **`public.login_history`** at **`public.system_logs`**: Security at audit trail tables na ipinapakita sa `Logs` tab ng Admin console.
-
----
-
-## 5. Complete Backend (`api/`) Code Walkthrough
-
-Lahat ng Python files ay nasa loob ng `C:\pigem-system\api\`. Narito ang bawat file, class, method, at kung paano sila nagtutulungan.
-
-### 5.1 `api/main.py` - Main FastAPI Entry Point at Routes
-
-Ang `main.py` ang nagbubukas ng FastAPI server, naglo-load ng `.env` variables gamit ang `python-dotenv`, nagse-setup ng CORS middleware, at nagkokonekta ng HTTP endpoints papunta sa helper modules (`auth`, `quality`, `ocr`, `ai`, `mailer`, `screening`). Sa pinakadulo, mina-mount nito ang `../web` folder gamit ang `StaticFiles(..., html=True)` kaya iisang port (`8001`) na lang ang gamit ng frontend at backend.
-
-```python
-@app.get("/health")
-def health():
-    ollama_ok = ai.is_available()
-    smtp_ok = mailer.is_configured()
-    return {
-        "api": True,
-        "ollama": ollama_ok,
-        "opencv": bool(quality.is_available()),
-        "paddleocr": bool(ocr.is_available()),
-        "active_screenings": screening.active_count(),
-        "smtp": smtp_ok,
-        "resend": smtp_ok,
-        "supabase_check": auth.is_configured(),
-    }
-
-class AsyncScreenRequest(BaseModel):
-    application_id: str
-
-@app.post("/screen-async")
-def screen_document_async(data: AsyncScreenRequest, user=Depends(auth.require_login)):
-    return screening.enqueue_screening(data.application_id)
-```
-
-**Mga Endpoints sa `main.py`:**
-- `GET /health`: Tinatawag ng Admin dashboard (`admin.js`) para ipakita kung online ang FastAPI, Ollama, OpenCV, PaddleOCR, Gmail SMTP, Supabase, at kung ilang applications ang kasalukuyang ini-screen nang sabay (`active_screenings`).
-- `POST /screen-async`: Tinatawag ng `apply.js` at `customer.js` pagka-save ng application. Tumatanggap lang ito ng `{"application_id": "..."}` (validated ng Pydantic `AsyncScreenRequest`), ipinapasa agad sa background worker pool via `screening.enqueue_screening()`, at bumabalik agad sa loob ng milliseconds.
-- `POST /screen`: Direct synchronous fallback endpoint kung sakaling magpapasa ng `UploadFile` nang direkta.
-- `POST /notify`: Tumatanggap ng `EmailRequest` at tumatawag sa `mailer.send()` para magpadala ng OTP, confirmation, correction notice, status update, o promotional email.
-- `POST /polite-remark`: Tinatawag kapag pinindot ng Agent ang **Generate Polite Message** button; ginagawang magalang na customer message ang maikling note ng validator/agent.
-
-### 5.2 `api/auth.py` - Token Authentication (`BaseTokenVerifier` -> `SupabaseTokenVerifier`)
-
-Gumagamit ito ng OOP **Abstraction** (`BaseTokenVerifier`) at **Inheritance + Encapsulation** (`SupabaseTokenVerifier`). Kapag may `Authorization: Bearer <token>` header na pinadala ang browser, chine-check muna ito ng `_BEARER_REGEX` bago beripikahin sa Supabase `/auth/v1/user`:
-
-```python
-class SupabaseTokenVerifier(BaseTokenVerifier):
-    _BEARER_REGEX = re.compile(r"^Bearer\s+([A-Za-z0-9._\-]+)$", re.IGNORECASE)
-
-    def verify_header(self, authorization: str) -> dict:
-        if not self.is_configured():
-            return {"demo": True}
-        header_text = (authorization or "").strip()
-        if not header_text:
-            return {"public": True}
-
-        match = self._BEARER_REGEX.match(header_text)
-        if match:
-            token = match.group(1)
-            url, key = self._get_credentials()
-            try:
-                reply = httpx.get(
-                    url + "/auth/v1/user",
-                    headers={"apikey": key, "Authorization": "Bearer " + token},
-                    timeout=10,
-                )
-                if reply.status_code == 200:
-                    data = reply.json()
-                    if isinstance(data, dict) and data.get("id"):
-                        return data
-            except Exception:
-                pass
-        return {"public": True}
-```
-
-Kung public visitor sa `apply.html` ang tumawag (halimbawa para sa Contact Email OTP bago pa siya magka-account), pinapayagan itong tumuloy bilang `{"public": True}`, habang binibigyan naman ng verified user metadata kapag naka-sign in ang staff o customer.
-
-### 5.3 `api/quality.py` - OpenCV Quality Check at Auto-Crop (`BaseImageProcessor` Hierarchy)
-
-Hinati sa parent class at dalawang child classes ang image processing para malinaw ang pagkakaiba ng Layer 1 at Layer 2:
-1. **`BaseImageProcessor` (Parent Class)**: Naglalaman ng encapsulated thresholds (`_blur_limit = 60.0`, `_dark_limit = 70.0`, `_glare_limit = 200.0`), `_decode_bytes()` na nagko-convert ng raw bytes sa NumPy/OpenCV matrix, `_order_points()` na nag-aayos ng 4 corners (top-left, top-right, bottom-right, bottom-left), at `_four_point_transform()` na nagfa-flatten ng tabinging ID gamit ang `cv2.getPerspectiveTransform` at `cv2.warpPerspective`.
-2. **`FastQualityScanner(BaseImageProcessor)` (Layer 1 Child Class)**: Mabilis na kinukuwenta ang:
-   - `blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()` (kapag mas mababa sa `60`, malabo; kapag mas mababa sa `42`, `severe = True`).
-   - `brightness = gray.mean()` (mas mababa sa `70` ay madilim; lampas `200` ay may flash glare).
-   - `contrast = gray.std()` (mas mababa sa `38` ay kupas o low contrast).
-3. **`DocumentCropEnhancer(BaseImageProcessor)` (Layer 2 Child Class)**:
-   - **`_find_card_quad(gray)`**: Gumagamit ng Gaussian blur, Canny edge detection, dilation, at `cv2.approxPolyDP` sa loob ng nested loops para hanapin ang eksaktong 4-corner contour ng ID card at i-warp ito nang diretso. At kung patayo (`portrait`) ang kuha, automatic itong niro-rotate nang pahalang (`cv2.ROTATE_90_CLOCKWISE`).
-   - **`_crop_bounding_card(image, gray)`**: Fallback cropper gamit ang Otsu thresholding (`cv2.THRESH_OTSU`) kapag nakapatong ang ID sa mesa pero bilugan o natakpan ang isang kanto.
-   - **`_polish_color_image(bgr_img)`**: Kino-convert ang cropped ID sa LAB color space, ina-apply ang **CLAHE** (`Contrast Limited Adaptive Histogram Equalization`) sa luminance channel lang para luminaw ang sulat nang hindi nasisira ang kulay ng mukha sa ID, tapos ini-encode bilang `90%` quality JPEG (`cropped_jpeg_bytes`) para i-upload sa Supabase `documents` bucket. Gumagawa rin ito ng upscaled grayscale `working` matrix para sa Layer 2 OCR.
-
-### 5.4 `api/ocr.py` - PaddleOCR Extraction at Comparison (`BaseTextMatcher` -> `PaddleOcrService`)
-
-- **`BaseTextMatcher` (Parent Class)**: Humahawak ng Regex cleaners (`_NON_ALNUM_REGEX`, `_COMPACT_ID_REGEX`) at `_extract_dates()` na kumukuha ng lahat ng petsa sa ID at kino-convert sa standard `YYYY-MM-DD` format para madaling ikumpara sa HTML `<input type="date">`.
-- **`PaddleOcrService` (Child Class)**:
-  - Dahil multi-threaded ang `screening.py` (`4 workers`), gumagamit ang class ng `self._lock = threading.Lock()` sa loob ng `_extract_lines()` para thread-safe ang pagtawag sa `PaddleOCR` engine at tinatanggap lang ang lines na may confidence `>= 0.45`.
-  - **`read_raw_bytes(image_bytes)`**: Ginagamit sa Layer 1; nire-resize muna sa max `1280px` kung sobrang laki ng raw photo ng telepono para mabilis lumabas ang unang basa.
-  - **`read_text(working_copy)`**: Ginagamit sa Layer 2 sa cropped at CLAHE-enhanced image.
-  - **`compare(entered, lines)`**: Kinukumpara ang 3 core fields:
-    1. **Full Name (`key: "name"`)**: Hinahati sa tokens ang tinype na pangalan at hinahanap ang bawat salita sa OCR words gamit ang `SequenceMatcher(None, part, word).ratio() >= 0.80`. Kapag `100%` ng name parts ay nakita -> `match`; `>= 50%` -> `partial`; mas mababa -> `mismatch`.
-    2. **Birth Date (`key: "birth_date"`)**: Chine-check kung nasa set ng `_extract_dates()` ang tinype na birthday. Kung walang petsang nabasa sa harap ng ID (halimbawa ilang company/secondary IDs), `partial` lang ang balik imbes na maling `mismatch`.
-    3. **ID Number (`key: "id_number"`)**: Tinatanggal muna ang lahat ng gitling at space (`_normalize_id_code`). Kung substring agad sa OCR text -> `match`; kung hindi, gumagamit ng sliding window `SequenceMatcher` (`>= 0.85` -> `match`, `>= 0.65` -> `partial`, `< 0.65` -> `mismatch`).
-
-### 5.5 `api/ai.py` - Plain-Language Assistant (`BaseLanguageClient` -> `ScreeningLanguageAssistant`)
-
-- **`_sanitize_plain_text(text)`**: Kahit anong mangyari sa sagot ng model, pinapadaan ito sa Regex (`_TECH_TERMS_REGEX`) para palitan ng `"screening"` ang anumang salitang gaya ng `AI`, `OpenCV`, `PaddleOCR`, o `Ollama`.
-- **`write_guidance(quality, comparisons)`**: Gumagawa muna ng deterministic `_build_rule_guidance()` bilang fallback, tapos tinatawagan ang local Ollama (`qwen2.5:1.5b`) sa `/api/generate` (`format: "json"`) para maglabas ng hanggang 3 maiikling `findings` at `guidance` tips para sa Agent.
-- **`detect_target_fields(raw_remark, chosen_field)`**: Tinutukoy gamit ang Regex list (`_FIELD_PATTERNS`) kung aling field sa customer portal ang dapat i-highlight ng pula (`name`, `birth_date`, `id_number`, `id_photo`, `email`, `phone`, `address`).
-- **`write_polite_remark(raw_remark, chosen_field)`**: Ginagawang magalang na 2-sentence message na nagsisimula sa `"Hello!"` ang anumang maikling puna ng screening o ng validator. Kung naka-off ang Ollama, may nakahandang eksaktong polite message templates para sa bawat field.
-
-### 5.6 `api/screening.py` - Asynchronous 2-Layer Coordinator (`SupabaseApplicationGateway` & `BackgroundScreeningCoordinator`)
-
-Ito ang nagpapatakbo ng buong background workflow:
-1. **`SupabaseApplicationGateway`**: Lahat ng HTTP calls papunta sa Supabase REST (`/rest/v1/applications`, `/rest/v1/documents`, `/rest/v1/screenings`, `/rest/v1/corrections`, `/rest/v1/notifications`, `/rest/v1/system_settings`) at Supabase Storage (`/storage/v1/object/documents/...`) ay naka-encapsulate dito.
-2. **`BackgroundScreeningCoordinator`**:
-   - **`enqueue(app_id)`**: Chine-check sa loob ng `self._lock` kung nasa `self._active_jobs` na ang `app_id` para iwas duplicate run, tapos ipinapasa sa `self._executor.submit(self._run_pipeline, clean_id)`.
-   - **Stage A (`layer1_running`)**: Ina-update agad ang `applications.screening` ng `eta_seconds: 35` at `phase: "Analyzing Application and Reading ID"`, sabay download ng ID mula sa `documents` bucket.
-   - **Stage B (Layer 1 Results -> `layer2_running`)**: Pinapatakbo ang `quality.quick_check()` at `ocr.read_raw_bytes()`. Kapag may nakitang blur, glare, o mismatch sa unang basa (`serious_layer1 = True`), ina-update agad ang database ng `"Hold Recommended (~20s remaining)..."` para makita agad ng Agent sa queue habang tumatakbo na ang Layer 2.
-   - **Stage C (Layer 2 Auto-Crop & Auto-Correction -> `completed`)**:
-     Pinapatakbo ang `quality.enhance_and_crop()`, ina-upload ang malinis na JPEG sa `documents/cropped/{ref_no}-{timestamp}.jpg`, at binabasa ulit ang text via `ocr.read_text()`. Bago mag-save, kumukuha ulit ito ng fresh copy ng row (`latest_app = self._gateway.fetch_application(app_id)`) para kung sakaling in-approve o na-encode na pala agad ng Agent ang application habang nag-i-screen, hindi nito mababago ang desisyon ng Agent (`can_auto_request = current_status in ("Pending Review", "Processing", "Under Agent Review")`).
-     Kung nasa `Pending Review` / `Under Agent Review` pa at may simpleng mismatch sa `name`, `birth_date`, `id_number`, o sobrang labong `id_photo`:
-     - Sine-set nang kusa ang `status = "Needs Correction"`, `auto_correction_sent = True`, at `correction_fields = auto_fields`.
-     - Nagse-save ng record sa `public.corrections` at `public.notifications`, at nagpapadala ng email sa customer via `mailer.send(..., template_type="correction_notice")`.
-
-### 5.7 `api/mailer.py` - Gmail SMTP Corporate Email Dispatcher
-
-Gumagamit ng `smtplib.SMTP("smtp.gmail.com", 587)` na may `server.starttls(context=ssl.create_default_context())` (o `SMTP_SSL` kung port `465`). Automatic nitong tinatanggal ang spaces sa 16-character Google App Password (`password.replace(" ", "")`) at nagpapadala ng `MIMEMultipart("alternative")` na may plain-text fallback at responsive HTML layout na may Data Privacy Act (RA 10173) footer.
-- **Mga Template Builders sa `mailer.py`**: `build_otp_html()`, `build_application_confirmation_html()` (laging `Processing` ang ipinapakitang initial status), `build_correction_notice_html()` (privacy-safe: walang ID number o litrato sa email, pinapapunta ang customer sa portal), `build_status_update_html()` (`Processing`, `Approved`, o `Rejected`), `build_agent_alert_html()`, `build_manager_alert_html()`, at `build_promotional_html()`.
+1. **`public.users`**: Lahat ng accounts (`admin`, `manager`, `agent`, `customer`), kasama ang 6-digit `activation_code` para sa bagong customer at `reset_code` para sa password recovery.
+2. **`public.plans`**: Ang Red Fiber broadband plans (`Plan 1000`, `Plan 1400`, `Plan 1900`) na may positive speed at price `CHECK` constraints.
+3. **`public.system_settings`**: Single row (`id = 'main'`) na may `ai_enabled` at `maintenance_mode` switches.
+4. **`public.website_content`**: JSONB storage (`id = 'main'`) ng **Website Content (CMS)** para sa hero slides, company story, service areas, FAQs, at uploaded media list.
+5. **`public.agent_links`**: Referral codes (`REF-XXXXX`) ng mga Agents para automatic ma-assign sa kanila ang referred customer applications.
+6. **`public.applications`**: Main application records kasama ang GPS coordinates (`lat`, `lng`), original ID bucket paths (`id_front_path`, `id_back_path`), Layer 2 cropped ID path (`cropped_id_path`), `original_copy` vs `corrected_copy` JSON snapshots, at real-time `screening` JSON state (`queued`, `layer1_running`, `layer2_running`, `completed`, `paused`, `unavailable`).
+7. **`public.documents`**: Relational record ng bawat original at cropped ID file na in-upload para sa isang application (`ON DELETE CASCADE`).
+8. **`public.screenings`**: Audit history ng bawat natapos na document screening (`quality`, `ocr`, `comparisons`, `ai_remark`).
+9. **`public.corrections`**: History ng lahat ng automatic at manual `Needs Correction` requests at sagot ng customer.
+10. **`public.notifications`**: In-app bell alerts na pwedeng naka-target sa specific `email` (gaya ng isang customer) o sa buong `role` (gaya ng sabay na alert sa lahat ng `agent` at `manager` kapag offline ang Auto-Screening).
+11. **`public.login_history`**: Security log ng bawat sign-in ng lahat ng roles.
+12. **`public.system_logs`**: Audit trail ng bawat system switch, status update, CMS edit, at account creation.
+13. **`public.popup_guides`**: Bagong table na naglalaman ng title, intro, numbered `steps` (`JSONB`), `audience_tone` (`polite`, `professional`, `technical`), at `auto_show` flag para sa pop-up instructions ng lahat ng external at internal portals.
 
 ---
 
-## 6. Complete Frontend (`web/`) Code Walkthrough
+## 6. Complete Backend (`api/`) Code Walkthrough
 
-### 6.1 Shared Core Scripts (`config.js`, `db.js`, `api.js`, `dash-ui.js`, `style.css`)
+### 6.1 `api/main.py` - FastAPI Server at REST Routes
+Binubuksan ng `main.py` ang FastAPI app, sine-setup ang CORS, kinokonekta ang 5 API endpoints, at mina-mount ang `../web` static folder sa dulo:
+- **`GET /health`**: Binabalik ang status ng `api`, `ollama`, `opencv`, `paddleocr`, `auto_screening_ready` (`bool(opencv_ok and ocr_ok)`), `active_screenings`, `smtp`, at `supabase_check`. Ginagamit ito ng Admin console at pati ng Agent/Manager dashboards (`checkAgentScreeningService` / `checkMgrScreeningService`) para malaman kung ready ang Auto-Screening.
+- **`POST /screen-async`**: Tumatanggap ng `AsyncScreenRequest(application_id)` at ipinapasa agad sa `screening.enqueue_screening()` para tumakbo sa background thread pool.
+- **`POST /screen`**: Direct upload fallback endpoint (`UploadFile`).
+- **`POST /notify`**: Tumatanggap ng `EmailRequest` at tumatawag sa `mailer.send()` para sa lahat ng outgoing Gmail notifications.
+- **`POST /polite-remark`**: Tumatawag sa `ai.write_polite_remark()` at `ai.detect_target_fields()` para sa Agent workspace.
 
-1. **`web/js/config.js`**:
-   - Nagtatakda ng `CONFIG` object: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `API_URL` (`http://127.0.0.1:8001`), `RECAPTCHA_SITE_KEY` (automatic na gumagamit ng localhost test key kapag `127.0.0.1` o `localhost` at production key kapag live domain), `PLANS`, `SERVICE_AREAS`, at ang 25 `ID_TYPES` kasama ang kani-kanilang Regex `pattern` at `hint`.
-   - Naglalaman ng OOP validator classes na **`BaseFieldValidator`** at **`ApplicantFormValidator`** (`FORM_VALIDATOR`) na nagva-validate ng email, 11-digit mobile (`09xxxxxxxxx`), at ID numbers gamit ang Regex at nested `if` checks.
-   - Naglalaman din ng public helpers: `getImageUrl()` (kumukuha ng website pictures mula sa `website-assets` Supabase bucket), `startSlider()` (auto-sliding 4-banner hero carousel tuwing 5 seconds), `buildStrip()` (auto-scrolling at draggable strips para sa client logos, vehicles, at permits), `initPasswordEyeToggles()`, at `checkPublicMaintenance()` (hinaharangan ang public visitors kapag naka-ON ang Maintenance Mode pero hinahayaan ang Manager/Admin na mag-preview via `?preview_cms=1`).
+### 6.2 `api/auth.py` - Bearer Token Verifier (`BaseTokenVerifier` -> `SupabaseTokenVerifier`)
+Chine-check ang `Authorization: Bearer <token>` header gamit ang `_BEARER_REGEX` at kino-confirm sa Supabase `/auth/v1/user`. Kung walang session pa ang public applicant sa `apply.html` (halimbawa nagre-request ng Gmail OTP), ligtas itong pinapayagan bilang `{"public": True}`, habang vine-verify naman ang token ng naka-login na users.
 
-2. **`web/js/db.js`**:
-   - **Multi-Tab Session Isolation**: Gumagamit ng hiwalay na storage keys (`pigem_session_customer` sa `localStorage`, at `pigem_session_staff` / `pigem_session_admin` sa `sessionStorage`) kaya pwedeng sabay nakabukas sa magkaibang browser tabs ang Customer, Agent, Manager, at Admin nang hindi nagkakapatungan ng login session.
-   - **Account & Auth Functions**: `hashPassword()` (Web Crypto SHA-256), `dbSignIn()`, `dbSignOut()`, `dbCreateAccountFromApplication()` (gumagawa ng customer row na may 6-digit `activation_code`), `dbActivateCustomerAccount()`, `dbStartPasswordReset()`, `dbFinishPasswordReset()`, at `dbCreateUserAccount()`.
-   - **Application & Bucket Functions**: `dbCreateApplication()` (gumagawa ng `PIGEM-...` reference number at sine-save ang `original_copy`), `dbUpdateApplication()`, `dbUploadDocument()` (nag-a-upload derecho sa Supabase `documents` bucket gamit ang `supabaseClient.storage.from("documents").upload(...)` na may automatic Data URL fallback), at `dbUploadWebsiteAsset()` (nag-a-upload sa `website-assets` bucket para sa Manager CMS).
-   - **3-Status Customer Mapper (`getCustomerStatus` & `customerStatusBadge`)**:
-     ```javascript
-     function getCustomerStatus(rawStatus) {
-       if (rawStatus === "Approved") return "Approved";
-       if (rawStatus === "Rejected") return "Rejected";
-       return "Processing";
-     }
-     ```
-     Kahit ang internal status sa staff ay `Pending Review`, `Under Agent Review`, `Encoding`, o `Needs Correction`, ang main status na ibinabalik nito para sa customer ay laging **`Processing`** lang (at idinadagdag lang ang yellow `Needs Correction` tag kapag `rawStatus === "Needs Correction"`).
+### 6.3 `api/quality.py` - Image Quality at 4-Corner Auto-Crop (`BaseImageProcessor` Hierarchy)
+- **`FastQualityScanner` (Layer 1)**: Kinukuwenta nang mabilis ang sharpness (`cv2.Laplacian(...).var()`), brightness (`gray.mean()`), at contrast (`gray.std()`).
+- **`DocumentCropEnhancer` (Layer 2)**: Hinahanap ang 4 corners ng ID card (`_find_card_quad`), tinutuwid ang perspective (`_four_point_transform`), niro-rotate kung patayo ang kuha, o gumagamit ng Otsu bounding crop fallback (`_crop_bounding_card`). Pagkatapos ay nililinawan ang sulat gamit ang LAB + CLAHE (`_polish_color_image`) at ibinabalik ang `cropped_jpeg_bytes` para ma-upload sa `documents/cropped/`.
 
-3. **`web/js/api.js`**:
-   - Lahat ng `fetch()` calls papunta sa Python FastAPI server ay nandito.
-   - **`apiStartBackgroundScreening(applicationId)`**: Nagpapadala ng `POST /screen-async` nang hindi nagta-throw ng error sa customer kahit busy o offline ang server.
-   - **`apiGeneratePoliteRemark(rawRemark, chosenField)`**: Tumatawag sa `POST /polite-remark` para sa Agent workspace.
-   - **`apiSendEmail(...)` at specialized wrappers**: `apiSendApplicationConfirmationEmail()`, `apiSendCorrectionEmail()`, `apiSendAgentAlertEmail()`, at `apiSendPromotionalEmail()`.
+### 6.4 `api/ocr.py` - Optical Character Recognition (`BaseTextMatcher` -> `PaddleOcrService`)
+Gumagamit ng `threading.Lock()` para ligtas kahit 4 threads ang sabay nagbabasa ng ID. Kinukumpara ng `compare(entered, lines)` ang `Full Name` (word-by-word fuzzy `SequenceMatcher >= 0.80`), `Birth Date` (normalized `YYYY-MM-DD` date extraction), at `ID Number` (alphanumeric stripped substring + sliding window similarity `>= 0.85`).
 
-4. **`web/js/dash-ui.js` at `web/assets/style.css`**:
-   - Humahawak ng splash screen fade-out, Light / Dark / Device theme switching (`data-theme="dark"`), Smart Topbar Search (sabay naghahanap ng dashboard sections at applicant reference numbers), Notification Bell modal (`refreshNotifBell`), profile drawer (display name, bio, avatar upload, at OTP password change), at pure CSS bar/column charts + monthly application calendar.
-   - Sa `style.css`, ang `.icon-placeholder` class ay nagpapakita ng malinaw na dashed placeholder box (`assets/images/placeholder.png` + `data-icon="..."`) sa lahat ng icon slots nang walang ginagamit na emojis.
+### 6.5 `api/ai.py` - Plain-Language Assistant (`BaseLanguageClient` -> `ScreeningLanguageAssistant`)
+Gumagawa ng staff screening guidance (`write_guidance`) at magalang na 2-sentence customer message (`write_polite_remark`) gamit ang local Ollama (`qwen2.5:1.5b`) sa `http://localhost:11434`, na may deterministic rule-based templates kapag naka-off ang Ollama at `_TECH_TERMS_REGEX` sanitizer para walang technical terms na makalusot.
 
-### 6.2 Public Website, Application Form, at Account Setup
+### 6.6 `api/screening.py` - 2-Layer Background Coordinator + Offline Fail-Safe
+- **`SupabaseApplicationGateway`**: Humahawak ng lahat ng REST at Storage calls papuntang Supabase (`fetch_application`, `update_application`, `is_screening_enabled`, `download_id_bytes`, `upload_cropped_id`, `insert_notification`, `insert_correction_record`, `insert_screening_record`).
+- **`BackgroundScreeningCoordinator`**:
+  - **`_notify_staff_unavailable(ref_no, cust_name, reason_note)`**: May thread lock at 60-second cooldown (`_last_unavailable_alert_at`) para magpadala ng malinis na in-app notification sa parehong `role = 'agent'` at `role = 'manager'` kapag naka-pause o unavailable ang Auto-Screening.
+  - **Fail-Safe Checks**: Bago at habang tumatakbo ang `_run_pipeline()`, chine-check kung:
+    1. Naka-off ang `is_screening_enabled()` -> sine-set ang `state: "paused"`, `fallback_original_only: True`, `phase: "Original Copy Ready (Manual Review)"`, at nagno-notify sa Agents at Managers.
+    2. Hindi available ang `quality.is_available()` o `ocr.is_available()`, o nagka-exception -> sine-set ang `state: "unavailable"`, `fallback_original_only: True`, pinapanatili ang original ID copy, at nagno-notify sa Agents at Managers.
+  - **Layer 1 -> Layer 2 -> Auto-Correction**: Kapag online lahat, nagbibigay muna ng Layer 1 early advisory at ETA (`~20s remaining`), nagco-crop at nag-a-upload sa `documents/cropped/`, at kung may simpleng mismatch habang nasa `Pending Review` / `Under Agent Review`, kusang nagse-set ng `Needs Correction` at nagpapadala ng `correction_notice` email (kasama ang `target_summary`) sa customer.
 
-- **`web/index.html` & `web/js/home.js`**: Nagre-render ng 4-slide Hero Banner, service area strip, 3 Red Fiber plan cards (na may reCAPTCHA verification bago buksan ang `apply.html?plan=...`), closed-by-default FAQs, at partner logos.
-- **`web/about.html`**: Nagpapakita ng company story ng PIGEM, mission/vision/values, service vehicles strip, at government permits strip mula sa `website-assets` bucket.
-- **`web/apply.html` & `web/js/apply.js`**:
-  - Hinati sa 6 sunod-sunod na panels: (0) Plan Choice, (1) Personal Info + Live Gmail 6-Digit OTP Verification (`sendContactOtp` / `verifyContactOtp`), (2) Installation Address + Interactive Leaflet Map (`14.3294, 120.9367` default Dasmarinas center, `locateMe()` GPS button, at Nominatim reverse geocoding API na automatic nagpupuno ng street/barangay/city/province), (3) Valid ID Selection + Live Regex format validation + Front/Back Photo Upload o Live Camera Capture (`navigator.mediaDevices.getUserMedia`) + QR code modal para ituloy sa phone, (4) Review Summary, at (5) Terms, Privacy Consent, at reCAPTCHA.
-  - Pag-click ng Submit (`submitRegistration()`): 4-step transfer visualization lang ang pinapakita habang ina-upload sa `documents` bucket ang ID photos, sine-save ang row sa `public.applications`, tinatawag nang non-blocking ang `apiStartBackgroundScreening(saved.id)`, nagpapadala ng confirmation email + activation link, at ipinapakita agad ang Reference Number popup.
-- **`web/activate.html`**: One-time account activation page kung saan inilalagay ng bagong customer ang 6-digit activation code mula sa email at nagse-set ng sarili niyang password.
-- **`web/login.html`, `web/staff-login.html`, `web/admin-login.html`, at `web/js/login.js`**: May Google reCAPTCHA check, 5-attempt lockout protection (na nagbubukas ng OTP Password Reset modal kapag lumampas sa 5 maling password), at automatic role routing (`getHomeForRole()`).
-- **`web/setup-accounts.html`**: Malinis na setup page para gumawa ng **`Admin`** at **`Manager`** accounts. Kapag may nakarehistro nang `Admin` sa database, automatic nang itinatago ang Admin registration card (`hasAdmin ? "none" : "block"`) para iisa lang ang primary Admin ng system.
-
-### 6.3 Customer, Agent, Manager, at Admin Portals
-
-1. **`web/customer.html` & `web/js/customer.js` (Customer Portal)**:
-   - Ipinapakita ang 4 summary counters (`My Applications`, `Processing`, `Approved`, `Rejected`) at isang 3-step visual progress tracker: **1. Processing -> 2. Approved / Rejected**.
-   - Kapag `app.status === "Needs Correction"`, nagbubukas sa loob mismo ng **Processing** step ang **Update Needed to Continue Processing** branch. Chine-check ng `customer.js` ang `app.correction_fields` at nilalagyan ng pulang border (`border: 2px solid #dc2626`) at `(Update Required)` tag ang eksaktong field lang na may problema (halimbawa `First / Middle / Last Name` kung `name` mismatch, `Birth Date`, `ID Number`, `Email`, `Mobile Number`, `Address`, o `Upload Clearer Valid ID Photo`).
-   - Pag-click ng **Submit Update & Continue Processing** (`submitCustomerCorrection()`), sine-save ang `corrected_copy` snapshot, ibinabalik ang internal status sa `Under Agent Review` / `Pending Review` (kaya plain `Processing` na ulit sa customer), at tinatawag ulit ang `apiStartBackgroundScreening(app.id)`.
-
-2. **`web/agent.html` & `web/js/agent.js` (Agent Workspace)**:
-   - May auto-refresh interval tuwing `4.5 seconds` kapag may application na nasa `queued`, `layer1_running`, o `layer2_running` state kaya real-time gumagalaw ang screening status at estimated time (`~20s left`) sa harap ng Agent.
-   - Kapag binuksan ang isang application (`openAppDetail()`), makikita ng Agent ang:
-     - **Layer 1 Hold Recommended Banner** (kung may maagang nakitang blur o mismatch habang nagko-crop pa sa Layer 2), o **Auto-Requested Customer Update Banner** (kung kusang humingi na ng update ang screening mula sa customer).
-     - **Submission Switcher**: Pwedeng pagpalitin ang `Latest / Updated Copy` at `Original Submission` (kung nag-resubmit na si customer).
-     - **ID Photo Switcher**: Pwedeng pagpalitin ang **`Cropped & Enhanced Copy`** (`app.cropped_id_url` mula sa `documents/cropped/`) at **`Original Uploaded Photo`**, kasama ang **Download ID** at **Print Copy**.
-     - **Status Decision Controls**: Ang Agent ay pwedeng mag-set ng **`Encoding`** (kapag na-forward na sa Provider Validator, kung saan nananatiling `Processing` ang customer at walang maingay na internal email), o i-record ang desisyon ng Validator na **`Approved`** o **`Rejected`** (na nagpapadala ng opisyal na status email sa customer). May collapsible optional section din para sa manual **`Needs Correction`** na may **Validator Remark Presets** at **`Generate Polite Message`** button.
-
-3. **`web/manager.html` & `web/js/manager.js` (Manager Dashboard)**:
-   - Sinusubaybayan ang lahat ng applications kasama ang live Screening badges (`Screening in Progress`, `Enhancing Document - Hold Recommended`, `Auto-Requested Update`, `Screening Passed`), links para makita ang Cropped at Original ID sa override modal, workload table ng bawat Agent (`Active Claimed`, `Needs Correction`, `Approved / Encoded`, `Total Handled`), `+ Quick Add Agent` modal, promotional email broadcast tool, at ang buong **Content CMS** (na automatic nagbubukas ng Maintenance Mode habang nag-e-edit ng Hero Banners, Media Assets, About info, Internet Plans, at FAQs).
-
-4. **`web/admin.html` & `web/js/admin.js` (Admin Technical Management System)**:
-   - Eksklusibong console para sa **Admin**: nagpapakita ng live status at toggle switch para sa **AI Screening Engine** (`setAiEnabled`), **Public Maintenance Mode** (`setMaintenanceOn`), live health cards para sa **2-Layer Parallel Screening Coordinator** (`active_screenings`), **Ollama (`qwen2.5:1.5b`)**, **OpenCV**, **PaddleOCR**, **Gmail SMTP** (kasama ang live template tester), at **Supabase Cloud**, pati full account role management, audit logs, login history, at CSV report export (`exportApplicationsCsv()`).
+### 6.7 `api/mailer.py` - Gmail SMTP Email Dispatcher
+Kumokonekta sa `smtp.gmail.com:587` gamit ang `STARTTLS` at 16-character Google App Password. Sinusuportahan ang `otp`, `application_confirmation`, `correction_notice` (binabasa ang `target_summary` o `issue_category` nang walang sensitive ID leaks), `status_update`, `agent_alert`, `manager_alert`, at `promotional`.
 
 ---
 
-## 7. Panel Defense Practice Questions (Self-Practice - Questions Only)
+## 7. Complete Frontend (`web/`) Code Walkthrough at Clean UI Structure
 
-Gamitin ang mga tanong sa ibaba para mag-practice magpaliwanag sa sarili mong salita bago humarap sa Capstone Panel:
+### 7.1 Shared Core (`config.js`, `db.js`, `api.js`, `dash-ui.js`, `style.css`)
+- **`web/js/config.js`**:
+  - Naglalaman ng `CONFIG`, `BaseFieldValidator` + `ApplicantFormValidator` (`FORM_VALIDATOR`), `DEFAULT_POPUP_GUIDES`, at ang OOP class na **`PopupGuideManager`** (`POPUP_GUIDE_MANAGER`).
+  - **`showPortalGuide(guideId)`** at **`finishPortalGuide()`**: Nagre-render ng malinis na modal na may numbered `.guide-step-row` items para sa bawat portal.
+  - **`openConfirmPopup(options)`**: Gumagawa ng explicit confirmation dialog bago i-toggle ang Maintenance Mode o AI Screening Engine para walang aksidenteng pag-off ng live website o screening.
+- **`web/js/db.js`**:
+  - Multi-tab isolated sessions (`pigem_session_customer`, `pigem_session_staff`, `pigem_session_admin`).
+  - Bagong functions para sa pop-ups at fail-safe: **`dbSyncPopupGuides()`** (kumukuha ng active guides mula sa `public.popup_guides` at nagsi-sync sa `POPUP_GUIDE_MANAGER`), **`dbListPopupGuides()`**, **`dbSavePopupGuide()`**, at **`dbNotifyScreeningUnavailable(refNo, applicantName, detailNote)`** (nagpapadala ng session-deduplicated alert sa lahat ng `agent` at `manager` kapag hindi maabot ang Python server).
+- **`web/js/api.js`**:
+  - May 3.5-second `AbortController` timeout sa **`apiStartBackgroundScreening()`** at 3-second timeout sa **`apiCheckHealth()`** para hindi kailanman mag-hang ang UI kahit offline ang backend.
+  - Ipina-forward ng **`apiSendCorrectionEmail()`** at **`apiSendStatusEmail()`** ang `targetSummary` (`target_summary`) papunta sa `POST /notify` para laging kumpleto ang detalye ng `Needs Correction` email.
+- **`web/assets/style.css`**:
+  - Nagbibigay ng `.section-card`, `.section-head`, `.step-badge`, `.status-banner`, `.guide-steps`, at `.check-pill-grid` para malinis, pantay-pantay, at madaling sundan ang bawat section sa lahat ng portals.
 
-### A. System Flow, Roles, at Operational Design
-1. Bakit ninyo binago ang application flow para hindi na naghihintay sa document screening ang customer pagka-click ng Submit sa `apply.html`?
-2. Ano ang aktwal na nangyayari sa pagitan ng browser, Supabase `documents` bucket, at Python backend sa sandaling mag-submit ng application ang isang customer?
-3. Paano gumagana ang 2-Layer Background Screening, at ano ang pinagkaiba ng ginagawa ng Layer 1 sa Layer 2?
-4. Paano nakakatulong sa Agent ang early warning at estimated remaining time ng Layer 1 habang tumatakbo pa ang auto-cropping at enhancement sa Layer 2?
-5. Paano kung sampung customers ang sabay-sabay nag-submit ng application—paano hina-handle ng backend ang sabay-sabay na screening nang hindi nagha-hang ang server?
-6. Kailan kusang nagre-request ng `Needs Correction` ang system nang walang ginagawang action ang Agent, at kailan naman kailangan ang manual review ng Agent?
-7. Bakit tatlong main statuses lang (`Processing`, `Approved`, `Rejected`) ang nakikita ng customer sa `customer.html`, at paano ipinapakita ang `Needs Correction`?
-8. Ano ang pinagkaiba ng trabaho ng PIGEM Verification Agent sa Provider Validator, at bakit may `Encoding` status sa Agent pero `Processing` pa rin ang nakikita ng customer?
-9. Bakit sa Admin portal (`admin.html`) lang makikita ang AI controls at technical API health checks, at hindi sa Customer, Agent, o Manager interfaces?
-10. Paano pinoprotektahan ng Content CMS Maintenance Mode ang public website habang nagpapalit ng banners o plans ang Manager?
+### 7.2 Public Pages (`index.html`, `about.html`, `apply.html`, `apply.js`)
+- **`index.html` & `home.js`**: May **How to Apply** link sa navigation bar na nagbubukas ng `showPortalGuide('home_welcome')`, 4-banner slider, plan cards, at FAQs.
+- **`apply.html` & `apply.js`**:
+  - May **Application Guide** button sa header at automatic na tinatawag ang `POPUP_GUIDE_MANAGER.autoShowForPortal("apply_before_start")` pagka-verify ng CAPTCHA bago mag-fill up ang customer.
+  - Lahat ng icons ay malinis na `.icon-placeholder` slots (walang emojis).
+  - Sa `submitRegistration()`, kapag `screenRes.queued === false` (offline ang Python server o disabled), automatic na nilalagay ang `state: "unavailable"`, `fallback_original_only: true`, at tinatawag ang `dbNotifyScreeningUnavailable()` habang tuloy-tuloy na ipinapakita sa customer ang kanyang Reference Number.
 
-### B. Database Architecture at SQL Queries
-11. Bakit hiwalay ang `public.users` table sa built-in `auth.users` ng Supabase, at paano gumagana ang one-time 6-digit account activation ng bagong customer?
-12. Paano napananatili ng database ang unang pinasa ng customer (`original_copy` / `original_submission`) kahit mag-update siya ng pangalan, ID number, o bagong ID photo sa `Needs Correction`?
-13. Ano ang laman at gamit ng `JSONB` column na `screening` sa `public.applications` kumpara sa relational tables na `public.documents`, `public.screenings`, at `public.corrections`?
-14. Bakit kayo naglagay ng `CHECK` constraints sa `users.role`, `plans.speed`, at `applications.status`, at ano ang mangyayari kapag may nag-insert ng invalid value?
-15. Para saan ang mga `CREATE INDEX` statements sa `public.applications` at `public.notifications`?
-16. Ano ang pinagkaiba ng dalawang Supabase Storage buckets na `website-assets` at `documents`?
+### 7.3 Structured Staff, Customer, at Admin Portals
+1. **`customer.html` & `customer.js`**:
+   - May **Guide** button sa topbar (`customer_portal_guide`), 3 customer statuses lang (`Processing`, `Approved`, `Rejected`), at highlighted update form sa loob ng `Processing` kapag `Needs Correction`. May parehong offline fail-safe din sa `submitCustomerCorrection()`.
+2. **`agent.html` & `agent.js` (Malinis na 4-Section Organized Workspace)**:
+   - May `#agent-screening-banner` sa taas na automatic lumalabas (`checkAgentScreeningService()`) kapag naka-off o offline ang Auto-Screening para alam agad ng Agent na **Original Uploaded Photo** ang gagamitin niya.
+   - Ang **Application Verification Modal (`renderDetailModalContent`)** ay hinati sa **4 malinaw na numbered `.section-card` blocks** para hindi nakakalito:
+     - **`1. Applicant Profile & Installation Address`**: Plan, contact details, address, GPS coordinates, at switcher sa pagitan ng `Latest / Updated Copy` at `Original Submission`.
+     - **`2. Valid ID Photos & Document Check`**: Switcher para sa `Cropped & Enhanced Copy` vs `Original Uploaded Photo` (automatic naka-default sa Original Copy kapag offline ang Auto-Screening), Download/Print ID buttons, at malinis na `.check-pill-grid` para sa Name, Birth Date, ID Number, at Photo Clarity.
+     - **`3. Application Status & Validator Decision`**: Status selector (`Under Agent Review`, `Encoding`, `Approved`, `Rejected`, `Needs Correction`), internal notes, at iisang malinaw na **Save Status Update** button.
+     - **`4. Optional: Request Customer Update (Needs Correction)`**: Collapsible box na may Validator Quick Presets, field selector, **Generate Polite Message** button, at sariling `#det-correction-message` box.
+3. **`manager.html` & `manager.js`**:
+   - Pinalitan lahat ng dating `"Content CMS"` ng malinaw na **`Website Content (CMS)`** / **`Content Management System (CMS)`**.
+   - Pag-click sa CMS tabs (`cms-banners`, `cms-media`, `cms-about`, `cms-plans`, `cms-faqs`), **hindi na namamatay nang kusa ang public website**. Kung kailangang i-toggle ang Maintenance Mode, dadaan muna sa `openConfirmPopup()`.
+   - May `#mgr-screening-banner` (`checkMgrScreeningService()`) at ayos na `saveMgrOverride()` na laging nagse-save ng `customer_instruction` at nagpapadala ng `apiSendCorrectionEmail()` kapag nag-set ng `Needs Correction` ang Manager.
+4. **`admin.html` & `admin.js`**:
+   - May **Technical Guide** button (`admin_technical_guide`), confirmation pop-ups bago baguhin ang **Maintenance Mode** (`toggleMaintMode`) at **AI Screening Engine** (`toggleAiMode`—na nagpapadala rin ng notification sa Agents at Managers kapag in-off), at bagong **Portal Pop-up Guides (`public.popup_guides`)** control table kung saan pwedeng i-preview at i-toggle ng Admin ang `Auto-Show` ng bawat portal guide.
 
-### C. Programming Concepts, Backend (`api/`), at Frontend (`web/`) Code
-17. Saan sa codebase kayo gumamit ng Object-Oriented Programming (Abstraction, Inheritance, at Encapsulation), at paano nakatulong ang parent-child classes sa `quality.py`, `ocr.py`, at `ai.py`?
-18. Saan-saan ginamit ang Regular Expressions (Regex) sa frontend at sa backend, at paano nito nino-normalize ang ID numbers at dates bago ikumpara sa OCR text?
-19. Paano nalalaman ng OpenCV sa `quality.py` kung malabo (`blur_score`), madilim, o may flash glare ang in-upload na Valid ID?
-20. Paano gumagana ang 4-corner auto-cropping (`_find_card_quad` at `_four_point_transform`) at bakit gumagamit ng CLAHE sa LAB color space bago i-save ang cropped JPEG?
-21. Bakit kailangan ng `threading.Lock()` sa loob ng `PaddleOcrService` sa `ocr.py` kapag tumatakbo ang `ThreadPoolExecutor` sa `screening.py`?
-22. Paano kinukumpara ng `ocr.compare()` ang pangalan at ID number kung may isang letrang bahagyang natakpan ng ilaw sa ID (`SequenceMatcher`)?
-23. Paano sinisigurado ng `screening.py` na hindi nito masasapawan ang desisyon ng Agent kung sakaling na-forward o na-approve na agad ng Agent ang application habang nagtatapos pa lang ang Layer 2?
-24. Ano ang mangyayari sa buong system kung naka-off ang local Ollama service o kung dinisable ng Admin ang AI Screening Engine sa `admin.html`?
-25. Paano ipinapadala ng `mailer.py` ang emails gamit ang Gmail SMTP, at paano nasusunod ang Republic Act No. 10173 (Data Privacy Act of 2012) sa local processing ng IDs at sa laman ng Correction Notice emails?
+---
+
+## 8. Panel Defense Practice Questions (Self-Practice - Questions Only)
+
+Gamitin ang mga tanong na ito para mag-ensayo sa sarili mong salita bago ang defense:
+
+### A. System Architecture, Terms, at Operational Flow
+1. Sa simpleng salita, ano ang pinagkaiba ng trabaho ng **Uvicorn** at ng **FastAPI** sa `api/main.py`, at ano ang ibig sabihin ng `http://127.0.0.1:8001`?
+2. Ano ang pinagkaiba ng **Synchronous** at **Asynchronous** request, at bakit `POST /screen-async` ang ginamit pagka-submit ng application sa `apply.html`?
+3. Paano gumagana ang `ThreadPoolExecutor(max_workers=4)` sa `api/screening.py` kapag maraming customers ang sabay-sabay na nag-submit ng application?
+4. Ano ang ibig sabihin ng **CMS**, paano ito ginagamit ng Manager sa `manager.html`, at bakit hindi dapat kusang nag-o-off ang public website pagbukas pa lang ng CMS tab?
+5. Ano ang mangyayari sa buong application process kapag biglang nawala o naka-off ang Auto-Screening / Python server? Paano nalalaman ng mga Agents at Managers, at anong kopya ng ID ang chine-check nila?
+6. Paano gumagana ang **2-Layer Background Screening**, at ano ang pinagkaiba ng output ng Layer 1 sa Layer 2?
+7. Paano gumagana ang `Needs Correction` email notification sa dalawang sitwasyon: kapag automatic na na-detect ng Layer 2 screening, at kapag manual na ni-request ng Agent o Manager?
+8. Bakit tatlong main statuses lang (`Processing`, `Approved`, `Rejected`) ang nakikita ng customer sa `customer.html`, at bakit sa Admin portal (`admin.html`) lang nilagay ang technical terms gaya ng AI, OpenCV, PaddleOCR, at SMTP?
+9. Paano gumagana ang bagong `public.popup_guides` table at bakit magkaiba ang tone ng pop-up instructions sa Customer/Agent/Manager kumpara sa Admin?
+
+### B. Security, Email Transport, at Database Schema
+10. Ano ang **SMTP**, para saan ang `Port 587` at `STARTTLS` sa `api/mailer.py`, at bakit **16-character Google App Password** ang ginagamit sa halip na regular Gmail password?
+11. Ano ang **Bearer Token (`JWT`)**, at paano chine-check ng `SupabaseTokenVerifier` sa `api/auth.py` kung valid ang request?
+12. Paano nasusunod ng system ang **Republic Act No. 10173 (Data Privacy Act of 2012)** sa local processing ng Valid IDs at sa laman ng `Needs Correction` emails?
+13. Paano napananatili sa `public.applications` ang unang pinasa ng customer (`original_copy`) kahit mag-resubmit siya ng bagong detalye o ID photo (`corrected_copy`)?
+14. Ano ang pinagkaiba ng dalawang Supabase Storage buckets na `website-assets` at `documents`, at saan napupunta ang auto-cropped ID ng Layer 2?
+15. Para saan ang `CHECK` constraints at `CREATE INDEX` statements sa `schema.sql`, at bakit may `ON DELETE CASCADE` sa `documents`, `screenings`, at `corrections`?
+
+### C. OOP, Regex, Nested Logic, at Code Details
+16. Saan sa Python backend at JavaScript frontend kayo gumamit ng **Abstraction**, **Inheritance**, at **Encapsulation**? Magbigay ng konkretong class examples.
+17. Saan-saan ginamit ang **Regular Expressions (Regex)** sa system, mula sa form validation hanggang sa OCR comparison at plain-language sanitization?
+18. Paano sinusukat ng OpenCV sa `api/quality.py` kung malabo, madilim, o may flash glare ang ID photo, at paano nito tinutuwid at kino-crop ang 4 corners ng ID card?
+19. Bakit gumamit ng `threading.Lock()` sa loob ng `PaddleOcrService` (`api/ocr.py`) at sa `_notify_staff_unavailable()` (`api/screening.py`)?
+20. Paano sinisigurado ng `api/screening.py` na hindi nito mababago ang status ng application kung na-approve o na-encode na pala agad ng Agent habang patapos pa lang ang background screening?

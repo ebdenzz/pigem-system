@@ -10,6 +10,12 @@ window.addEventListener("DOMContentLoaded", async function () {
   await loadMyApplications();
   initDashUI(currentCustomer, myApps, selectMyApp);
 
+  setTimeout(function () {
+    if (typeof POPUP_GUIDE_MANAGER !== "undefined") {
+      POPUP_GUIDE_MANAGER.autoShowForPortal("customer_portal_guide");
+    }
+  }, 200);
+
   setInterval(async function () {
     var activeTag = document.activeElement ? document.activeElement.tagName : "";
     if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT") return;
@@ -358,8 +364,25 @@ async function submitCustomerCorrection(appId) {
       agent_remarks: "Customer submitted update: " + changedList.join(", ")
     });
 
-    if (isAiEnabled() && typeof apiStartBackgroundScreening === "function") {
-      apiStartBackgroundScreening(app.id);
+    var rescrActive = isAiEnabled();
+    var rescrRes = { queued: false };
+    if (rescrActive && typeof apiStartBackgroundScreening === "function") {
+      rescrRes = await apiStartBackgroundScreening(app.id);
+    }
+    if (!rescrActive || !rescrRes || !rescrRes.queued) {
+      updatedScreening.state = rescrActive ? "unavailable" : "paused";
+      updatedScreening.phase = "Original Copy Ready (Manual Review)";
+      updatedScreening.eta_seconds = 0;
+      updatedScreening.fallback_original_only = true;
+      updatedScreening.advisory = "Auto-screening is currently not active. Customer's updated submission and original ID photo are ready for manual review.";
+      await dbUpdateApplication(app.id, { screening: updatedScreening });
+      if (typeof dbNotifyScreeningUnavailable === "function") {
+        await dbNotifyScreeningUnavailable(
+          app.reference_no,
+          fullName,
+          "Customer submitted an update; original uploaded ID photo is ready for manual review."
+        );
+      }
     }
 
     await dbAddAiLog(

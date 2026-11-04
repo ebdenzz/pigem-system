@@ -189,6 +189,22 @@ CREATE TABLE public.system_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE public.popup_guides (
+  id TEXT PRIMARY KEY,
+  portal TEXT NOT NULL
+    CHECK (portal IN ('public', 'apply', 'customer', 'agent', 'manager', 'admin')),
+  audience_tone TEXT NOT NULL DEFAULT 'polite'
+    CHECK (audience_tone IN ('polite', 'professional', 'technical')),
+  title TEXT NOT NULL,
+  intro TEXT NOT NULL,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  footer_note TEXT NOT NULL DEFAULT '',
+  button_label TEXT NOT NULL DEFAULT 'Got It',
+  auto_show BOOLEAN NOT NULL DEFAULT true,
+  active BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
@@ -201,6 +217,7 @@ ALTER TABLE public.corrections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.popup_guides ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on plans" ON public.plans FOR ALL USING (true) WITH CHECK (true);
@@ -214,6 +231,7 @@ CREATE POLICY "Allow all on corrections" ON public.corrections FOR ALL USING (tr
 CREATE POLICY "Allow all on notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on login_history" ON public.login_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on system_logs" ON public.system_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on popup_guides" ON public.popup_guides FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES
@@ -255,5 +273,90 @@ VALUES (
   '{"logo_image": "logo.png", "area_text": "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.", "client_images": ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"]}'::jsonb
 )
 ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
+
+INSERT INTO public.popup_guides (id, portal, audience_tone, title, intro, steps, footer_note, button_label, auto_show, active) VALUES
+  (
+    'home_welcome',
+    'public',
+    'polite',
+    'How to Apply for Red Fiber Internet Online',
+    'Welcome to PIGEM Combined Facilities Support Services. Applying for home fiber internet takes only a few minutes:',
+    '["Choose the monthly Red Fiber plan that fits your household.", "Prepare an active Gmail address, your mobile number, and one valid government ID.", "Pin your house location on the map so our local team can check fiber availability.", "Submit your form to receive your official Reference Number right away."]'::jsonb,
+    'Have an existing application? Click Customer Login anytime to check your status.',
+    'Got It',
+    false,
+    true
+  ),
+  (
+    'apply_before_start',
+    'apply',
+    'polite',
+    'Welcome! Quick Instructions Before You Apply',
+    'Thank you for applying with PIGEM Combined Facilities Support Services. To make your registration smooth and accurate, please keep these simple reminders in mind:',
+    '["Select Your Plan & Enter Legal Name: Type your name and birth date exactly as printed on your valid government ID.", "Verify Your Contact Details: Click Send OTP to receive a 6-digit code in your Gmail inbox and confirm your email and mobile number.", "Pin Your Installation Address: Drag the map pin to your exact house or building and include a nearby landmark.", "Upload Clear Front & Back ID Photos: Place your original ID flat in a bright area with all 4 corners visible and no flash glare."]'::jsonb,
+    'Once submitted, your official Reference Number appears immediately while our team reviews your application.',
+    'Start My Application',
+    true,
+    true
+  ),
+  (
+    'customer_portal_guide',
+    'customer',
+    'polite',
+    'Welcome to Your Customer Portal',
+    'Here you can comfortably monitor your internet service application from submission to installation:',
+    '["Processing: Your application is actively being reviewed and coordinated by our team.", "Needs Correction (Inside Processing): If a detail or ID photo needs a quick update, a clear update form will appear right inside your application card.", "Approved or Rejected: Once finalized, you will receive an email notice and see your final status here."]'::jsonb,
+    'You can reopen this guide anytime using the Guide button in the top navigation bar.',
+    'Continue to My Applications',
+    true,
+    true
+  ),
+  (
+    'agent_workspace_guide',
+    'agent',
+    'professional',
+    'Agent Workspace Quick Guide',
+    'Welcome to Application Handling Management. Follow this clean 4-step workflow for every customer application:',
+    '["Claim from Queue: Open Application Queue to claim incoming customer applications.", "Check Screening & ID Copies: Inspect the Cropped & Enhanced Copy alongside the Original Uploaded Photo. If Auto-Screening is unavailable, proceed directly using the Original Uploaded Photo.", "Forward for Encoding: Once verified, set status to Encoding when forwarding the application to the Provider Validator.", "Record Validator Decision: Update status to Approved or Rejected based on the Validator result, or use the optional Request Correction panel only if customer updates are needed."]'::jsonb,
+    'Customers only ever see three main statuses: Processing, Approved, and Rejected.',
+    'Open Workspace',
+    true,
+    true
+  ),
+  (
+    'manager_dashboard_guide',
+    'manager',
+    'professional',
+    'Manager Monitoring & CMS Guide',
+    'Welcome to Application Monitoring Management. Your dashboard organizes daily operations and public content cleanly:',
+    '["Queue & Override Monitoring: Track all customer applications, reassign agents, or update application statuses when needed.", "Verification Team Management: Monitor active agent workloads, view referral links, and onboard new agents.", "Website Content Management System (CMS): Update hero banners, logos, plans, company profile, and FAQs safely without interrupting the live public website.", "Promotional Campaigns: Send branded announcements and fiber offers to active customers."]'::jsonb,
+    'Note: Opening the CMS editor keeps the public website live unless Maintenance Mode is explicitly enabled.',
+    'Continue to Dashboard',
+    true,
+    true
+  ),
+  (
+    'admin_technical_guide',
+    'admin',
+    'technical',
+    'Technical Management System - Architecture & Controls',
+    'Administrator diagnostic reference for local FastAPI workers, AI screening engines, cloud storage buckets, and SMTP transport:',
+    '["FastAPI + Uvicorn (127.0.0.1:8001): Serves REST endpoints (/health, /screen-async, /screen, /notify, /polite-remark) and dispatches ThreadPoolExecutor(max_workers=4) background jobs.", "2-Layer Document Pipeline: Layer 1 runs FastQualityScanner + raw PaddleOCR for immediate queue ETA/warnings; Layer 2 runs 4-corner perspective homography + LAB CLAHE cropping to documents/cropped/ and Ollama (qwen2.5:1.5b) text synthesis.", "Fail-Safe Manual Fallback: If AI Screening is disabled or FastAPI/OCR is offline, applications proceed uninterrupted using original Supabase documents bucket files and broadcast alerts notify all Agents and Managers.", "Protected System Switches: Maintenance Mode, AI Screening toggles, and Popup Guides (public.popup_guides) require explicit admin confirmation before state changes take effect."]'::jsonb,
+    'All administrative actions and login sessions are recorded in public.system_logs and public.login_history.',
+    'Proceed to Console',
+    true,
+    true
+  )
+ON CONFLICT (id) DO UPDATE SET
+  portal = EXCLUDED.portal,
+  audience_tone = EXCLUDED.audience_tone,
+  title = EXCLUDED.title,
+  intro = EXCLUDED.intro,
+  steps = EXCLUDED.steps,
+  footer_note = EXCLUDED.footer_note,
+  button_label = EXCLUDED.button_label,
+  auto_show = EXCLUDED.auto_show,
+  active = EXCLUDED.active,
+  updated_at = now();
 
 SELECT 'Database setup complete.' AS result;
