@@ -1,19 +1,6 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-CREATE OR REPLACE FUNCTION public.set_updated_at_timestamp()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$;
-
 CREATE TABLE public.users (
   id TEXT PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL
-    CHECK (username ~ '^[a-zA-Z0-9._]{3,30}$'),
+  username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'customer'
@@ -24,27 +11,18 @@ CREATE TABLE public.users (
   reset_code TEXT,
   avatar_url TEXT,
   intro TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT chk_users_email_by_role CHECK (
-    (role = 'customer' AND lower(email) LIKE '%@gmail.com')
-    OR (role IN ('admin', 'manager', 'agent') AND email LIKE '%@%' AND lower(email) NOT LIKE '%@gmail.com')
-  )
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX idx_users_username_lower
-  ON public.users (lower(username));
-
-CREATE UNIQUE INDEX idx_users_single_admin
-  ON public.users ((role))
-  WHERE role = 'admin';
-
+CREATE UNIQUE INDEX idx_users_username_lower ON public.users (lower(username));
+CREATE UNIQUE INDEX idx_users_single_admin ON public.users (role) WHERE role = 'admin';
 CREATE INDEX idx_users_role ON public.users (role);
 
 CREATE TABLE public.plans (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  speed INTEGER NOT NULL CHECK (speed > 0),
-  price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
+  speed INTEGER NOT NULL,
+  price NUMERIC(10, 2) NOT NULL,
   tag TEXT DEFAULT 'Fiber for your home',
   featured BOOLEAN NOT NULL DEFAULT false,
   active BOOLEAN NOT NULL DEFAULT true
@@ -58,19 +36,11 @@ CREATE TABLE public.system_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_system_settings_updated_at
-  BEFORE UPDATE ON public.system_settings
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
-
 CREATE TABLE public.website_content (
   id TEXT PRIMARY KEY,
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE TRIGGER trg_website_content_updated_at
-  BEFORE UPDATE ON public.website_content
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 CREATE TABLE public.agent_links (
   id BIGSERIAL PRIMARY KEY,
@@ -83,8 +53,6 @@ CREATE TABLE public.agent_links (
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_agent_links_agent_email ON public.agent_links (agent_email);
 
 CREATE TABLE public.applications (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -104,7 +72,7 @@ CREATE TABLE public.applications (
   birth_date TEXT,
   phone TEXT NOT NULL,
   phone_alt TEXT,
-  email TEXT NOT NULL CHECK (lower(email) LIKE '%@gmail.com'),
+  email TEXT NOT NULL,
   house_no TEXT,
   house_suffix TEXT,
   unit_no TEXT,
@@ -137,17 +105,7 @@ CREATE TABLE public.applications (
   screening JSONB NOT NULL DEFAULT '{}'::jsonb,
   ai_result JSONB,
   ai_log JSONB NOT NULL DEFAULT '[]'::jsonb,
-  status TEXT NOT NULL DEFAULT 'Pending Review'
-    CHECK (status IN (
-      'Pending Review',
-      'Under Agent Review',
-      'Encoding',
-      'Approved',
-      'Rejected',
-      'Needs Correction',
-      'Processing',
-      'Submitted to Provider'
-    )),
+  status TEXT NOT NULL DEFAULT 'Pending Review',
   correction_note TEXT,
   agent_remarks TEXT,
   provider_ref TEXT,
@@ -162,24 +120,16 @@ CREATE TABLE public.applications (
 
 CREATE INDEX idx_applications_email ON public.applications (email);
 CREATE INDEX idx_applications_status ON public.applications (status);
-CREATE INDEX idx_applications_assigned_agent ON public.applications (assigned_agent);
 CREATE INDEX idx_applications_created_at ON public.applications (created_at DESC);
-
-CREATE TRIGGER trg_applications_updated_at
-  BEFORE UPDATE ON public.applications
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 CREATE TABLE public.documents (
   id BIGSERIAL PRIMARY KEY,
   application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
   doc_type TEXT NOT NULL,
   file_path TEXT NOT NULL,
-  version TEXT NOT NULL DEFAULT 'original'
-    CHECK (version IN ('original', 'cropped', 'corrected')),
+  version TEXT NOT NULL DEFAULT 'original',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_documents_application_id ON public.documents (application_id);
 
 CREATE TABLE public.screenings (
   id BIGSERIAL PRIMARY KEY,
@@ -192,8 +142,6 @@ CREATE TABLE public.screenings (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_screenings_application_id ON public.screenings (application_id);
-
 CREATE TABLE public.corrections (
   id BIGSERIAL PRIMARY KEY,
   application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
@@ -203,8 +151,6 @@ CREATE TABLE public.corrections (
   status TEXT NOT NULL DEFAULT 'Pending Customer',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_corrections_application_id ON public.corrections (application_id);
 
 CREATE TABLE public.provider_updates (
   id BIGSERIAL PRIMARY KEY,
@@ -217,22 +163,16 @@ CREATE TABLE public.provider_updates (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_provider_updates_application_id ON public.provider_updates (application_id);
-
 CREATE TABLE public.notifications (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT,
   email TEXT,
-  role TEXT CHECK (role IS NULL OR role IN ('admin', 'manager', 'agent', 'customer')),
+  role TEXT,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_notifications_email ON public.notifications (email);
-CREATE INDEX idx_notifications_role ON public.notifications (role);
-CREATE INDEX idx_notifications_created_at ON public.notifications (created_at DESC);
 
 CREATE TABLE public.login_history (
   id BIGSERIAL PRIMARY KEY,
@@ -244,8 +184,6 @@ CREATE TABLE public.login_history (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_login_history_created_at ON public.login_history (created_at DESC);
-
 CREATE TABLE public.system_logs (
   id BIGSERIAL PRIMARY KEY,
   actor_username TEXT,
@@ -255,14 +193,10 @@ CREATE TABLE public.system_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_system_logs_created_at ON public.system_logs (created_at DESC);
-
 CREATE TABLE public.popup_guides (
   id TEXT PRIMARY KEY,
-  portal TEXT NOT NULL
-    CHECK (portal IN ('public', 'apply', 'customer', 'agent', 'manager', 'admin')),
-  audience_tone TEXT NOT NULL DEFAULT 'polite'
-    CHECK (audience_tone IN ('polite', 'polite_simple', 'professional', 'technical')),
+  portal TEXT NOT NULL,
+  audience_tone TEXT NOT NULL DEFAULT 'polite',
   title TEXT NOT NULL,
   intro TEXT NOT NULL,
   steps JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -273,9 +207,8 @@ CREATE TABLE public.popup_guides (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_popup_guides_updated_at
-  BEFORE UPDATE ON public.popup_guides
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
@@ -307,8 +240,7 @@ CREATE POLICY "Allow all on login_history" ON public.login_history FOR ALL USING
 CREATE POLICY "Allow all on system_logs" ON public.system_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on popup_guides" ON public.popup_guides FOR ALL USING (true) WITH CHECK (true);
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES
+INSERT INTO storage.buckets (id, name, public) VALUES
   ('website-assets', 'website-assets', true),
   ('documents', 'documents', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
@@ -341,8 +273,7 @@ ON CONFLICT (id) DO UPDATE SET
   ai_enabled = EXCLUDED.ai_enabled,
   maintenance_mode = EXCLUDED.maintenance_mode;
 
-INSERT INTO public.website_content (id, data)
-VALUES (
+INSERT INTO public.website_content (id, data) VALUES (
   'main',
   '{"logo_image": "logo.png", "area_text": "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.", "client_images": ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"], "announcement": {"active": false, "headline": "", "body": ""}}'::jsonb
 )
@@ -433,4 +364,5 @@ ON CONFLICT (id) DO UPDATE SET
   active = EXCLUDED.active,
   updated_at = now();
 
+NOTIFY pgrst, 'reload schema';
 SELECT 'Database setup complete.' AS result;
