@@ -1,3 +1,15 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION public.set_updated_at_timestamp()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
 CREATE TABLE public.users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -10,15 +22,25 @@ CREATE TABLE public.users (
   reset_code TEXT,
   avatar_url TEXT,
   intro TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT chk_users_email_by_role CHECK (
+    (role = 'customer' AND lower(email) LIKE '%@gmail.com')
+    OR (role IN ('admin', 'manager', 'agent') AND email LIKE '%@%' AND lower(email) NOT LIKE '%@gmail.com')
+  )
 );
+
+CREATE UNIQUE INDEX idx_users_single_admin
+  ON public.users ((role))
+  WHERE role = 'admin';
+
+CREATE INDEX idx_users_role ON public.users (role);
 
 CREATE TABLE public.plans (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   speed INTEGER NOT NULL CHECK (speed > 0),
   price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
-  tag TEXT,
+  tag TEXT DEFAULT 'Fiber for your home',
   featured BOOLEAN NOT NULL DEFAULT false,
   active BOOLEAN NOT NULL DEFAULT true
 );
@@ -31,11 +53,19 @@ CREATE TABLE public.system_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TRIGGER trg_system_settings_updated_at
+  BEFORE UPDATE ON public.system_settings
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
+
 CREATE TABLE public.website_content (
   id TEXT PRIMARY KEY,
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TRIGGER trg_website_content_updated_at
+  BEFORE UPDATE ON public.website_content
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 CREATE TABLE public.agent_links (
   id BIGSERIAL PRIMARY KEY,
@@ -44,10 +74,12 @@ CREATE TABLE public.agent_links (
   agent_id TEXT,
   agent_email TEXT,
   agent_name TEXT,
-  note TEXT,
+  note TEXT DEFAULT '',
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_agent_links_agent_email ON public.agent_links (agent_email);
 
 CREATE TABLE public.applications (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -67,7 +99,7 @@ CREATE TABLE public.applications (
   birth_date TEXT,
   phone TEXT NOT NULL,
   phone_alt TEXT,
-  email TEXT NOT NULL,
+  email TEXT NOT NULL CHECK (lower(email) LIKE '%@gmail.com'),
   house_no TEXT,
   house_suffix TEXT,
   unit_no TEXT,
@@ -92,14 +124,14 @@ CREATE TABLE public.applications (
   id_image_url TEXT,
   cropped_id_path TEXT,
   remarks TEXT,
-  agree_tu BOOLEAN DEFAULT false,
+  agree_tu BOOLEAN NOT NULL DEFAULT false,
   original_copy JSONB,
   original_submission JSONB,
   corrected_copy JSONB,
-  has_correction BOOLEAN DEFAULT false,
-  screening JSONB DEFAULT '{}'::jsonb,
+  has_correction BOOLEAN NOT NULL DEFAULT false,
+  screening JSONB NOT NULL DEFAULT '{}'::jsonb,
   ai_result JSONB,
-  ai_log JSONB DEFAULT '[]'::jsonb,
+  ai_log JSONB NOT NULL DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'Pending Review'
     CHECK (status IN (
       'Pending Review',
@@ -116,7 +148,7 @@ CREATE TABLE public.applications (
   provider_ref TEXT,
   provider_remarks TEXT,
   customer_instruction TEXT,
-  encoded BOOLEAN DEFAULT false,
+  encoded BOOLEAN NOT NULL DEFAULT false,
   encoded_proof TEXT,
   encoding_proof_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -128,18 +160,25 @@ CREATE INDEX idx_applications_status ON public.applications (status);
 CREATE INDEX idx_applications_assigned_agent ON public.applications (assigned_agent);
 CREATE INDEX idx_applications_created_at ON public.applications (created_at DESC);
 
+CREATE TRIGGER trg_applications_updated_at
+  BEFORE UPDATE ON public.applications
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
+
 CREATE TABLE public.documents (
   id BIGSERIAL PRIMARY KEY,
-  application_id TEXT REFERENCES public.applications(id) ON DELETE CASCADE,
+  application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
   doc_type TEXT NOT NULL,
   file_path TEXT NOT NULL,
-  version TEXT NOT NULL DEFAULT 'original',
+  version TEXT NOT NULL DEFAULT 'original'
+    CHECK (version IN ('original', 'cropped', 'corrected')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_documents_application_id ON public.documents (application_id);
+
 CREATE TABLE public.screenings (
   id BIGSERIAL PRIMARY KEY,
-  application_id TEXT REFERENCES public.applications(id) ON DELETE CASCADE,
+  application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
   quality JSONB,
   ocr JSONB,
   comparisons JSONB,
@@ -148,9 +187,11 @@ CREATE TABLE public.screenings (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_screenings_application_id ON public.screenings (application_id);
+
 CREATE TABLE public.corrections (
   id BIGSERIAL PRIMARY KEY,
-  application_id TEXT REFERENCES public.applications(id) ON DELETE CASCADE,
+  application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
   agent_id TEXT,
   issue_note TEXT NOT NULL,
   customer_response JSONB,
@@ -158,11 +199,13 @@ CREATE TABLE public.corrections (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_corrections_application_id ON public.corrections (application_id);
+
 CREATE TABLE public.notifications (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT,
   email TEXT,
-  role TEXT,
+  role TEXT CHECK (role IS NULL OR role IN ('admin', 'manager', 'agent', 'customer')),
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT false,
@@ -171,6 +214,7 @@ CREATE TABLE public.notifications (
 
 CREATE INDEX idx_notifications_email ON public.notifications (email);
 CREATE INDEX idx_notifications_role ON public.notifications (role);
+CREATE INDEX idx_notifications_created_at ON public.notifications (created_at DESC);
 
 CREATE TABLE public.login_history (
   id BIGSERIAL PRIMARY KEY,
@@ -181,6 +225,8 @@ CREATE TABLE public.login_history (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_login_history_created_at ON public.login_history (created_at DESC);
+
 CREATE TABLE public.system_logs (
   id BIGSERIAL PRIMARY KEY,
   actor_email TEXT,
@@ -189,12 +235,14 @@ CREATE TABLE public.system_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_system_logs_created_at ON public.system_logs (created_at DESC);
+
 CREATE TABLE public.popup_guides (
   id TEXT PRIMARY KEY,
   portal TEXT NOT NULL
     CHECK (portal IN ('public', 'apply', 'customer', 'agent', 'manager', 'admin')),
   audience_tone TEXT NOT NULL DEFAULT 'polite'
-    CHECK (audience_tone IN ('polite', 'professional', 'technical')),
+    CHECK (audience_tone IN ('polite', 'polite_simple', 'professional', 'technical')),
   title TEXT NOT NULL,
   intro TEXT NOT NULL,
   steps JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -204,6 +252,10 @@ CREATE TABLE public.popup_guides (
   active BOOLEAN NOT NULL DEFAULT true,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TRIGGER trg_popup_guides_updated_at
+  BEFORE UPDATE ON public.popup_guides
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
@@ -240,14 +292,14 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 CREATE POLICY "Allow public access to website-assets"
-ON storage.objects FOR ALL
-USING (bucket_id = 'website-assets')
-WITH CHECK (bucket_id = 'website-assets');
+  ON storage.objects FOR ALL
+  USING (bucket_id = 'website-assets')
+  WITH CHECK (bucket_id = 'website-assets');
 
 CREATE POLICY "Allow access to documents"
-ON storage.objects FOR ALL
-USING (bucket_id = 'documents')
-WITH CHECK (bucket_id = 'documents');
+  ON storage.objects FOR ALL
+  USING (bucket_id = 'documents')
+  WITH CHECK (bucket_id = 'documents');
 
 INSERT INTO public.plans (id, name, speed, price, tag, featured, active) VALUES
   ('1000', 'Plan 1000', 100, 1000.00, 'Fiber for your home', false, true),
@@ -270,7 +322,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.website_content (id, data)
 VALUES (
   'main',
-  '{"logo_image": "logo.png", "area_text": "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.", "client_images": ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"]}'::jsonb
+  '{"logo_image": "logo.png", "area_text": "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.", "client_images": ["Clients/client-infus8.png", "Clients/client-radius.png", "Clients/client-maxcyc.png"], "announcement": {"active": false, "headline": "", "body": ""}}'::jsonb
 )
 ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
 
@@ -293,7 +345,7 @@ INSERT INTO public.popup_guides (id, portal, audience_tone, title, intro, steps,
     'polite',
     'Welcome! Quick Instructions Before You Apply',
     'Thank you for applying with PIGEM Combined Facilities Support Services. To make your registration smooth and accurate, please keep these simple reminders in mind:',
-    '["Select Your Plan & Enter Legal Name: Type your name and birth date exactly as printed on your valid government ID.", "Verify Your Contact Details: Click Send OTP to receive a 6-digit code in your Gmail inbox and confirm your email and mobile number.", "Pin Your Installation Address: Drag the map pin to your exact house or building and include a nearby landmark.", "Upload Clear Front & Back ID Photos: Place your original ID flat in a bright area with all 4 corners visible and no flash glare."]'::jsonb,
+    '["Select Your Plan & Enter Legal Name: Type your name and birth date exactly as printed on your valid government ID.", "Verify Your Contact Details: Click Send OTP to receive a 6-digit code in your Gmail inbox and confirm your Gmail address and mobile number.", "Pin Your Installation Address: Drag the map pin to your exact house or building and include a nearby landmark.", "Upload Clear Front & Back ID Photos: Place your original ID flat in a bright area with all 4 corners visible and no flash glare."]'::jsonb,
     'Once submitted, your official Reference Number appears immediately while our team reviews your application.',
     'Start My Application',
     true,
@@ -305,7 +357,7 @@ INSERT INTO public.popup_guides (id, portal, audience_tone, title, intro, steps,
     'polite',
     'Welcome to Your Customer Portal',
     'Here you can comfortably monitor your internet service application from submission to installation:',
-    '["Processing: Your application is actively being reviewed and coordinated by our team.", "Needs Correction (Inside Processing): If a detail or ID photo needs a quick update, a clear update form will appear right inside your application card.", "Approved or Rejected: Once finalized, you will receive an email notice and see your final status here."]'::jsonb,
+    '["Processing: Your application is actively being reviewed and coordinated by our team.", "Needs Correction (Inside Processing): If a detail or ID photo needs a quick update, a clear update form will appear right inside your application card.", "Approved or Rejected: Once finalized, you will receive a Gmail notice and see your final status here."]'::jsonb,
     'You can reopen this guide anytime using the Guide button in the top navigation bar.',
     'Continue to My Applications',
     true,

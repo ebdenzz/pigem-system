@@ -118,6 +118,8 @@ DROP TABLE IF EXISTS public.system_settings CASCADE;
 DROP TABLE IF EXISTS public.plans CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
+DROP FUNCTION IF EXISTS public.set_updated_at_timestamp() CASCADE;
+
 DROP POLICY IF EXISTS "Allow public access to website-assets" ON storage.objects;
 DROP POLICY IF EXISTS "Allow access to documents" ON storage.objects;
 ```
