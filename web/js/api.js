@@ -2,7 +2,29 @@ function _getPortalBaseUrl() {
   if (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0) {
     return window.location.origin;
   }
-  return "http://127.0.0.1:8001";
+  return (typeof CONFIG !== "undefined" && CONFIG.PUBLIC_URL) ? CONFIG.PUBLIC_URL : "https://pigem-system-web.vercel.app";
+}
+
+function _apiEndpoint(path) {
+  var base = (typeof CONFIG !== "undefined" && CONFIG.API_URL) ? CONFIG.API_URL : "/api";
+  return base.replace(/\/$/, "") + path;
+}
+
+async function apiVerifyCaptcha(token) {
+  var clean = String(token || "").trim();
+  if (!clean) return { verified: false };
+  try {
+    var res = await fetch(_apiEndpoint("/verify-captcha"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: clean })
+    });
+    if (!res.ok) return { verified: false };
+    var data = await res.json();
+    return { verified: data.verified === true };
+  } catch (err) {
+    return { verified: true, fallback: true };
+  }
 }
 
 function apiStartBackgroundScreening(applicationId) {
@@ -10,7 +32,7 @@ function apiStartBackgroundScreening(applicationId) {
 
   return (async function () {
     var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var timer = controller ? setTimeout(function () { controller.abort(); }, 3500) : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 55000) : null;
     try {
       var headers = { "Content-Type": "application/json" };
       if (typeof dbGetToken === "function") {
@@ -20,10 +42,11 @@ function apiStartBackgroundScreening(applicationId) {
       var fetchOpts = {
         method: "POST",
         headers: headers,
+        keepalive: true,
         body: JSON.stringify({ application_id: String(applicationId) })
       };
       if (controller) fetchOpts.signal = controller.signal;
-      var res = await fetch(CONFIG.API_URL + "/screen-async", fetchOpts);
+      var res = await fetch(_apiEndpoint("/screen-async"), fetchOpts);
       if (timer) clearTimeout(timer);
       if (!res.ok) return { queued: false, offline: true };
       return await res.json();
@@ -42,7 +65,7 @@ async function apiRunScreening(idFrontFile, customerDetails) {
     blur_score: "N/A",
     name_match: false,
     id_number_match: false,
-    issues: ["Automated screening service is currently offline. Manual verification is active."]
+    issues: ["Automated screening service is currently unavailable. Manual verification is active."]
   };
 
   if (!idFrontFile) return offlineResult;
@@ -60,7 +83,7 @@ async function apiRunScreening(idFrontFile, customerDetails) {
       headers["Authorization"] = "Bearer " + token;
     }
 
-    var response = await fetch(CONFIG.API_URL + "/screen", {
+    var response = await fetch(_apiEndpoint("/screen"), {
       method: "POST",
       headers: headers,
       body: formData
@@ -97,7 +120,7 @@ async function apiSendEmail(toEmail, subjectText, messageText, options) {
       headers["Authorization"] = "Bearer " + token;
     }
 
-    var res = await fetch(CONFIG.API_URL + "/notify", {
+    var res = await fetch(_apiEndpoint("/notify"), {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
@@ -212,39 +235,8 @@ async function apiSendStatusEmail(toEmail, customerName, refNo, status, remarks,
   });
 }
 
-async function apiSendAgentAlertEmail(agentEmail, eventType, refNo, customerName, planName, barangay, details) {
-  var subj = "[PIGEM Agent Desk] " + (eventType || "Application Alert") + " - Ref " + refNo;
-  return await apiSendEmail(agentEmail, subj, details || "", {
-    template_type: "agent_alert",
-    payload: {
-      agent_name: "Agent",
-      event_type: eventType,
-      ref_no: refNo,
-      customer_name: customerName,
-      plan_name: planName,
-      barangay: barangay,
-      details: details,
-      portal_link: _getPortalBaseUrl() + "/agent.html"
-    }
-  });
-}
-
-async function apiSendManagerAlertEmail(managerEmail, title, summary, metrics) {
-  var subj = "[PIGEM Management] " + title;
-  return await apiSendEmail(managerEmail, subj, summary || "", {
-    template_type: "manager_alert",
-    payload: {
-      manager_name: "Manager",
-      alert_title: title,
-      summary_text: summary,
-      metrics: metrics || null,
-      portal_link: _getPortalBaseUrl() + "/manager.html"
-    }
-  });
-}
-
 async function apiSendPromotionalEmail(toEmail, customerName, headline, bodyText, promoPlans) {
-  var subj = "Special Announcement: " + headline + " - PIGEM Red Fiber";
+  var subj = headline + " - PIGEM Red Fiber";
   return await apiSendEmail(toEmail, subj, bodyText, {
     template_type: "promotional",
     payload: {
@@ -258,10 +250,10 @@ async function apiSendPromotionalEmail(toEmail, customerName, headline, bodyText
 
 async function apiCheckHealth() {
   var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  var timer = controller ? setTimeout(function () { controller.abort(); }, 3000) : null;
+  var timer = controller ? setTimeout(function () { controller.abort(); }, 8000) : null;
   try {
     var opts = controller ? { signal: controller.signal } : {};
-    var response = await fetch(CONFIG.API_URL + "/health", opts);
+    var response = await fetch(_apiEndpoint("/health"), opts);
     if (timer) clearTimeout(timer);
     if (!response.ok) return null;
     return await response.json();
@@ -281,14 +273,14 @@ async function apiGeneratePoliteRemark(rawRemark, chosenField) {
     if (token) headers["Authorization"] = "Bearer " + token;
   } catch (e) {}
 
-  var res = await fetch(CONFIG.API_URL + "/polite-remark", {
+  var res = await fetch(_apiEndpoint("/polite-remark"), {
     method: "POST",
     headers: headers,
     body: JSON.stringify({ raw_remark: text, chosen_field: field })
   });
 
   if (!res.ok) {
-    throw new Error("Message helper service is currently offline. Please select a preset or type the customer message manually.");
+    throw new Error("Message helper service is currently unavailable. Please select a preset or type the customer message manually.");
   }
 
   var data = await res.json();

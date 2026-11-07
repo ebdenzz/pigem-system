@@ -1,6 +1,14 @@
-import cv2
+try:
 
-import numpy as np
+    import cv2
+
+    import numpy as np
+
+except ImportError:
+
+    cv2 = None
+
+    np = None
 
 class BaseImageProcessor:
 
@@ -18,7 +26,7 @@ class BaseImageProcessor:
 
     def _decode_bytes(self, image_bytes: bytes):
 
-        if not image_bytes:
+        if not image_bytes or cv2 is None or np is None:
 
             return None
 
@@ -26,7 +34,7 @@ class BaseImageProcessor:
 
         return cv2.imdecode(buffer, cv2.IMREAD_COLOR)
 
-    def _order_points(self, pts: np.ndarray) -> np.ndarray:
+    def _order_points(self, pts) -> "np.ndarray":
 
         rect = np.zeros((4, 2), dtype="float32")
 
@@ -44,7 +52,7 @@ class BaseImageProcessor:
 
         return rect
 
-    def _four_point_transform(self, image: np.ndarray, pts: np.ndarray) -> np.ndarray:
+    def _four_point_transform(self, image, pts):
 
         rect = self._order_points(pts)
 
@@ -87,6 +95,10 @@ class BaseImageProcessor:
 class FastQualityScanner(BaseImageProcessor):
 
     def process(self, image_bytes: bytes) -> dict:
+
+        if cv2 is None:
+
+            return {"available": False, "readable": False, "severe": False, "needs_enhancement": False, "issues": []}
 
         image = self._decode_bytes(image_bytes)
 
@@ -186,7 +198,7 @@ class FastQualityScanner(BaseImageProcessor):
 
 class DocumentCropEnhancer(BaseImageProcessor):
 
-    def _find_card_quad(self, gray: np.ndarray):
+    def _find_card_quad(self, gray):
 
         h, w = gray.shape
 
@@ -222,7 +234,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         return None
 
-    def _crop_bounding_card(self, image: np.ndarray, gray: np.ndarray):
+    def _crop_bounding_card(self, image, gray):
 
         h, w = gray.shape
 
@@ -264,7 +276,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         return None
 
-    def _polish_color_image(self, bgr_img: np.ndarray) -> np.ndarray:
+    def _polish_color_image(self, bgr_img):
 
         lab = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2LAB)
 
@@ -283,6 +295,10 @@ class DocumentCropEnhancer(BaseImageProcessor):
         return cv2.addWeighted(enhanced_bgr, 1.25, gaussian, -0.25, 0)
 
     def process(self, image_bytes: bytes):
+
+        if cv2 is None:
+
+            return {"available": False, "readable": False, "readability_label": "Unavailable", "cropped_applied": False, "issues": []}, None
 
         image = self._decode_bytes(image_bytes)
 
@@ -303,8 +319,6 @@ class DocumentCropEnhancer(BaseImageProcessor):
                     "issues": ["The image file could not be read. Please upload a JPG or PNG photo."],
 
                 },
-
-                None,
 
                 None,
 
@@ -396,15 +410,21 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             issues.append("The ID appears rotated vertically instead of horizontal.")
 
-        coverage = 1.0 if cropped_applied else 0.85
-
         cropped_jpeg_bytes = None
 
         try:
 
             polished_color = self._polish_color_image(image)
 
-            ok, buf = cv2.imencode(".jpg", polished_color, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+            ph, pw = polished_color.shape[:2]
+
+            if pw > 1400:
+
+                scale = 1400.0 / float(pw)
+
+                polished_color = cv2.resize(polished_color, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+
+            ok, buf = cv2.imencode(".jpg", polished_color, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
 
             if ok:
 
@@ -414,27 +434,11 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             cropped_jpeg_bytes = None
 
-        clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
-
-        working = clahe.apply(gray)
-
-        if cur_w < 1200:
-
-            scale = 1200.0 / float(cur_w)
-
-            working = cv2.resize(working, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-
         readability_label = "Clear"
 
         if len(issues) > 0:
 
-            if blur_score < self._blur_limit:
-
-                readability_label = "Blurry / Unclear"
-
-            else:
-
-                readability_label = "Needs Lighting Check"
+            readability_label = "Blurry / Unclear" if blur_score < self._blur_limit else "Needs Lighting Check"
 
         quality_result = {
 
@@ -460,7 +464,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             "orientation": orientation,
 
-            "coverage": round(coverage, 2),
+            "coverage": 1.0 if cropped_applied else 0.85,
 
             "deskew_applied": deskew_applied,
 
@@ -472,7 +476,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         }
 
-        return quality_result, working, cropped_jpeg_bytes
+        return quality_result, cropped_jpeg_bytes
 
 _fast_scanner = FastQualityScanner()
 
@@ -489,9 +493,3 @@ def quick_check(image_bytes: bytes) -> dict:
 def enhance_and_crop(image_bytes: bytes):
 
     return _crop_enhancer.process(image_bytes)
-
-def check(image_bytes: bytes):
-
-    quality_result, working, _ = _crop_enhancer.process(image_bytes)
-
-    return quality_result, working

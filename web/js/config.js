@@ -5,15 +5,14 @@ var CONFIG = {
   SUPABASE_URL: "https://wuunqfxyejxwrawtjdrf.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1dW5xZnh5ZWp4d3Jhd3RqZHJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTE3MTEsImV4cCI6MjEwNzcyNzcxMX0.4Wt-6pJpLS4OUf_93bFn1513omGESvMn_E0ulnONf2g",
 
-  API_URL: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("8001") !== -1) ? window.location.origin : "http://127.0.0.1:8001",
+  PUBLIC_URL: "https://pigem-system-web.vercel.app",
+  API_URL: "/api",
 
   ASSET_SOURCE: "supabase",
 
-  RECAPTCHA_PRODUCTION_KEY: "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
-  RECAPTCHA_LOCALHOST_KEY: "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
-  RECAPTCHA_SITE_KEY: (typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
-    ? "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-    : "6LfiZPstAAAAAJwk65KLUzF22AfUKdgMz1NrSBHV",
+  LOCATIONIQ_API_KEY: "pk.3597a6e1a756561513401f40ea9ee840",
+
+  RECAPTCHA_SITE_KEY: "6LfLGBQuAAAAAP3l2jkVbG41srUfH3mv2io15vXD",
 
   PLANS: [
     { id: "1000", name: "Plan 1000", speed: 100, price: 1000, tag: "Fiber for your home", featured: false },
@@ -79,6 +78,11 @@ var DEFAULT_CONTENT = {
     { tag: "PURE FIBER PLANS", image: "hero-fleet.png", title: "Fast, unlimited fiber connection", text: "Plans starting at ₱1,000/month with speeds up to 500 Mbps." }
   ],
   area_text: "Available in select Metro Manila, Bulacan, Cavite, Laguna, Rizal, and Cebu areas.",
+  announcement: {
+    active: false,
+    headline: "",
+    body: ""
+  },
   about_slides: [
     { tag: "ABOUT PIGEM", image: "Banners/about-banner-1.png", title: "About PIGEM", text: "Electrical and telecommunications services in Dasmariñas City, Cavite." },
     { tag: "FIELD OPERATIONS", image: "hero-fleet.png", title: "Our field team", text: "Around 40 trained installers and technicians." },
@@ -570,6 +574,7 @@ window.addEventListener("DOMContentLoaded", async function () {
 class BaseFieldValidator {
   constructor() {
     this._emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    this._gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
     this._mobileRegex = /^09\d{9}$/;
     this._stripSeparatorsRegex = /[\s\-]+/g;
   }
@@ -588,6 +593,21 @@ class ApplicantFormValidator extends BaseFieldValidator {
     var clean = String(email || "").trim();
     if (!clean) return false;
     return this._emailRegex.test(clean);
+  }
+
+  isCustomerGmail(email) {
+    var clean = String(email || "").trim();
+    if (!clean) return false;
+    return this._gmailRegex.test(clean);
+  }
+
+  isStaffBusinessEmail(email) {
+    var clean = String(email || "").trim().toLowerCase();
+    if (!clean || !this._emailRegex.test(clean)) return false;
+    if (this._gmailRegex.test(clean) || /@(googlemail|yahoo|outlook|hotmail)\.com$/i.test(clean)) {
+      return false;
+    }
+    return true;
   }
 
   isValidMobile(phone) {
@@ -616,7 +636,7 @@ class ApplicantFormValidator extends BaseFieldValidator {
 
   validate(formFields) {
     if (!formFields) return { valid: false, field: "form" };
-    if (!this.isValidEmail(formFields.email)) {
+    if (!this.isCustomerGmail(formFields.email)) {
       return { valid: false, field: "email" };
     }
     if (!this.isValidMobile(formFields.phone)) {
@@ -632,6 +652,14 @@ class ApplicantFormValidator extends BaseFieldValidator {
 
 var FORM_VALIDATOR = new ApplicantFormValidator();
 
+function isCustomerGmail(email) {
+  return FORM_VALIDATOR.isCustomerGmail(email);
+}
+
+function isStaffBusinessEmail(email) {
+  return FORM_VALIDATOR.isStaffBusinessEmail(email);
+}
+
 var DEFAULT_POPUP_GUIDES = [
   {
     id: "home_welcome",
@@ -642,8 +670,8 @@ var DEFAULT_POPUP_GUIDES = [
     steps: [
       "Browse our pure fiber plans below to compare monthly rates and speeds.",
       "Click Apply Now on your preferred plan when you are ready to register.",
-      "Prepare one clear photo of a valid government or company ID and an active email address.",
-      "Already applied? Click Customer Login at the top right to check your application status anytime."
+      "Prepare one clear photo of a valid government or company ID and an active @gmail.com email address.",
+      "Already applied? Click Customer Login at the top right to sign in with your Gmail account and check your status."
     ],
     footer_note: "Need assistance? Call our local desk at (046) 458-0908 or Hotline 101-733 (RED).",
     button_label: "Got It",
@@ -658,7 +686,7 @@ var DEFAULT_POPUP_GUIDES = [
     intro: "Welcome! To make your Red Fiber registration smooth and hassle-free, please take note of these simple reminders:",
     steps: [
       "Step 1 - Choose Your Plan & Location: Select your fiber plan and pin your exact installation address on the map.",
-      "Step 2 - Verify Your Email & Details: Enter your complete name and active email address to receive your 6-digit verification code.",
+      "Step 2 - Verify Your Gmail & Mobile Number: Enter your complete name and active @gmail.com address to receive your 6-digit verification code.",
       "Step 3 - Upload Clear Valid ID Photos: Make sure your ID name, birth date, and ID number are clear and readable with good lighting.",
       "Step 4 - Quick Submission: Once submitted, you will immediately receive your Reference Number while our team reviews your application."
     ],
@@ -691,12 +719,12 @@ var DEFAULT_POPUP_GUIDES = [
     title: "Agent Workspace Quick Guide",
     intro: "Welcome! Everything in your workspace is organized into clear sections so you can review applications smoothly:",
     steps: [
-      "1. Screening Banner & Queue: New applications undergo automatic document checking in the background (~30-40s). If Auto-Screening is unavailable, you will receive a notice and can review the customer's original uploaded ID right away.",
+      "1. Screening Banner & Queue: New applications undergo cloud document checking in the background. Preliminary findings are shown for your review before any customer update is requested.",
       "2. Applicant Details & Valid ID Check: Open any application to compare the customer's form details side-by-side with their Cropped Copy or Original ID Photo.",
       "3. Update Application Status: Record your verification progress (Under Agent Review, Encoding) and save the final Validator decision (Approved or Rejected).",
-      "4. Optional Customer Update Request: If a name, birth date, ID number, address, or ID photo needs a correction, expand Section 4 to send a polite update notice."
+      "4. Confirm Customer Update Request: If a name, birth date, ID number, address, or ID photo needs a correction, review the pre-drafted message in Section 4 and send a polite update notice."
     ],
-    footer_note: "Tip: Always check if a Hold Recommended notice is shown while document checking is finishing.",
+    footer_note: "Tip: Screening results are preliminary—always inspect the ID photo before confirming a status change.",
     button_label: "Start Reviewing",
     auto_show: true,
     active: true
@@ -708,12 +736,12 @@ var DEFAULT_POPUP_GUIDES = [
     title: "Manager Dashboard & CMS Guide",
     intro: "Welcome to the Management Portal. Use the organized sidebar sections to oversee operations and website content safely:",
     steps: [
-      "Operations & Analytics: Monitor daily applications, conversion rates, barangay heatmaps, and agent assignments.",
+      "Operations & Analytics: Monitor daily applications, conversion rates, barangay activity, and agent workloads.",
       "Application Oversight: Inspect any customer record, reassign applications between agents, or apply a status override when needed.",
-      "Website Content (CMS): Update banners, plans, company story, strips, and FAQs. Opening CMS tabs will NOT turn off the public website automatically.",
-      "Auto-Screening Notice: If automatic document screening goes offline, both Managers and Agents are notified and applications continue using original ID copies."
+      "Website Content (CMS) & Announcements: Update banners, plans, company story, strips, FAQs, and publish customer announcements or offers.",
+      "In-System Status Notices: Internal notifications alert your dashboard whenever Auto-Screening or Maintenance Mode is updated by the Admin."
     ],
-    footer_note: "To put the public website in Maintenance Mode during major edits, use the explicit confirmation button inside CMS or coordinate with Admin.",
+    footer_note: "Internal business accounts (@pigem.com) for Agents and Manager are managed by the System Administrator.",
     button_label: "Open Dashboard",
     auto_show: true,
     active: true
@@ -722,13 +750,13 @@ var DEFAULT_POPUP_GUIDES = [
     id: "admin_technical_guide",
     portal: "admin",
     audience_tone: "technical",
-    title: "Technical Administration & Architecture Reference",
-    intro: "Technical overview of runtime services, background worker pipelines, security controls, and database governance:",
+    title: "Technical Administration & Cloud Architecture Reference",
+    intro: "Technical overview of cloud serverless endpoints, AI-assisted requirements screening, account governance, and in-system status notifications:",
     steps: [
-      "FastAPI + Uvicorn (127.0.0.1:8001): Serves static web portals and REST endpoints (/health, /screen-async, /screen, /notify, /polite-remark) using a 4-worker ThreadPoolExecutor.",
-      "2-Layer Screening Fail-Safe: Layer 1 runs OpenCV blur/glare/orientation metrics + initial PaddleOCR; Layer 2 runs 4-corner perspective warp + CLAHE + Supabase Storage upload. If ai_enabled=false or FastAPI is unreachable, records fall back cleanly to state='unavailable' using original uploaded ID paths and alert Agents/Managers.",
-      "Transactional SMTP Engine: Dispatches RFC-compliant HTML emails via smtp.gmail.com:587 (STARTTLS + App Password) with RA 10173 privacy-safe Needs Correction templates.",
-      "Maintenance, AI & Pop-up Controls: All state switches require explicit confirmation before mutating public.system_settings or public.popup_guides."
+      "Vercel Serverless FastAPI (/api): Hosts REST endpoints (/api/health, /api/verify-captcha, /api/screen-async, /api/screen, /api/notify, /api/polite-remark) alongside public and internal web portals.",
+      "Two-Stage OpenCV + Gemini Vision Pipeline: Stage 1 runs OpenCV blur, glare, brightness, and contrast diagnostics; Stage 2 generates a 4-corner perspective-cropped working copy in documents/cropped/ and executes Google Gemini Vision OCR + deterministic field comparison for human Agent review.",
+      "Identity & Notification Separation: Customers authenticate exclusively with @gmail.com accounts and receive Gmail SMTP notifications; the single provisioned Admin manages @pigem.com business credentials for Agents and the Manager, who receive in-system website notifications.",
+      "Maintenance, AI & Pop-up Controls: All state switches require explicit confirmation and broadcast in-system status notifications to Agents and the Manager."
     ],
     footer_note: "All administrative toggles and RBAC changes are recorded in public.system_logs.",
     button_label: "Acknowledge Technical Guide",

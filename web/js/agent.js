@@ -110,8 +110,7 @@ function cleanScreeningText(str) {
   return String(str || "")
     .replace(/\bAI Screening Engine\b/gi, "Application Screening")
     .replace(/\bAI Document Screening\b/gi, "Application Screening")
-    .replace(/\bOpenCV\s*&\s*PaddleOCR\b/gi, "Document check")
-    .replace(/\b(OpenCV|PaddleOCR|Ollama|Qwen\S*|AI)\b/gi, "Screening")
+    .replace(/\b(OpenCV|Gemini|FastAPI|Vercel|Qwen\S*|AI)\b/gi, "Screening")
     .replace(/\bScreening\s+Screening\b/gi, "Screening");
 }
 
@@ -257,8 +256,11 @@ function getScreeningCardBadge(app) {
     }
     return '<span class="badge badge-blue">Cropping &amp; Verifying' + (eta ? " (" + escapeHtml(eta) + ")" : "") + '</span>';
   }
+  if (scr.review_recommended && app.status !== "Approved" && app.status !== "Rejected") {
+    return '<span class="badge badge-yellow">Preliminary Finding - Review Needed</span>';
+  }
   if (scr.auto_correction_sent) {
-    return '<span class="badge badge-yellow">Auto-Requested Customer Update</span>';
+    return '<span class="badge badge-yellow">Customer Update Requested</span>';
   }
 
   var res = app.ai_result || {};
@@ -280,8 +282,11 @@ function getScreeningQuickSummary(app) {
   if (scr.state === "queued" || scr.state === "layer1_running" || scr.state === "layer2_running") {
     return '<span>' + escapeHtml(scr.advisory || "Screening in progress...") + '</span>';
   }
+  if (scr.review_recommended && scr.suggested_summary) {
+    return '<span>Preliminary finding for Agent confirmation: <b>' + escapeHtml(scr.suggested_summary) + '</b></span>';
+  }
   if (scr.auto_correction_sent && scr.auto_correction_reason) {
-    return '<span>Automatically requested update from customer: <b>' + escapeHtml(scr.auto_correction_reason) + '</b></span>';
+    return '<span>Requested update from customer: <b>' + escapeHtml(scr.auto_correction_reason) + '</b></span>';
   }
   var res = app.ai_result || {};
   var note = (res.issues && res.issues.length > 0) ? cleanScreeningText(res.issues.join("; ")) : "Document clear and details match.";
@@ -416,6 +421,23 @@ function switchIdImgMode(mode) {
   renderDetailModalContent();
 }
 
+async function retriggerAgentScreening(appId) {
+  if (!appId || !isAiEnabled() || !isScreeningServiceOnline) return;
+  var app = findAppById(appId);
+  var nextScr = Object.assign({}, (app && app.screening) || {}, {
+    state: "queued",
+    phase: "Queued for Document Screening",
+    eta_seconds: 35,
+    fallback_original_only: false
+  });
+  await dbUpdateApplication(appId, { screening: nextScr });
+  await apiStartBackgroundScreening(appId);
+  await refreshAgentData();
+  if (activeDetailAppId === appId) {
+    await renderDetailModalContent();
+  }
+}
+
 async function renderDetailModalContent() {
   var app = findAppById(activeDetailAppId);
   if (!app) return;
@@ -428,10 +450,13 @@ async function renderDetailModalContent() {
 
   var topScreeningBanner = "";
   if (isManualFallback) {
+    var canRunLocalScreening = isAiEnabled() && isScreeningServiceOnline;
     topScreeningBanner =
       '<div class="status-banner warn" style="margin-bottom:14px">' +
-        '<div><b>Manual Document Review Active:</b> Auto-screening is currently not active for this submission. The customer\'s <b>Original Uploaded ID Photos</b> are ready below for manual verification.</div>' +
-        '<span class="badge badge-yellow">Original Copy Ready</span>' +
+        '<div><b>Manual Document Review Active:</b> Auto-screening has not run on this submission yet. The customer\'s <b>Original Uploaded ID Photos</b> are ready below for verification.</div>' +
+        (canRunLocalScreening
+          ? '<button type="button" class="btn btn-outline btn-sm" onclick="retriggerAgentScreening(\'' + escapeHtml(app.id) + '\')">Run Document Screening</button>'
+          : '<span class="badge badge-yellow">Original Copy Ready</span>') +
       '</div>';
   } else {
     var etaTxt = formatEtaLabel(scr.eta_seconds);
@@ -452,12 +477,20 @@ async function renderDetailModalContent() {
           escapeHtml(scr.advisory || "Completing document cropping and verification...") + '</div>' +
           '<span class="badge ' + (scr.severity === "warning" ? "badge-yellow" : "badge-blue") + '">Layer 2</span>' +
         '</div>';
+    } else if (scr.review_recommended && app.status !== "Needs Correction" && app.status !== "Approved" && app.status !== "Rejected") {
+      topScreeningBanner =
+        '<div class="status-banner warn" style="margin-bottom:14px">' +
+          '<div><b>Preliminary Finding - Agent Confirmation Needed:</b> Screening flagged <b>' +
+          escapeHtml(scr.suggested_summary || "a potential document or detail discrepancy") +
+          '</b>. Inspect the Valid ID in Section 2 and confirm the pre-filled update request in Section 4 if needed.</div>' +
+          '<span class="badge badge-yellow">Confirm Review</span>' +
+        '</div>';
     } else if (scr.auto_correction_sent) {
       topScreeningBanner =
         '<div class="status-banner warn" style="margin-bottom:14px">' +
-          '<div><b>Automatic Customer Update Requested:</b> Screening flagged a simple mismatch (<b>' +
-          escapeHtml(scr.auto_correction_reason || "detail mismatch with Valid ID") +
-          '</b>) and automatically sent a polite update notice to the customer.</div>' +
+          '<div><b>Customer Update Requested:</b> A polite update request (<b>' +
+          escapeHtml(scr.auto_correction_reason || "detail verification") +
+          '</b>) was sent to the customer.</div>' +
           '<span class="badge badge-yellow">Awaiting Customer</span>' +
         '</div>';
     }
@@ -523,7 +556,15 @@ async function renderDetailModalContent() {
   var selectedReqStatus = (currentSt === "Approved" || currentSt === "Rejected" || currentSt === "Encoding" || currentSt === "Under Agent Review")
     ? currentSt
     : "Encoding";
-  var isCorrectionOpen = (currentSt === "Needs Correction") ? " open" : "";
+  var hasPrelimConcern = Boolean(scr.review_recommended && currentSt !== "Approved" && currentSt !== "Rejected");
+  var isCorrectionOpen = (currentSt === "Needs Correction" || hasPrelimConcern) ? " open" : "";
+  var activeCorrFields = (app.correction_fields && app.correction_fields.length)
+    ? app.correction_fields.join(",")
+    : ((scr.suggested_fields && scr.suggested_fields.length) ? scr.suggested_fields[0] : "");
+  var prefillRawNote = app.validator_raw_remark || (hasPrelimConcern ? (scr.suggested_summary || "") : "");
+  var prefillPoliteMsg = currentSt === "Needs Correction"
+    ? (app.agent_remarks || "")
+    : (hasPrelimConcern ? (scr.suggested_polite_message || "") : "");
   var displayEmail = (activeCopyMode === "latest" && app.corrected_copy && app.corrected_copy.contact_email)
     ? app.corrected_copy.contact_email
     : (viewData.email || app.email);
@@ -647,14 +688,14 @@ async function renderDetailModalContent() {
             '<label>Field for Customer to Update</label>' +
             '<select id="det-correction-field">' +
               '<option value="auto">Auto-Detect Field</option>' +
-              '<option value="name" ' + ((app.correction_fields || []).join(",") === "name" ? "selected" : "") + '>Applicant Name</option>' +
-              '<option value="birth_date" ' + ((app.correction_fields || []).join(",") === "birth_date" ? "selected" : "") + '>Birth Date</option>' +
-              '<option value="id_photo" ' + ((app.correction_fields || []).join(",") === "id_photo" ? "selected" : "") + '>Valid ID Photo</option>' +
-              '<option value="id_number" ' + ((app.correction_fields || []).join(",") === "id_number" ? "selected" : "") + '>Primary ID Number</option>' +
-              '<option value="email" ' + ((app.correction_fields || []).join(",") === "email" ? "selected" : "") + '>Email Address</option>' +
-              '<option value="phone" ' + ((app.correction_fields || []).join(",") === "phone" ? "selected" : "") + '>Mobile Number</option>' +
-              '<option value="email_or_phone" ' + ((app.correction_fields || []).join(",") === "email,phone" ? "selected" : "") + '>Both Email &amp; Mobile</option>' +
-              '<option value="address" ' + ((app.correction_fields || []).join(",") === "address" ? "selected" : "") + '>Installation Address</option>' +
+              '<option value="name" ' + (activeCorrFields === "name" ? "selected" : "") + '>Applicant Name</option>' +
+              '<option value="birth_date" ' + (activeCorrFields === "birth_date" ? "selected" : "") + '>Birth Date</option>' +
+              '<option value="id_photo" ' + (activeCorrFields === "id_photo" ? "selected" : "") + '>Valid ID Photo</option>' +
+              '<option value="id_number" ' + (activeCorrFields === "id_number" ? "selected" : "") + '>Primary ID Number</option>' +
+              '<option value="email" ' + (activeCorrFields === "email" ? "selected" : "") + '>Email Address</option>' +
+              '<option value="phone" ' + (activeCorrFields === "phone" ? "selected" : "") + '>Mobile Number</option>' +
+              '<option value="email_or_phone" ' + (activeCorrFields === "email,phone" ? "selected" : "") + '>Both Email &amp; Mobile</option>' +
+              '<option value="address" ' + (activeCorrFields === "address" ? "selected" : "") + '>Installation Address</option>' +
             '</select>' +
           '</div>' +
           '<div class="field" style="margin-bottom:0">' +
@@ -667,7 +708,7 @@ async function renderDetailModalContent() {
 
         '<div class="field" style="margin-bottom:10px">' +
           '<label>Short Review / Validator Note (Optional)</label>' +
-          '<input id="det-validator-raw" type="text" value="' + escapeHtml(app.validator_raw_remark || "") + '" placeholder="e.g. Blurry ID photo or duplicate email in provider portal..." />' +
+          '<input id="det-validator-raw" type="text" value="' + escapeHtml(prefillRawNote) + '" placeholder="e.g. Blurry ID photo or duplicate email in provider portal..." />' +
         '</div>' +
 
         '<div class="field" style="margin-bottom:12px">' +
@@ -676,7 +717,7 @@ async function renderDetailModalContent() {
             '<button type="button" id="btn-polite-gen" class="btn btn-outline btn-sm" style="padding:3px 10px; font-size:12px" onclick="convertValidatorToPoliteRemark()">Compose Polite Message</button>' +
           '</div>' +
           '<span id="polite-running-spinner" class="badge badge-blue" style="display:none; margin-bottom:6px">Composing message...</span>' +
-          '<textarea id="det-correction-message" rows="2" placeholder="Select a preset above, click Compose Polite Message, or type a polite instruction for the customer...">' + escapeHtml(currentSt === "Needs Correction" ? (app.agent_remarks || "") : "") + '</textarea>' +
+          '<textarea id="det-correction-message" rows="2" placeholder="Select a preset above, click Compose Polite Message, or type a polite instruction for the customer...">' + escapeHtml(prefillPoliteMsg) + '</textarea>' +
         '</div>' +
 
         '<div class="row" style="justify-content:flex-end">' +
@@ -866,11 +907,11 @@ async function renderAgentLinks() {
     body.innerHTML = '<tr><td colspan="5" class="muted">No links generated yet.</td></tr>';
     return;
   }
-  var baseUrl = window.location.origin + window.location.pathname.replace("agent.html", "apply.html");
+  var baseUrl = _getPortalBaseUrl() + "/apply.html";
   var html = "";
   for (var i = 0; i < links.length; i++) {
     var l = links[i];
-    var fullUrl = baseUrl + "?ref=" + encodeURIComponent(l.code);
+    var fullUrl = baseUrl + "?agent=" + encodeURIComponent(l.code);
     html +=
       '<tr>' +
         '<td><b>' + escapeHtml(l.code) + '</b></td>' +

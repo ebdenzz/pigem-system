@@ -1,83 +1,37 @@
 # PIGEM Web-Based Internet Service Application System
-**With Two-Layer Background Document Screening**
 
-Developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite) - Residential Red Fiber Broadband Applications.
+Cloud-hosted Web-Based Internet Service Application System with AI-Assisted Requirements Screening developed for **PIGEM Combined Facilities Support Services** (Dasmariñas City, Cavite).
 
----
+## Live Cloud Architecture
 
-## 1. Prerequisites and Downloading Required Technologies
+- **Frontend Portals (`web/`)**: Plain HTML5, CSS3 (Grid/Flexbox responsive layout), and Vanilla JavaScript (OOP validators, Leaflet.js + OpenStreetMap + LocationIQ map pinning, and Google reCAPTCHA v2).
+- **Cloud Database, Auth & Storage (`Supabase`)**: 13 PostgreSQL tables (`schema.sql`), strict identity separation (`@gmail.com` Customer accounts vs. `@pigem.com` internal business accounts), and two cloud storage buckets (`website-assets` and `documents`).
+- **Serverless Python Backend (`api/index.py`)**: FastAPI serverless endpoints hosted on Vercel (`/api/health`, `/api/verify-captcha`, `/api/screen-async`, `/api/screen`, `/api/notify`, `/api/polite-remark`) powered by **OpenCV** (`opencv-python-headless`), **Google Gemini API** (`gemini-flash-latest`), and **Gmail SMTP** (STARTTLS port 587 delivering clean HTML emails exclusively to `@gmail.com` Customer accounts).
 
-Run these simple commands in **PowerShell** or **Command Prompt** when setting up the system on a new Windows computer:
+## Portal Routes on Vercel
 
-### Step 1: Install Python 3.11
-PaddleOCR requires Python 3.11. Install it from [python.org](https://www.python.org/downloads/release/python-3119/) (check **"Add Python to PATH"**) or via Windows Package Manager:
-```powershell
-winget install Python.Python.3.11
-```
+- `/` or `/index.html` — Public Home, Announcements Banner & Fiber Plans
+- `/about` — Company Profile, Fleet & Permits
+- `/apply` — Guided 6-Panel Online Application Form (`@gmail.com` OTP verified)
+- `/login` & `/customer` — Customer Login (`@gmail.com` + 6-Digit OTP Recovery) & Application Monitoring Portal
+- `/staff-login`, `/agent`, `/manager` — Internal Agent Workspace & Manager Dashboard / CMS (`@pigem.com` business credentials)
+- `/setup-accounts` — One-Time Single System Administrator Provisioning (locks permanently once 1 Admin exists)
+- `/admin-login` & `/admin` — Technical Management System & Internal Business Account Provisioning Console
 
-### Step 2: Install Ollama and Download the Local AI Model
-Install [Ollama](https://ollama.com/download) or run:
-```powershell
-winget install Ollama.Ollama
-```
-Then download the `qwen2.5:1.5b` language model used for plain-language screening notes and polite customer remarks:
-```powershell
-ollama pull qwen2.5:1.5b
-```
+## Required Vercel Environment Variables
 
-### Step 3: Create the Virtual Environment and Install Python Libraries
-Open PowerShell inside `C:\pigem-system\api` to download `FastAPI`, `Uvicorn`, `OpenCV`, and `PaddleOCR`:
-```powershell
-cd C:\pigem-system\api
-py -3.11 -m venv .venv311
-.\.venv311\Scripts\activate
-pip install -r requirements.txt
-```
+Configure these keys in **Vercel Project Settings -> Environment Variables**:
+- **Type = `Secret`**: `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `RECAPTCHA_SECRET_KEY`, `SMTP_PASSWORD`
+- **Type = `Config`**: `APP_BASE_URL`, `SUPABASE_URL`, `GEMINI_MODEL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_FROM`
 
-### Step 4: Set Up Environment Variables (`api\.env`)
-Copy `.env.example` to `.env` inside `C:\pigem-system\api`:
-```powershell
-copy .env.example .env
-```
-Fill in your Supabase URL/Anon Key and your Gmail address + 16-character Google App Password in `api\.env`.
-
-### Step 5: Set Up the Supabase Database
-Open your **Supabase Dashboard -> SQL Editor**, paste the contents of `schema.sql`, select all (`Ctrl + A`), and click **Run**.
-
----
-
-## 2. How to Start the System
-
-### Step 1: Start Local Ollama Service
-Open a terminal window and run:
-```powershell
-ollama run qwen2.5:1.5b
-```
-
-### Step 2: Start the Web and API Server
-Double-click **`START-AI.bat`** in `C:\pigem-system`, or run manually in PowerShell:
-```powershell
-cd C:\pigem-system\api
-.\.venv311\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001
-```
-
-### Step 3: Open the System in Your Browser
-- **Home Page:** http://127.0.0.1:8001/index.html
-- **Online Application Form:** http://127.0.0.1:8001/apply.html
-- **Customer Login:** http://127.0.0.1:8001/login.html
-- **Customer Account Portal:** http://127.0.0.1:8001/customer.html
-- **Staff Login (Agent / Manager):** http://127.0.0.1:8001/staff-login.html
-- **Agent Portal:** http://127.0.0.1:8001/agent.html
-- **Manager Portal:** http://127.0.0.1:8001/manager.html
-- **Admin Login:** http://127.0.0.1:8001/admin-login.html
-- **Admin Portal:** http://127.0.0.1:8001/admin.html
-- **Admin and Manager Account Setup:** http://127.0.0.1:8001/setup-accounts.html
-
----
-
-## 3. Project Structure
-
-- `START-AI.bat` - Starts the FastAPI web and screening server on `http://127.0.0.1:8001`
-- `schema.sql` - PostgreSQL database tables, indexes, RLS policies, and storage bucket setup for Supabase
-- `api/` - Python FastAPI backend (`main.py`, `screening.py`, `quality.py`, `ocr.py`, `ai.py`, `mailer.py`, `auth.py`, `requirements.txt`)
-- `web/` - Frontend HTML portals, `assets/style.css`, and `js/` client scripts
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (`gemini-flash-latest`)
+- `RECAPTCHA_SECRET_KEY`
+- `SMTP_HOST` (`smtp.gmail.com`)
+- `SMTP_PORT` (`587`)
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM`
+- `APP_BASE_URL` (`https://pigem-system-web.vercel.app`)

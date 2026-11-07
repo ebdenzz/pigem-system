@@ -54,9 +54,6 @@
         <button id="nav-agent-perf" data-nav-label="Agent Workload & Performance" data-nav-target="agent-perf" onclick="showTab('agent-perf')">
           <span>Workload &amp; Performance</span>
         </button>
-        <button id="nav-agent-add" data-nav-label="Quick Add Agent" data-nav-target="agent-add" onclick="openAddAgentModal()">
-          <span>+ Quick Add Agent</span>
-        </button>
         <button id="nav-agent-links" data-nav-label="Agent Referral Links" data-nav-target="agent-links" onclick="showTab('agent-links')">
           <span>Referral Links</span>
         </button>
@@ -131,14 +128,6 @@
       </div>
 
       <section id="tab-overview">
-
-        <div id="overview-quick-add-agent" class="card" style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border:1px solid #bfdbfe;">
-          <div>
-            <b style="font-size:15px; color:#1e3a8a;"><img src="assets/images/placeholder.png" data-icon="users.png" alt="Staff" class="icon-placeholder" title="Flaticon placeholder: users.png" />Verification Staff Quick Provisioning</b>
-            <div class="muted" style="font-size:12.5px; margin-top:2px;">Need to onboard a new verification agent to manage customer applications and provider encoding?</div>
-          </div>
-          <button type="button" class="btn btn-sm" style="background:#175cd3; color:#fff; font-weight:700;" onclick="openAddAgentModal()">+ Quick Add Agent</button>
-        </div>
         <div class="grid-4" style="margin-bottom:20px">
           <div class="stat"><div class="num" id="st-total">0</div><div class="lbl">Total Applications</div></div>
           <div class="stat"><div class="num" id="st-pending">0</div><div class="lbl">Pending / In Review</div></div>
@@ -181,9 +170,8 @@
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
             <div>
               <h2 style="font-size:20px; margin-bottom:4px">Agent Workload &amp; Performance</h2>
-              <p class="muted" style="font-size:13px; margin:0">Live summary of applications claimed, encoded, and pending per verification agent.</p>
+              <p class="muted" style="font-size:13px; margin:0">Live summary of applications claimed, encoded, and pending per verification agent. Internal Agent business accounts are managed by the System Administrator.</p>
             </div>
-            <button type="button" id="btn-add-agent-perf" class="btn btn-sm" style="background:#175cd3; color:#fff; font-weight:700;" onclick="openAddAgentModal()">+ Quick Add Agent</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -396,41 +384,43 @@
 
       <section id="tab-promo-broadcast" class="hidden">
         <div class="card" style="margin-bottom:20px">
-          <h2 style="font-size:20px; margin-bottom:6px">Promotional &amp; Marketing Email Dispatch</h2>
+          <h2 style="font-size:20px; margin-bottom:6px">Customer Announcements &amp; Promotional Offers</h2>
           <p class="muted" style="font-size:13px; margin-bottom:18px">
-            Broadcast authorized announcements, speed boost campaigns, and community fiber offers to opted-in subscribers across Dasmariñas City. Formatted with official PIGEM corporate branding and compliant with Republic Act No. 10173.
+            Publish service announcements and plan offers on the public website and dispatch emails via PIGEM's official Gmail sender exclusively to opted-in @gmail.com Customers.
           </p>
 
           <div id="promo-msg" class="msg"></div>
 
           <div class="grid-2" style="margin-bottom:14px">
             <div class="field">
-              <label>Campaign Headline / Subject</label>
-              <input id="promo-headline" type="text" value="Special Red Fiber Community Speed Boost - Summer 2026" placeholder="e.g. Free Speed Upgrade for Dasmariñas Residents" />
+              <label>Announcement Headline / Subject</label>
+              <input id="promo-headline" type="text" value="Special Red Fiber Community Speed Boost" placeholder="e.g. Free Speed Upgrade for Dasmariñas Residents" />
             </div>
             <div class="field">
-              <label>Target Audience</label>
+              <label>Delivery Channel</label>
               <select id="promo-target" onchange="togglePromoTarget()">
-                <option value="test">Direct Recipient (Single Email Address)</option>
-                <option value="all">All Opted-In Active Customers</option>
+                <option value="all">Website Banner + Email All Opted-In Gmail Customers</option>
+                <option value="website_only">Website &amp; Customer Portal Banner Only (No Email)</option>
+                <option value="test">Preview Email to Single @gmail.com Customer</option>
               </select>
             </div>
           </div>
 
-          <div class="field" id="promo-test-email-wrap" style="margin-bottom:14px">
-            <label>Recipient Email Address</label>
-            <input id="promo-recipient" type="email" value="" placeholder="Enter recipient email (e.g. customer@gmail.com)" />
-            <small class="muted" style="font-size:11.5px">Delivers directly to any valid customer email address.</small>
+          <div class="field" id="promo-test-email-wrap" style="margin-bottom:14px; display:none">
+            <label>Customer Gmail Address</label>
+            <input id="promo-recipient" type="email" value="" placeholder="customer@gmail.com" />
+            <small class="muted" style="font-size:11.5px">Delivers exclusively to a valid @gmail.com Customer address.</small>
           </div>
 
           <div class="field" style="margin-bottom:14px">
-            <label>Promotional Message Body</label>
-            <textarea id="promo-body" rows="4" placeholder="Enter announcement text...">We are excited to announce upgraded fiber infrastructure in your barangay! Enjoy higher bandwidth, zero data caps, and dedicated 24/7 technical support from PIGEM Combined Facilities Support Services.</textarea>
+            <label>Announcement Message</label>
+            <textarea id="promo-body" rows="4" placeholder="Enter announcement text...">Enjoy upgraded pure fiber speeds, zero modem fees, and no lock-in period with PIGEM Combined Facilities Support Services.</textarea>
           </div>
 
-          <div class="row" style="justify-content:flex-end">
+          <div class="row" style="justify-content:flex-end; gap:10px; flex-wrap:wrap">
+            <button type="button" class="btn btn-outline" onclick="clearSiteAnnouncement()">Clear Website Banner</button>
             <button type="button" class="btn btn-red" id="btn-send-promo" onclick="sendManagerPromoBroadcast()">
-              <img src="assets/images/placeholder.png" data-icon="mail.png" alt="Send" class="icon-placeholder" title="Flaticon placeholder: mail.png" />Send Promotional Campaign Email
+              <img src="assets/images/placeholder.png" data-icon="mail.png" alt="Send" class="icon-placeholder" title="Flaticon placeholder: mail.png" />Publish &amp; Dispatch Announcement
             </button>
           </div>
         </div>
@@ -478,31 +468,5 @@ window.SYSTEM = "staff";
   <script src="js/api.js"></script>
   <script src="js/dash-ui.js"></script>
   <script src="js/manager.js"></script>
-
-  <div id="modal-add-agent" class="modal hidden" onclick="if(event.target===this) closeAddAgentModal()" style="z-index:9999;">
-    <div class="modal-box" style="max-width:460px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--line);">
-        <h3 style="margin:0; font-size:18px; font-weight:800; color:var(--text);">Agent Registration</h3>
-        <button type="button" class="btn btn-outline btn-sm" onclick="closeAddAgentModal()" style="padding:4px 9px; font-size:14px; font-weight:700;">Close</button>
-      </div>
-      <div class="field mt">
-        <label for="new-agent-name" style="font-weight:600; font-size:13px; display:block; margin-bottom:5px;">Agent Full Name</label>
-        <input id="new-agent-name" type="text" placeholder="Enter agent full name" style="width:100%; padding:9px 12px; font-size:13.5px; border:1px solid var(--line); border-radius:8px;" />
-      </div>
-      <div class="field mt" style="margin-top:12px;">
-        <label for="new-agent-email" style="font-weight:600; font-size:13px; display:block; margin-bottom:5px;">Agent Email Address</label>
-        <input id="new-agent-email" type="email" placeholder="agent@gmail.com" style="width:100%; padding:9px 12px; font-size:13.5px; border:1px solid var(--line); border-radius:8px;" />
-      </div>
-      <div class="field mt" style="margin-top:12px;">
-        <label for="new-agent-pw" style="font-weight:600; font-size:13px; display:block; margin-bottom:5px;">Password (min. 6 characters)</label>
-        <input id="new-agent-pw" type="password" placeholder="Enter secure password" style="width:100%; padding:9px 12px; font-size:13.5px; border:1px solid var(--line); border-radius:8px;" />
-      </div>
-      <div id="new-agent-msg" class="msg" style="margin-top:12px;"></div>
-      <div class="row right mt-big" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-        <button type="button" class="btn btn-outline" onclick="closeAddAgentModal()">Cancel</button>
-        <button type="button" id="btn-submit-new-agent" class="btn" style="background:#175cd3; color:#fff; font-weight:700;" onclick="submitNewAgent()">Create Agent</button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>

@@ -1,0 +1,38 @@
+{
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{web/**,pigem-system-duplicate/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/(health|verify-captcha|screen-async|screen|notify|polite-remark)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/",
+      "destination": "/web/index.html"
+    },
+    {
+      "source": "/(index|about|apply|privacy|login|activate|customer|staff-login|agent|manager|admin-login|admin|setup-accounts)\\.html",
+      "destination": "/web/$1.html"
+    },
+    {
+      "source": "/(about|apply|privacy|login|activate|customer|staff-login|agent|manager|admin-login|admin|setup-accounts)",
+      "destination": "/web/$1.html"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/web/assets/$1"
+    },
+    {
+      "source": "/js/(.*)",
+      "destination": "/web/js/$1"
+    }
+  ]
+}

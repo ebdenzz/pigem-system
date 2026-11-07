@@ -75,7 +75,7 @@ function setupDeviceUploadUI() {
 function initApplyPage() {
   var params = new URLSearchParams(window.location.search);
   var urlPlan = params.get("plan");
-  var urlAgent = params.get("agent");
+  var urlAgent = params.get("agent") || params.get("ref");
 
   if (urlPlan) selectedPlanId = urlPlan;
   if (urlAgent) {
@@ -118,7 +118,7 @@ function showApplySecurityCaptchaModal() {
       '<div id="g-apply-recaptcha-wrap" style="display:flex;justify-content:center;margin:16px auto;min-height:78px;">' +
         '<div id="g-apply-recaptcha-box" class="g-recaptcha" data-sitekey="' + CONFIG.RECAPTCHA_SITE_KEY + '" data-callback="onApplyCaptchaVerified"></div>' +
       '</div>' +
-      '<div id="apply-captcha-fallback-box" style="margin-top:8px;">' +
+      '<div id="apply-captcha-fallback-box" style="margin-top:8px; display:none;">' +
         '<div id="apply-popup-captcha-card" class="captcha-container" onclick="triggerApplyPopupCaptcha()">' +
           '<div style="display:flex;align-items:center;gap:12px;">' +
             '<div id="apply-popup-captcha-check" class="captcha-box-inner"></div>' +
@@ -147,12 +147,23 @@ function showApplySecurityCaptchaModal() {
         }
       });
     } catch (e) {
-
+      var fbCatch = document.getElementById("apply-captcha-fallback-box");
+      if (fbCatch) fbCatch.style.display = "block";
     }
+  } else {
+    var fbInit = document.getElementById("apply-captcha-fallback-box");
+    if (fbInit) fbInit.style.display = "block";
   }
 }
 
-function onApplyCaptchaVerified() {
+async function onApplyCaptchaVerified(token) {
+  if (token && typeof apiVerifyCaptcha === "function") {
+    var vRes = await apiVerifyCaptcha(token);
+    if (!vRes || vRes.verified === false) {
+      showAlert("Security Verification", "Could not verify security token. Please try again.", "warn");
+      return;
+    }
+  }
   sessionStorage.setItem("pigem_captcha_verified", "true");
   applyCaptchaVerified = true;
   closePopup();
@@ -256,8 +267,8 @@ async function sendContactOtp() {
   var email = document.getElementById("email").value.trim().toLowerCase();
   var phone = document.getElementById("phone").value.trim();
 
-  if (!email || email.indexOf("@") === -1) {
-    flashErrorBubble("email", "Email Address", "Please enter a valid Gmail address first.");
+  if (!email || !isCustomerGmail(email)) {
+    flashErrorBubble("email", "Gmail Address", "Please enter a valid @gmail.com address first.");
     document.getElementById("email").focus();
     return;
   }
@@ -437,7 +448,7 @@ function validateCurrentPanel() {
     var email = document.getElementById("email").value.trim().toLowerCase();
     var phone = document.getElementById("phone").value.trim();
 
-    if (!email || email.indexOf("@") === -1) markInvalid("email", "Email Address", "Enter a valid Gmail address.");
+    if (!email || !isCustomerGmail(email)) markInvalid("email", "Gmail Address", "Enter a valid @gmail.com address.");
     if (!phone || phone.replace(/\D/g, "").length < 10) markInvalid("phone", "Mobile Number", "Enter an 11-digit mobile number.");
     if (!isContactOtpVerified || verifiedEmailAddress !== email) {
       markInvalid("contact_otp", "Contact OTP", "Please send and verify your 6-digit OTP code.", document.getElementById("btn-send-otp"));
@@ -564,12 +575,39 @@ async function updatePinAndAddress(lat, lng) {
   var statusEl = document.getElementById("map-status");
   statusEl.textContent = "Looking up address for pinned location...";
 
-  try {
-    var url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng;
-    var res = await fetch(url, { headers: { "Accept-Language": "en" } });
-    var data = await res.json();
-    var addr = data.address || {};
+  var data = null;
 
+  if (CONFIG.LOCATIONIQ_API_KEY) {
+    try {
+      var liqUrl =
+        "https://us1.locationiq.com/v1/reverse?key=" +
+        encodeURIComponent(CONFIG.LOCATIONIQ_API_KEY) +
+        "&lat=" + lat +
+        "&lon=" + lng +
+        "&format=json&normalizeaddress=1";
+      var liqRes = await fetch(liqUrl, { headers: { "Accept-Language": "en" } });
+      if (liqRes.ok) {
+        data = await liqRes.json();
+      }
+    } catch (liqErr) {
+      data = null;
+    }
+  }
+
+  if (!data) {
+    try {
+      var nomUrl = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng;
+      var nomRes = await fetch(nomUrl, { headers: { "Accept-Language": "en" } });
+      if (nomRes.ok) {
+        data = await nomRes.json();
+      }
+    } catch (nomErr) {
+      data = null;
+    }
+  }
+
+  if (data && data.address) {
+    var addr = data.address || {};
     var road = addr.road || addr.pedestrian || addr.footway || addr.street || "";
     var subd = addr.neighbourhood || addr.residential || addr.hamlet || addr.subdivision || "";
     var brgy = addr.suburb || addr.village || addr.quarter || addr.city_district || "";
@@ -584,7 +622,7 @@ async function updatePinAndAddress(lat, lng) {
     if (prov) document.getElementById("province").value = prov;
 
     statusEl.textContent = "Pinned location: " + (data.display_name || "Address updated");
-  } catch (e) {
+  } else {
     statusEl.textContent = "Location pinned (" + lat.toFixed(5) + ", " + lng.toFixed(5) + "). You can type or edit your address fields below.";
   }
 }
@@ -596,22 +634,40 @@ async function searchMapAddress() {
   var statusEl = document.getElementById("map-status");
   statusEl.textContent = "Searching map for '" + q + "'...";
 
-  try {
-    var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q=" + encodeURIComponent(q);
-    var res = await fetch(url, { headers: { "Accept-Language": "en" } });
-    var list = await res.json();
-    if (!list || list.length === 0) {
-      statusEl.textContent = "Place not found. Please drag the pin manually or type your address below.";
-      return;
+  var list = null;
+  if (CONFIG.LOCATIONIQ_API_KEY) {
+    try {
+      var liqSearch =
+        "https://us1.locationiq.com/v1/search?key=" +
+        encodeURIComponent(CONFIG.LOCATIONIQ_API_KEY) +
+        "&format=json&limit=1&countrycodes=ph&q=" +
+        encodeURIComponent(q);
+      var r1 = await fetch(liqSearch, { headers: { "Accept-Language": "en" } });
+      if (r1.ok) list = await r1.json();
+    } catch (e1) {
+      list = null;
     }
-    var lat = parseFloat(list[0].lat);
-    var lng = parseFloat(list[0].lon);
-    leafletMap.setView([lat, lng], 16);
-    leafletMarker.setLatLng([lat, lng]);
-    await updatePinAndAddress(lat, lng);
-  } catch (e) {
-    statusEl.textContent = "Map search unavailable right now. Please drag the pin or type your address.";
   }
+
+  if (!list || !Array.isArray(list) || list.length === 0) {
+    try {
+      var nomSearch = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q=" + encodeURIComponent(q);
+      var r2 = await fetch(nomSearch, { headers: { "Accept-Language": "en" } });
+      if (r2.ok) list = await r2.json();
+    } catch (e2) {
+      list = null;
+    }
+  }
+
+  if (!list || list.length === 0) {
+    statusEl.textContent = "Place not found. Please drag the pin manually or type your address below.";
+    return;
+  }
+  var lat = parseFloat(list[0].lat);
+  var lng = parseFloat(list[0].lon);
+  leafletMap.setView([lat, lng], 16);
+  leafletMarker.setLatLng([lat, lng]);
+  await updatePinAndAddress(lat, lng);
 }
 
 function useCurrentLocation() {
@@ -768,27 +824,36 @@ async function submitRegistration() {
     }));
 
     var screeningActive = Boolean(getSystemSettings().ai_enabled);
-    var bgRes = { queued: false };
-    if (screeningActive && typeof apiStartBackgroundScreening === "function") {
-      bgRes = await apiStartBackgroundScreening(saved.id);
-    }
-    if (!screeningActive || !bgRes || !bgRes.queued) {
-      var fallbackScreening = Object.assign({}, screening, {
-        state: screeningActive ? "unavailable" : "paused",
+    if (!screeningActive) {
+      var pausedScreening = Object.assign({}, screening, {
+        state: "paused",
         phase: "Original Copy Ready (Manual Review)",
         eta_seconds: 0,
         fallback_original_only: true,
         severity: "info",
-        advisory: "Auto-screening is currently not active. Original uploaded ID copies are ready for manual verification."
+        advisory: "Auto-screening is currently paused. Original uploaded ID copies are ready for manual verification."
       });
-      await dbUpdateApplication(saved.id, { screening: fallbackScreening });
+      await dbUpdateApplication(saved.id, { screening: pausedScreening });
       if (typeof dbNotifyScreeningUnavailable === "function") {
-        await dbNotifyScreeningUnavailable(
-          saved.ref_no,
-          fullName,
-          "Original uploaded ID copies are ready for manual verification."
-        );
+        await dbNotifyScreeningUnavailable(saved.ref_no, fullName, "Original uploaded ID copies are ready for manual verification.");
       }
+    } else if (typeof apiStartBackgroundScreening === "function") {
+      apiStartBackgroundScreening(saved.id).then(async function (bgRes) {
+        if (!bgRes || !bgRes.queued) {
+          var fallbackScreening = Object.assign({}, screening, {
+            state: "unavailable",
+            phase: "Original Copy Ready (Manual Review)",
+            eta_seconds: 0,
+            fallback_original_only: true,
+            severity: "info",
+            advisory: "Auto-screening is currently unavailable. Original uploaded ID copies are ready for manual verification."
+          });
+          await dbUpdateApplication(saved.id, { screening: fallbackScreening });
+          if (typeof dbNotifyScreeningUnavailable === "function") {
+            await dbNotifyScreeningUnavailable(saved.ref_no, fullName, "Original uploaded ID copies are ready for manual verification.");
+          }
+        }
+      });
     }
 
     advanceLoadingStep(4);

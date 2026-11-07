@@ -1,5 +1,7 @@
 api/.venv/
 api/.venv311/
+**/api/.venv/
+**/api/.venv311/
 .venv/
 .venv311/
 __pycache__/
@@ -7,6 +9,7 @@ __pycache__/
 *$py.class
 
 api/.env
+**/api/.env
 .env
 .env.local
 

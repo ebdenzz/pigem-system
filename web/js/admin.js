@@ -103,6 +103,12 @@ function toggleMaintMode() {
     async function () {
       setMaintenanceOn(next);
       await dbAddLog(currentAdmin.email, "Set Maintenance Mode to " + (next ? "ON" : "OFF"));
+      var maintTitle = next ? "Website Maintenance Mode Enabled" : "Website Restored to Live";
+      var maintBody = next
+        ? "System Administrator enabled public Maintenance Mode. Public application submissions are temporarily paused while internal dashboards remain operational."
+        : "System Administrator disabled public Maintenance Mode. Public website and Customer application form are now live.";
+      await dbAddNotification(null, "agent", maintTitle, maintBody);
+      await dbAddNotification(null, "manager", maintTitle, maintBody);
       await refreshAdminData();
     },
     next
@@ -152,12 +158,12 @@ async function renderAiState() {
   var health = await apiCheckHealth();
   lastHealthData = health;
   var pyOnline = Boolean(health && health.api);
-  var ollamaOnline = Boolean(health && health.ollama);
-  var activeJobs = Number((health && health.active_screenings) || 0);
+  var geminiOnline = Boolean(health && health.gemini);
+  var opencvOnline = Boolean(health && health.opencv);
 
   var stAiEl = document.getElementById("st-ai");
   if (stAiEl) {
-    stAiEl.textContent = (!on) ? "PAUSED" : (pyOnline ? "ONLINE" : "OFFLINE");
+    stAiEl.textContent = (!on) ? "PAUSED" : ((pyOnline && geminiOnline) ? "ONLINE" : "CHECK");
   }
 
   var lbl = document.getElementById("ai-status-label");
@@ -166,9 +172,11 @@ async function renderAiState() {
     if (!on) {
       lbl.textContent = "Currently DISABLED by Admin (Agent & Manager workspaces switch cleanly to manual document review)";
     } else if (!pyOnline) {
-      lbl.textContent = "Local Python FastAPI Screening Server is OFFLINE on this device - manual agent review is active.";
+      lbl.textContent = "Cloud FastAPI Serverless Screening Endpoint (/api) is currently unreachable - manual agent review is active.";
+    } else if (!geminiOnline) {
+      lbl.textContent = "FastAPI Serverless is ONLINE, awaiting GEMINI_API_KEY in Vercel Environment Variables - manual agent review is active.";
     } else {
-      lbl.textContent = "2-Layer Background AI Screening Engine ONLINE (Active parallel jobs: " + activeJobs + " - OpenCV + PaddleOCR" + (ollamaOnline ? " + Ollama qwen2.5:1.5b" : " + Plain-Language Fallback") + ")";
+      lbl.textContent = "Cloud AI Screening Engine ONLINE (Vercel FastAPI Serverless + " + (opencvOnline ? "OpenCV Auto-Crop + " : "") + "Google Gemini Vision OCR)";
     }
   }
   if (btn) {
@@ -198,17 +206,20 @@ async function renderAiState() {
 function toggleAiMode() {
   var next = !isAiEnabled();
   openConfirmPopup(
-    next ? "Enable 2-Layer Background Screening Engine?" : "Disable 2-Layer Background Screening Engine?",
+    next ? "Enable Cloud AI Document Screening Engine?" : "Disable Cloud AI Document Screening Engine?",
     next
-      ? "Enabling <code>public.system_settings.ai_enabled = true</code> resumes asynchronous OpenCV + PaddleOCR + Ollama background screening via <code>POST /screen-async</code>."
+      ? "Enabling <code>public.system_settings.ai_enabled = true</code> resumes cloud OpenCV + Google Gemini Vision requirements screening via <code>POST /api/screen-async</code>."
       : "Disabling <code>public.system_settings.ai_enabled = false</code> pauses automated screening. Customer submissions will continue without interruption using original uploaded ID copies, and all Agents &amp; Managers will receive a manual-review notification.",
     next ? "Enable AI Screening" : "Disable AI Screening",
     async function () {
       setAiEnabled(next);
       await dbAddLog(currentAdmin.email, "Set AI Screening Engine to " + (next ? "ENABLED" : "DISABLED"));
       if (!next) {
-        await dbAddNotification(null, "agent", "Auto-Screening Paused", "Auto-screening is currently paused. Customer applications continue normally using original uploaded ID copies for manual review.");
-        await dbAddNotification(null, "manager", "Auto-Screening Paused", "Auto-screening is currently paused. Customer applications continue normally using original uploaded ID copies for manual review.");
+        await dbAddNotification(null, "agent", "Auto-Screening Paused", "System Administrator paused automated document screening. Customer applications continue normally using original uploaded ID copies for manual review.");
+        await dbAddNotification(null, "manager", "Auto-Screening Paused", "System Administrator paused automated document screening. Customer applications continue normally using original uploaded ID copies for manual review.");
+      } else {
+        await dbAddNotification(null, "agent", "Auto-Screening Active", "System Administrator re-enabled automated document screening for new and updated applications.");
+        await dbAddNotification(null, "manager", "Auto-Screening Active", "System Administrator re-enabled automated document screening for new and updated applications.");
       }
       await refreshAdminData();
     },
@@ -220,70 +231,75 @@ async function checkApiHealth() {
   var box = document.getElementById("api-health-list");
   if (!box) return;
 
-  var apiUrl = CONFIG.API_URL || "http://127.0.0.1:8001";
   var data = await apiCheckHealth();
   var pyOk = Boolean(data && data.api);
-  var ollamaOk = Boolean(data && data.ollama);
+  var geminiOk = Boolean(pyOk && data && data.gemini);
   var opencvOk = Boolean(pyOk && data && data.opencv);
-  var ocrOk = Boolean(pyOk && data && data.paddleocr);
+  var recaptchaOk = Boolean(pyOk && data && data.recaptcha);
   var smtpOk = Boolean(pyOk && data && (data.smtp || data.resend));
+  var locationIqOk = Boolean(CONFIG.LOCATIONIQ_API_KEY);
   var supaOk = !IS_DEMO_MODE;
-  var activeJobs = Number((data && data.active_screenings) || 0);
 
   var smtpBadgeEl = document.getElementById("smtp-status-badge");
   if (smtpBadgeEl) {
     smtpBadgeEl.className = "badge " + (smtpOk ? "badge-green" : "badge-red");
-    smtpBadgeEl.textContent = smtpOk ? "Gmail SMTP Connected" : (pyOk ? "SMTP Password Missing" : "Server Offline");
+    smtpBadgeEl.textContent = smtpOk ? "Gmail SMTP Connected" : (pyOk ? "SMTP Env Missing" : "Endpoint Unreachable");
   }
 
   var items = [
     {
-      name: "2-Layer Parallel Screening Coordinator (FastAPI /screen-async)",
-      status: pyOk ? ("Online (" + activeJobs + " active)") : "Offline",
+      name: "Vercel Python FastAPI Serverless (/api)",
+      status: pyOk ? "Online (Cloud)" : "Unreachable",
       badge: pyOk ? "badge-green" : "badge-red",
       detail: pyOk
-        ? "Fetches Valid IDs from Supabase Storage bucket & runs concurrent Layer 1 + Layer 2 background screening"
-        : "Offline on this device - start FastAPI server at " + apiUrl
+        ? "Serving /api/health, /api/screen-async, /api/verify-captcha, /api/notify, and /api/polite-remark"
+        : "Check Vercel deployment logs for api/index.py"
     },
     {
-      name: "Ollama Local AI Engine (qwen2.5:1.5b)",
-      status: ollamaOk ? "Online (Local)" : "Fallback Active",
-      badge: ollamaOk ? "badge-green" : "badge-yellow",
-      detail: ollamaOk
-        ? "Running locally at http://localhost:11434 (generates plain-language remarks & guidance)"
-        : "Ollama not running - built-in deterministic plain-English guidance & polite messages active"
+      name: "Google Gemini Vision & AI API (gemini-flash-latest)",
+      status: geminiOk ? "Online (Configured)" : "Key Missing",
+      badge: geminiOk ? "badge-green" : "badge-yellow",
+      detail: geminiOk
+        ? "Performs Valid ID Vision OCR extraction, preliminary screening findings, and polite customer messages"
+        : "Add GEMINI_API_KEY in Vercel Environment Variables to activate Vision OCR"
     },
     {
-      name: "OpenCV Auto-Crop & Image Quality API (Layer 1 & Layer 2)",
-      status: opencvOk ? "Online" : "Offline",
+      name: "OpenCV Readability & 4-Corner Auto-Crop Engine",
+      status: opencvOk ? "Online" : "Unavailable",
       badge: opencvOk ? "badge-green" : "badge-red",
       detail: opencvOk
-        ? "4-corner perspective crop, rotation alignment, CLAHE enhancement, blur & glare scoring"
-        : "Offline - Requires Python FastAPI & opencv-python-headless"
+        ? "Evaluates blur, brightness, glare & contrast and saves perspective-cropped working copy in documents/cropped/"
+        : "Requires opencv-python-headless in Vercel Python runtime"
     },
     {
-      name: "PaddleOCR ID Text Extraction & Mismatch Engine",
-      status: ocrOk ? "Online" : "Offline",
-      badge: ocrOk ? "badge-green" : "badge-red",
-      detail: ocrOk
-        ? "Extracts ID text & auto-checks Name, Birth Date, and ID Number mismatches"
-        : "Offline - Requires Python FastAPI & PaddleOCR"
+      name: "Google reCAPTCHA v2 Security (SiteVerify)",
+      status: recaptchaOk ? "Protected" : "Client Key Only",
+      badge: recaptchaOk ? "badge-green" : "badge-yellow",
+      detail: recaptchaOk
+        ? "Checkbox Site Key active with server-side SiteVerify secret validation (/api/verify-captcha)"
+        : "Add RECAPTCHA_SECRET_KEY in Vercel Environment Variables for server-side token validation"
     },
     {
-      name: "Gmail SMTP Email Engine (via Local FastAPI)",
-      status: smtpOk ? "Online" : (pyOk ? "Needs App Password" : "Offline"),
+      name: "LocationIQ + OpenStreetMap Geocoding",
+      status: locationIqOk ? "Online (Dual-Source)" : "Fallback Only",
+      badge: locationIqOk ? "badge-green" : "badge-yellow",
+      detail: locationIqOk
+        ? "Primary LocationIQ OpenStreetMap geocoding with automatic Nominatim fallback on Leaflet.js map"
+        : "Using OpenStreetMap Nominatim reverse geocoding"
+    },
+    {
+      name: "Gmail SMTP Transactional Email Engine",
+      status: smtpOk ? "Online" : (pyOk ? "Env Missing" : "Unreachable"),
       badge: smtpOk ? "badge-green" : "badge-red",
       detail: smtpOk
-        ? "Ready at " + apiUrl + "/notify (smtp.gmail.com)"
-        : (pyOk
-            ? "Set SMTP_USER and 16-char Google App Password (SMTP_PASSWORD) in api/.env"
-            : "Offline on this device (In-app Supabase notifications remain active)")
+        ? "Connected via /api/notify (smtp.gmail.com:587 STARTTLS)"
+        : "Configure SMTP_USER and SMTP_PASSWORD in Vercel Environment Variables"
     },
     {
       name: "Supabase Cloud (PostgreSQL + Auth + Storage Buckets)",
-      status: supaOk ? "Live Cloud" : "Local Demo Storage",
+      status: supaOk ? "Live Cloud" : "Demo Storage",
       badge: supaOk ? "badge-green" : "badge-blue",
-      detail: supaOk ? (CONFIG.SUPABASE_URL + " (documents + website-assets buckets)") : "Running in local browser storage"
+      detail: supaOk ? (CONFIG.SUPABASE_URL + " (documents + website-assets buckets)") : "Running in browser storage"
     }
   ];
 
@@ -308,24 +324,41 @@ function renderAdminUsers() {
   var html = "";
   for (var i = 0; i < adminUsers.length; i++) {
     var u = adminUsers[i];
+    var isSoleAdmin = (u.role === "admin");
+    var isCustomer = (u.role === "customer");
+    var roleCell = "";
+    if (isSoleAdmin) {
+      roleCell = '<span class="badge badge-red">Admin (Provisioned)</span>';
+    } else if (isCustomer) {
+      roleCell = '<span class="badge badge-gray">Customer (Gmail)</span>';
+    } else {
+      roleCell =
+        '<select onchange="adminChangeRole(\'' + escapeHtml(u.id) + '\', this.value)" style="padding:4px 8px; font-size:12px; width:auto">' +
+          '<option value="agent" ' + (u.role === "agent" ? "selected" : "") + '>Agent</option>' +
+          '<option value="manager" ' + (u.role === "manager" ? "selected" : "") + '>Manager</option>' +
+        '</select>';
+    }
+
+    var actionBtns = '<div style="display:flex; gap:6px; flex-wrap:wrap">';
+    if (!isCustomer) {
+      actionBtns +=
+        '<button type="button" class="btn btn-outline btn-sm" onclick="adminOpenResetPasswordModal(\'' + escapeHtml(u.id) + '\', \'' + escapeHtml(u.email) + '\')">Reset Password</button>';
+    }
+    if (!isSoleAdmin) {
+      actionBtns +=
+        '<button type="button" class="btn btn-outline btn-sm" onclick="adminToggleActive(\'' + escapeHtml(u.id) + '\', ' + (!u.active) + ')">' +
+          (u.active ? "Disable" : "Enable") +
+        '</button>';
+    }
+    actionBtns += '</div>';
+
     html +=
       '<tr>' +
         '<td><b>' + escapeHtml(u.full_name) + '</b></td>' +
         '<td>' + escapeHtml(u.email) + '</td>' +
-        '<td>' +
-          '<select onchange="adminChangeRole(\'' + escapeHtml(u.id) + '\', this.value)" style="padding:4px 8px; font-size:12px; width:auto">' +
-            '<option value="customer" ' + (u.role === "customer" ? "selected" : "") + '>Customer</option>' +
-            '<option value="agent" ' + (u.role === "agent" ? "selected" : "") + '>Agent</option>' +
-            '<option value="manager" ' + (u.role === "manager" ? "selected" : "") + '>Manager</option>' +
-            '<option value="admin" ' + (u.role === "admin" ? "selected" : "") + '>Admin</option>' +
-          '</select>' +
-        '</td>' +
+        '<td>' + roleCell + '</td>' +
         '<td>' + (u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Disabled</span>') + '</td>' +
-        '<td>' +
-          '<button type="button" class="btn btn-outline btn-sm" onclick="adminToggleActive(\'' + escapeHtml(u.id) + '\', ' + (!u.active) + ')">' +
-            (u.active ? "Disable" : "Enable") +
-          '</button>' +
-        '</td>' +
+        '<td>' + actionBtns + '</td>' +
       '</tr>';
   }
   body.innerHTML = html;
@@ -336,26 +369,78 @@ async function adminCreateUser() {
   var name = document.getElementById("new-acc-name").value.trim();
   var email = document.getElementById("new-acc-email").value.trim().toLowerCase();
   var pw = (document.getElementById("new-acc-pw").value || "").trim();
-  if (!pw || pw.length < 6) { showMsg("acc-msg", "error", "Please provide a password of at least 6 characters."); return; }
   var role = document.getElementById("new-acc-role").value;
 
   if (!name || !email) {
-    showMsg("acc-msg", "error", "Please enter both Full Name and Email Address.");
+    showMsg("acc-msg", "error", "Please enter both Full Name and Business Account Email.");
     return;
   }
+  if (!isStaffBusinessEmail(email)) {
+    showMsg("acc-msg", "error", "Internal staff must use a business account email (e.g. name@pigem.com). Gmail addresses are reserved for Customers.");
+    return;
+  }
+  if (!pw || pw.length < 6) {
+    showMsg("acc-msg", "error", "Please provide a password of at least 6 characters.");
+    return;
+  }
+  if (role === "admin") {
+    showMsg("acc-msg", "error", "Only one System Administrator account is permitted in the system.");
+    return;
+  }
+
   try {
     await dbCreateUserAccount(name, email, pw, role);
-    await dbAddLog(currentAdmin.email, "Created " + role + " account for " + email);
+    await dbAddLog(currentAdmin.email, "Created " + role + " business account for " + email);
     document.getElementById("new-acc-name").value = "";
     document.getElementById("new-acc-email").value = "";
-    showMsg("acc-msg", "ok", "Account created for " + email + " (" + role + ").");
+    document.getElementById("new-acc-pw").value = "";
+    showMsg("acc-msg", "ok", "Business account created for " + email + " (" + role + ").");
     await refreshAdminData();
   } catch (err) {
     showMsg("acc-msg", "error", err.message);
   }
 }
 
+function adminOpenResetPasswordModal(userId, userEmail) {
+  window._adminResetTargetId = userId;
+  window._adminResetTargetEmail = userEmail;
+  openPopup(
+    '<h3>Reset Business Account Password</h3>' +
+    '<p class="small muted mt">Set a new sign-in password for <b>' + escapeHtml(userEmail) + '</b>.</p>' +
+    '<div class="mt">' +
+      '<label for="adm-reset-pw">New Password (min. 6 characters)</label>' +
+      '<input id="adm-reset-pw" type="password" placeholder="Enter new password" />' +
+    '</div>' +
+    '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
+      '<button type="button" class="btn btn-outline" onclick="closePopup()">Cancel</button>' +
+      '<button type="button" class="btn btn-red" onclick="adminConfirmResetPassword()">Update Password</button>' +
+    '</div>'
+  );
+}
+
+async function adminConfirmResetPassword() {
+  var pwEl = document.getElementById("adm-reset-pw");
+  var newPw = pwEl ? pwEl.value.trim() : "";
+  if (!newPw || newPw.length < 6) {
+    showAlert("Password Short", "Please enter at least 6 characters.", "warn");
+    return;
+  }
+  try {
+    await dbAdminResetUserPassword(window._adminResetTargetId, newPw);
+    await dbAddLog(currentAdmin.email, "Reset business password for " + window._adminResetTargetEmail);
+    closePopup();
+    showAlert("Password Updated", "Updated sign-in password for " + window._adminResetTargetEmail + ".", "good");
+  } catch (err) {
+    showAlert("Update Failed", err.message || "Could not update password.", "bad");
+  }
+}
+
 async function adminChangeRole(userId, newRole) {
+  if (newRole === "admin") {
+    showAlert("Single Admin Rule", "Only one System Administrator account is permitted in the system.", "warn");
+    await refreshAdminData();
+    return;
+  }
   await dbUpdateUser(userId, { role: newRole });
   await dbAddLog(currentAdmin.email, "Changed role of user " + userId + " to " + newRole);
   await refreshAdminData();
@@ -431,8 +516,8 @@ async function adminSendTestEmail() {
   var to = document.getElementById("test-email-to").value.trim();
   var type = document.getElementById("test-email-type").value;
 
-  if (!to) {
-    showMsg("test-email-msg", "error", "Please enter a recipient email address.");
+  if (!to || !isCustomerGmail(to)) {
+    showMsg("test-email-msg", "error", "Please enter a valid @gmail.com Customer email address.");
     return;
   }
 
@@ -474,7 +559,7 @@ async function adminSendTestEmail() {
     if (res && res.sent) {
       showMsg("test-email-msg", "ok", "Email delivered via Gmail SMTP to " + to + "! Check inbox (and Spam folder).");
     } else if (res && res.offline) {
-      showMsg("test-email-msg", "error", "Local FastAPI server is offline (http://127.0.0.1:8001). Please start the server to send live emails.");
+      showMsg("test-email-msg", "error", "Cloud FastAPI email endpoint (/api/notify) is currently unreachable. Please check Vercel deployment status.");
     } else {
       showMsg("test-email-msg", "error", "Delivery failed: " + ((res && res.reason) || "Unknown error"));
     }

@@ -18,7 +18,7 @@ function showGoogleCaptchaPopup() {
       '<div id="g-recaptcha-wrap" style="display:flex;justify-content:center;margin:16px auto;min-height:78px;">' +
         '<div id="g-recaptcha-box" class="g-recaptcha" data-sitekey="' + CONFIG.RECAPTCHA_SITE_KEY + '" data-callback="onGoogleCaptchaPassed"></div>' +
       '</div>' +
-      '<div id="captcha-fallback-box" style="margin-top:8px;">' +
+      '<div id="captcha-fallback-box" style="margin-top:8px; display:none;">' +
         '<div id="home-captcha-card" class="captcha-container" onclick="triggerHomeCaptcha()">' +
           '<div style="display:flex;align-items:center;gap:12px;">' +
             '<div id="home-captcha-check" class="captcha-box-inner"></div>' +
@@ -47,12 +47,23 @@ function showGoogleCaptchaPopup() {
         }
       });
     } catch (e) {
-
+      var fbCatch = document.getElementById("captcha-fallback-box");
+      if (fbCatch) fbCatch.style.display = "block";
     }
+  } else {
+    var fbInit = document.getElementById("captcha-fallback-box");
+    if (fbInit) fbInit.style.display = "block";
   }
 }
 
-function onGoogleCaptchaPassed() {
+async function onGoogleCaptchaPassed(token) {
+  if (token && typeof apiVerifyCaptcha === "function") {
+    var checkRes = await apiVerifyCaptcha(token);
+    if (!checkRes || checkRes.verified === false) {
+      showAlert("Security Verification", "Could not verify security token. Please check the box again.", "warn");
+      return;
+    }
+  }
   sessionStorage.setItem("pigem_captcha_verified", "true");
   closePopup();
   var targetUrl = "apply.html" + (pendingApplyPlanId ? "?plan=" + encodeURIComponent(pendingApplyPlanId) : "");
@@ -101,6 +112,19 @@ function buildPlanCard(plan) {
 
 function initHomePage() {
   var content = getWebsiteContent();
+
+  var annBar = document.getElementById("site-announcement-bar");
+  if (annBar) {
+    if (content.announcement && content.announcement.active && content.announcement.headline) {
+      annBar.style.display = "block";
+      annBar.innerHTML =
+        "<b>" + String(content.announcement.headline).replace(/</g, "&lt;") + ":</b> " +
+        String(content.announcement.body || "").replace(/</g, "&lt;");
+    } else {
+      annBar.style.display = "none";
+      annBar.innerHTML = "";
+    }
+  }
 
   startSlider("home-slider", content.hero_slides || DEFAULT_CONTENT.hero_slides);
 

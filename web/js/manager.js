@@ -60,8 +60,11 @@ function getMgrScreeningBadge(app) {
     }
     return '<span class="badge badge-blue">Cropping &amp; Verifying' + (eta ? " (" + escapeHtml(eta) + ")" : "") + '</span>';
   }
+  if (scr.review_recommended && app.status !== "Approved" && app.status !== "Rejected") {
+    return '<span class="badge badge-yellow">Preliminary Finding - Review Needed</span>';
+  }
   if (scr.auto_correction_sent) {
-    return '<span class="badge badge-yellow">Auto-Requested Update</span>';
+    return '<span class="badge badge-yellow">Update Requested</span>';
   }
 
   var res = app.ai_result || {};
@@ -230,9 +233,10 @@ function finishCmsAndDisableMaintenance() {
       "Return Public Website to Live?",
       "Customers will immediately regain access to the public website, application form, and account activation.",
       "Yes, Make Website Live",
-      function () {
+      async function () {
         setMaintenanceOn(false);
-        if (currentManager) dbAddLog(currentManager.email, "Disabled Maintenance Mode from Website Content (CMS)");
+        if (currentManager) await dbAddLog(currentManager.email, "Disabled Maintenance Mode from Website Content (CMS)");
+        await dbAddNotification(null, "agent", "Website Restored to Live", "Public Maintenance Mode has been disabled. Customer website and application form are live.");
         updateCmsMaintenanceBarUI();
         showAlert("Website is Live", "Maintenance Mode is now OFF. Customers can browse plans and submit applications.");
       },
@@ -243,9 +247,10 @@ function finishCmsAndDisableMaintenance() {
       "Enable Public Website Maintenance Mode?",
       "Turning ON Maintenance Mode will temporarily pause customer access to the public website and application form until you turn it back off.",
       "Yes, Enable Maintenance Mode",
-      function () {
+      async function () {
         setMaintenanceOn(true);
-        if (currentManager) dbAddLog(currentManager.email, "Enabled Maintenance Mode from Website Content (CMS)");
+        if (currentManager) await dbAddLog(currentManager.email, "Enabled Maintenance Mode from Website Content (CMS)");
+        await dbAddNotification(null, "agent", "Website Maintenance Mode Enabled", "Public Maintenance Mode is active while website content is being updated.");
         updateCmsMaintenanceBarUI();
       },
       true
@@ -282,8 +287,10 @@ function renderManagerApps() {
     var scrNote = "";
     if (isMgrScreeningActive(app) && scr.advisory) {
       scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">' + escapeHtml(scr.advisory) + '</div>';
+    } else if (scr.review_recommended && scr.suggested_summary) {
+      scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">Preliminary finding for Agent review: <b>' + escapeHtml(scr.suggested_summary) + '</b></div>';
     } else if (scr.auto_correction_sent && scr.auto_correction_reason) {
-      scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">Auto-requested update from customer: <b>' + escapeHtml(scr.auto_correction_reason) + '</b></div>';
+      scrNote = '<div class="muted" style="font-size:12px; margin-top:4px">Requested update from customer: <b>' + escapeHtml(scr.auto_correction_reason) + '</b></div>';
     }
 
     html +=
@@ -409,16 +416,7 @@ async function saveMgrOverride() {
       agentEmail,
       "agent",
       "Application Assigned: " + app.reference_no,
-      "Manager " + currentManager.full_name + " assigned application " + app.reference_no + " to you."
-    );
-    await apiSendAgentAlertEmail(
-      agentEmail,
-      "Application Assigned by Manager",
-      app.reference_no,
-      app.full_name,
-      app.plan_name || "Red Fiber",
-      app.city || "Dasmariñas City",
-      "Assigned by Manager " + currentManager.full_name + (effectiveRemarks ? " - Remarks: " + effectiveRemarks : "")
+      "Manager " + currentManager.full_name + " assigned application " + app.reference_no + " to your workspace queue."
     );
   }
 
@@ -786,129 +784,102 @@ function togglePromoTarget() {
   if (wrap) wrap.style.display = (t === "test") ? "block" : "none";
 }
 
+function clearSiteAnnouncement() {
+  var c = getSiteContent();
+  c.announcement = { active: false, headline: "", body: "" };
+  saveSiteContent(c);
+  if (currentManager) dbAddLog(currentManager.email, "Cleared public website announcement banner");
+  showMsg("promo-msg", "ok", "Public website announcement banner has been cleared.");
+}
+
 async function sendManagerPromoBroadcast() {
   var btn = document.getElementById("btn-send-promo");
   var headline = document.getElementById("promo-headline").value.trim();
   var target = document.getElementById("promo-target").value;
   var body = document.getElementById("promo-body").value.trim();
-  var recipient = document.getElementById("promo-recipient").value.trim();
+  var recipient = document.getElementById("promo-recipient").value.trim().toLowerCase();
 
   if (!headline || !body) {
-    showMsg("promo-msg", "error", "Please provide both a campaign headline and promotional message.");
+    showMsg("promo-msg", "error", "Please provide both an announcement headline and message.");
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = "Sending Campaign Email...";
-  showMsg("promo-msg", "info", "Dispatching promotional email...");
+  btn.textContent = "Publishing...";
+  showMsg("promo-msg", "info", "Processing announcement...");
 
   try {
-    var plans = [
-      { name: "Red Fiber 50", speed: "50 Mbps", price: "₱1,299" },
-      { name: "Red Fiber 100", speed: "100 Mbps", price: "₱1,699" },
-      { name: "Red Fiber 200", speed: "200 Mbps", price: "₱2,199" }
-    ];
+    var activePlans = getActivePlans().map(function (p) {
+      return {
+        name: p.name,
+        speed: p.speed + " Mbps",
+        price: "₱" + Number(p.price).toLocaleString("en-PH")
+      };
+    });
 
     if (target === "test") {
-      if (!recipient) {
-        showMsg("promo-msg", "error", "Please specify a recipient email address.");
-        btn.disabled = false;
-        btn.textContent = "Send Promotional Campaign Email";
+      if (!recipient || !isCustomerGmail(recipient)) {
+        showMsg("promo-msg", "error", "Please enter a valid @gmail.com Customer email address.");
         return;
       }
-      var res = await apiSendPromotionalEmail(recipient, "Valued Customer", headline, body, plans);
+      var res = await apiSendPromotionalEmail(recipient, "Valued Customer", headline, body, activePlans);
       if (res && res.sent) {
-        showMsg("promo-msg", "ok", "Promotional email sent successfully to " + recipient + "!");
-      } else if (res && res.offline) {
-        showMsg("promo-msg", "error", "Email dispatch service is currently offline. Please contact the Admin to start the system service.");
+        showMsg("promo-msg", "ok", "Preview announcement email delivered via PIGEM Gmail SMTP to " + recipient + ".");
       } else {
-        showMsg("promo-msg", "error", "Delivery failed: " + ((res && res.reason) || "Error sending email"));
+        showMsg("promo-msg", "error", "Delivery failed: " + ((res && res.reason) || "Email service unavailable"));
       }
+    } else if (target === "website_only") {
+      var siteData = getSiteContent();
+      siteData.announcement = { active: true, headline: headline, body: body };
+      saveSiteContent(siteData);
+      await dbAddNotification(null, "customer", headline, body);
+      showMsg("promo-msg", "ok", "Announcement published on the public website banner and Customer Portal notifications.");
     } else {
-      var sentCount = 0;
-      for (var i = 0; i < mgrUsers.length; i++) {
-        var u = mgrUsers[i];
-        if (u.role === "customer" && u.email) {
-          await apiSendPromotionalEmail(u.email, u.full_name || "Subscriber", headline, body, plans);
-          await dbAddNotification(u.email, "customer", headline, body);
-          sentCount++;
+      var siteAll = getSiteContent();
+      siteAll.announcement = { active: true, headline: headline, body: body };
+      saveSiteContent(siteAll);
+
+      var optedEmails = {};
+      var optedNames = {};
+      for (var aIdx = 0; aIdx < mgrApps.length; aIdx++) {
+        var ap = mgrApps[aIdx];
+        var apEmail = String(ap.email || "").trim().toLowerCase();
+        if (ap.agree_tu !== false && isCustomerGmail(apEmail)) {
+          optedEmails[apEmail] = true;
+          optedNames[apEmail] = ap.full_name || "Valued Subscriber";
         }
       }
-      showMsg("promo-msg", "ok", "Campaign broadcasted to " + sentCount + " customer accounts!");
+      for (var uIdx = 0; uIdx < mgrUsers.length; uIdx++) {
+        var u = mgrUsers[uIdx];
+        var uEmail = String(u.email || "").trim().toLowerCase();
+        if (u.role === "customer" && u.active !== false && isCustomerGmail(uEmail) && optedEmails[uEmail] === undefined) {
+          optedEmails[uEmail] = true;
+          optedNames[uEmail] = u.full_name || "Valued Subscriber";
+        }
+      }
+
+      var targetList = Object.keys(optedEmails);
+      var sentCount = 0;
+      for (var k = 0; k < targetList.length; k++) {
+        var cEmail = targetList[k];
+        var mailOut = await apiSendPromotionalEmail(cEmail, optedNames[cEmail], headline, body, activePlans);
+        if (mailOut && mailOut.sent) sentCount++;
+        await dbAddNotification(cEmail, "customer", headline, body);
+      }
+      showMsg(
+        "promo-msg",
+        "ok",
+        "Announcement published on the website and dispatched via PIGEM Gmail SMTP to " + sentCount + " opted-in @gmail.com Customer(s)."
+      );
     }
 
     if (currentManager) {
-      await dbAddLog(currentManager.email, "Dispatched Promotional Campaign: '" + headline + "'");
+      await dbAddLog(currentManager.email, "Published Announcement: '" + headline + "' (" + target + ")");
     }
   } catch (err) {
     showMsg("promo-msg", "error", "Error: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "Send Promotional Campaign Email";
-  }
-}
-
-function openAddAgentModal() {
-  var modal = document.getElementById("modal-add-agent");
-  if (!modal) return;
-
-  document.getElementById("new-agent-name").value = "";
-  document.getElementById("new-agent-email").value = "";
-  document.getElementById("new-agent-pw").value = "";
-
-  var msg = document.getElementById("new-agent-msg");
-  if (msg) {
-    msg.textContent = "";
-    msg.className = "msg";
-  }
-
-  modal.classList.remove("hidden");
-  modal.style.display = "flex";
-}
-
-function closeAddAgentModal() {
-  var modal = document.getElementById("modal-add-agent");
-  if (!modal) return;
-  modal.classList.add("hidden");
-  modal.style.display = "none";
-}
-
-async function submitNewAgent() {
-  var name = document.getElementById("new-agent-name").value.trim();
-  var email = document.getElementById("new-agent-email").value.trim().toLowerCase();
-  var pw = document.getElementById("new-agent-pw").value;
-  var msg = document.getElementById("new-agent-msg");
-  var btn = document.getElementById("btn-submit-new-agent");
-
-  if (!name || !email || !pw) {
-    showAlert("Missing Information", "Please enter the agent's full name, email address, and password.");
-    return;
-  }
-  if (!email.includes("@") || !email.includes(".")) {
-    showAlert("Invalid Email", "Please enter a valid email address (e.g. agent@gmail.com).");
-    return;
-  }
-  if (pw.length < 6) {
-    showAlert("Password Short", "Password must be at least 6 characters.");
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Creating Agent...";
-  try {
-    await dbCreateUserAccount(name, email, pw, "agent");
-    await dbAddActivity("agent_provisioned", "Manager " + currentManager.full_name + " registered verification agent: " + name + " (" + email + ")");
-    await refreshManagerData();
-    closeAddAgentModal();
-    showAlert("Agent Created", "Verification agent " + name + " (" + email + ") has been registered.");
-  } catch (err) {
-    if (msg) {
-      msg.textContent = "Error: " + (err.message || "Failed to create agent");
-      msg.className = "msg bad";
-    }
-    showAlert("Registration Failed", err.message || "Could not create agent.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Create Agent";
+    btn.textContent = "Publish & Dispatch Announcement";
   }
 }

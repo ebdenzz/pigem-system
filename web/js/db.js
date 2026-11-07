@@ -100,6 +100,12 @@ async function dbGetCurrentUser() {
 
 async function dbSignIn(email, password) {
   var cleanEmail = email.trim().toLowerCase();
+  if (SYSTEM === "customer" && typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+    throw new Error("Customer Login accepts @gmail.com accounts only.");
+  }
+  if ((SYSTEM === "staff" || SYSTEM === "admin") && typeof isCustomerGmail === "function" && isCustomerGmail(cleanEmail)) {
+    throw new Error("Internal portals require a business account (e.g. name@pigem.com), not a Gmail account.");
+  }
   var user = null;
 
   var found = findDemoUserByEmail(cleanEmail);
@@ -179,6 +185,9 @@ async function checkPageAccess(allowedRoles) {
 
 async function dbCreateAccountFromApplication(fullName, email) {
   var cleanEmail = email.trim().toLowerCase();
+  if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+    throw new Error("Customer applications require a valid @gmail.com email address.");
+  }
   var code = String(Math.floor(100000 + Math.random() * 900000));
 
   if (IS_DEMO_MODE) {
@@ -226,6 +235,9 @@ async function dbCreateAccountFromApplication(fullName, email) {
 
 async function dbActivateCustomerAccount(email, code, newPassword) {
   var cleanEmail = email.trim().toLowerCase();
+  if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+    throw new Error("Customer Account activation is for @gmail.com accounts only.");
+  }
 
   if (IS_DEMO_MODE) {
     var users = getDemoUsers();
@@ -822,6 +834,7 @@ function getSiteContent() {
     contact_email: wc.contact_email || "support@pigem.com",
     contact_phone: wc.contact_phone || "101-733 (RED) / (02) 8899-9733",
     contact_address: wc.contact_address || "Dasmariñas City, Cavite",
+    announcement: wc.announcement || { active: false, headline: "", body: "" },
     plans: plans.map(function (p) {
       return {
         id: p.id,
@@ -851,6 +864,7 @@ function saveSiteContent(c) {
   if (c.contact_email != null) wc.contact_email = c.contact_email;
   if (c.contact_phone != null) wc.contact_phone = c.contact_phone;
   if (c.contact_address != null) wc.contact_address = c.contact_address;
+  if (c.announcement != null) wc.announcement = c.announcement;
   if (c.faqs) wc.faqs = c.faqs;
   saveWebsiteContent(wc);
 
@@ -883,11 +897,17 @@ async function signOutAndGoLogin() {
 
 async function dbStartPasswordReset(email) {
   var clean = String(email || "").trim().toLowerCase();
+  if (typeof isCustomerGmail === "function" && !isCustomerGmail(clean)) {
+    throw new Error("Email OTP password recovery is for @gmail.com Customer accounts only. Internal business credentials are managed by the System Administrator.");
+  }
   var code = String(Math.floor(100000 + Math.random() * 900000));
   var users = getDemoUsers();
   var found = false;
   for (var i = 0; i < users.length; i++) {
     if (users[i].email === clean) {
+      if (users[i].role && users[i].role !== "customer") {
+        throw new Error("Internal business credentials are managed by the System Administrator.");
+      }
       users[i].reset_code = code;
       found = true;
       break;
@@ -897,6 +917,9 @@ async function dbStartPasswordReset(email) {
   if (!IS_DEMO_MODE) {
     var existing = await supabaseClient.from("users").select("*").eq("email", clean).maybeSingle();
     if (existing.data) {
+      if (existing.data.role && existing.data.role !== "customer") {
+        throw new Error("Internal business credentials are managed by the System Administrator.");
+      }
       found = true;
       await supabaseClient.from("users").update({ activation_code: code }).eq("email", clean);
     } else {
@@ -1115,60 +1138,118 @@ async function dbGetUsers() {
   return await dbListProfiles();
 }
 
+async function dbHasAdminAccount() {
+  if (IS_DEMO_MODE) {
+    var demoList = getDemoUsers();
+    for (var i = 0; i < demoList.length; i++) {
+      if (demoList[i].role === "admin") return true;
+    }
+    return false;
+  }
+  try {
+    var res = await supabaseClient.from("users").select("id").eq("role", "admin").limit(1);
+    return Boolean(res.data && res.data.length > 0);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function dbCreateUserAccount(fullName, email, password, role) {
   var cleanEmail = email.trim().toLowerCase();
+  var targetRole = role || "agent";
+
+  if (targetRole === "customer") {
+    if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+      throw new Error("Customer accounts must use a valid @gmail.com email address.");
+    }
+  } else {
+    if (typeof isStaffBusinessEmail === "function" && !isStaffBusinessEmail(cleanEmail)) {
+      throw new Error("Internal Agent, Manager, and Admin accounts must use a business account email (e.g. name@pigem.com), not a Gmail address.");
+    }
+  }
+
+  if (targetRole === "admin") {
+    var alreadyHasAdmin = await dbHasAdminAccount();
+    if (alreadyHasAdmin) {
+      throw new Error("Only one System Administrator account is permitted in the system.");
+    }
+  }
+
   var users = getDemoUsers();
-  var userId = (role || "agent") + "-" + Date.now();
-  var pwHash = await hashPassword(password || "demo123");
+  var userId = targetRole + "-" + Date.now();
+  var pwHash = await hashPassword(password || "");
 
   if (!IS_DEMO_MODE && supabaseClient) {
     var existing = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
-    if (existing.data) throw new Error("Email is already registered in the database.");
+    if (existing.data) throw new Error("Account email is already registered in the database.");
 
-    try {
-      var signUpRes = await supabaseClient.auth.signUp({
-        email: cleanEmail,
-        password: password,
-        options: { data: { full_name: fullName, role: role || "agent" } }
-      });
-      if (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) {
-        userId = signUpRes.data.user.id;
-      }
-    } catch (authErr) {
-      console.warn("Supabase auth.signUp notice:", authErr);
+    if (targetRole === "customer") {
+      try {
+        var signUpRes = await supabaseClient.auth.signUp({
+          email: cleanEmail,
+          password: password,
+          options: { data: { full_name: fullName, role: "customer" } }
+        });
+        if (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) {
+          userId = signUpRes.data.user.id;
+        }
+      } catch (authErr) {}
     }
 
     var dbRow = {
       id: userId,
       email: cleanEmail,
       full_name: fullName,
-      role: role || "agent",
+      role: targetRole,
       active: true,
       activated: true,
-      activation_code: "PW:" + password
+      activation_code: "PW:" + pwHash
     };
     var upRes = await supabaseClient.from("users").upsert(dbRow, { onConflict: "email" });
     if (upRes.error) throw new Error(upRes.error.message);
   } else {
-    if (findDemoUserByEmail(cleanEmail)) throw new Error("Email is already registered.");
+    if (findDemoUserByEmail(cleanEmail)) throw new Error("Account email is already registered.");
   }
 
   var u = {
     id: userId,
     email: cleanEmail,
     password_hash: pwHash,
-    password: password,
     full_name: fullName,
-    role: role || "agent",
+    role: targetRole,
     active: true,
     activated: true,
-    activation_code: "PW:" + password
+    activation_code: "PW:" + pwHash
   };
   var filtered = users.filter(function (x) { return x.email !== cleanEmail; });
   filtered.push(u);
   writeSaved("pigem_users", filtered);
-  await dbAddActivity("user_registered", fullName + " (" + cleanEmail + " - " + (role || "agent") + ")");
+  await dbAddActivity("user_registered", fullName + " (" + cleanEmail + " - " + targetRole + ")");
   return u;
+}
+
+async function dbAdminResetUserPassword(userId, newPassword) {
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters.");
+  }
+  var pwHash = await hashPassword(newPassword);
+  if (!IS_DEMO_MODE && supabaseClient) {
+    var res = await supabaseClient.from("users").update({
+      activated: true,
+      activation_code: "PW:" + pwHash
+    }).eq("id", userId).select("*").single();
+    if (res.error) throw new Error(res.error.message);
+  }
+  var users = getDemoUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id === userId) {
+      users[i].password_hash = pwHash;
+      delete users[i].password;
+      users[i].activation_code = "PW:" + pwHash;
+    }
+  }
+  writeSaved("pigem_users", users);
+  return true;
 }
 
 async function dbUpdateUser(userId, changes) {
@@ -1420,7 +1501,7 @@ if (typeof apiSendStatusEmail === "undefined") {
         status: custSt,
         remarks: remarks || "",
         target_summary: targetSummary || "Information / Document Clarification Required",
-        portal_link: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0 ? window.location.origin : "http://127.0.0.1:8001") + "/customer.html"
+        portal_link: (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0 ? window.location.origin : (CONFIG.PUBLIC_URL || "https://pigem-system-web.vercel.app")) + "/customer.html"
       }
     });
   };

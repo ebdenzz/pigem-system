@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Internal Login | Combined Facilities Support Services</title>
+  <title>Staff Business Login | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -20,21 +20,19 @@
   <main class="auth-page">
     <div class="card auth-card">
       <div class="center">
-        <h2>Internal Login</h2>
+        <h2>Internal Staff Login</h2>
+        <p class="small muted mt" style="margin-top:4px;">Sign in with your Agent or Manager business account</p>
       </div>
 
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Email Address</label>
-          <input id="email" type="email" placeholder="Enter your email" required>
+          <label for="email">Business Account Email</label>
+          <input id="email" type="email" placeholder="name@pigem.com" required>
         </div>
 
         <div class="mt">
-          <div class="row between">
-            <label for="password" style="margin:0">Password</label>
-            <a href="#" class="small" style="color:var(--red); font-weight:600;" onclick="openForgotModal(); return false;">Forgot Password?</a>
-          </div>
-          <input id="password" type="password" class="mt" placeholder="Enter your password" required>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Enter your password" required>
         </div>
 
         <div id="login-recaptcha-wrap" style="display:flex; justify-content:center; margin:16px 0; min-height:78px;">
@@ -44,6 +42,10 @@
         <div class="mt-big">
           <button id="btn-login" type="submit" class="btn btn-red btn-full">Sign In</button>
         </div>
+
+        <p class="small muted center mt" style="font-size:12px;">
+          Internal business credentials are managed by the System Administrator.
+        </p>
       </form>
     </div>
   </main>

@@ -268,8 +268,12 @@ async function submitCustomerCorrection(appId) {
       showMsg("fix-msg", "error", "Please update your Birth Date so it matches your Valid ID.");
       return;
     }
+    if (newEmail !== oldEmail && typeof isCustomerGmail === "function" && !isCustomerGmail(newEmail)) {
+      showMsg("fix-msg", "error", "Customer email updates must use a valid @gmail.com address.");
+      return;
+    }
     if (fields.indexOf("email") !== -1 && fields.indexOf("phone") === -1 && newEmail === oldEmail) {
-      showMsg("fix-msg", "error", "Please enter a different Email Address.");
+      showMsg("fix-msg", "error", "Please enter a different @gmail.com Email Address.");
       return;
     }
     if (fields.indexOf("phone") !== -1 && fields.indexOf("email") === -1 && phone === oldPhone) {
@@ -365,24 +369,31 @@ async function submitCustomerCorrection(appId) {
     });
 
     var rescrActive = isAiEnabled();
-    var rescrRes = { queued: false };
-    if (rescrActive && typeof apiStartBackgroundScreening === "function") {
-      rescrRes = await apiStartBackgroundScreening(app.id);
-    }
-    if (!rescrActive || !rescrRes || !rescrRes.queued) {
-      updatedScreening.state = rescrActive ? "unavailable" : "paused";
+    if (!rescrActive) {
+      updatedScreening.state = "paused";
       updatedScreening.phase = "Original Copy Ready (Manual Review)";
       updatedScreening.eta_seconds = 0;
       updatedScreening.fallback_original_only = true;
-      updatedScreening.advisory = "Auto-screening is currently not active. Customer's updated submission and original ID photo are ready for manual review.";
+      updatedScreening.advisory = "Auto-screening is currently paused. Customer's updated submission and original ID photo are ready for manual review.";
       await dbUpdateApplication(app.id, { screening: updatedScreening });
-      if (typeof dbNotifyScreeningUnavailable === "function") {
-        await dbNotifyScreeningUnavailable(
-          app.reference_no,
-          fullName,
-          "Customer submitted an update; original uploaded ID photo is ready for manual review."
-        );
-      }
+    } else if (typeof apiStartBackgroundScreening === "function") {
+      apiStartBackgroundScreening(app.id).then(async function (rescrRes) {
+        if (!rescrRes || !rescrRes.queued) {
+          updatedScreening.state = "unavailable";
+          updatedScreening.phase = "Original Copy Ready (Manual Review)";
+          updatedScreening.eta_seconds = 0;
+          updatedScreening.fallback_original_only = true;
+          updatedScreening.advisory = "Auto-screening is currently unavailable. Customer's updated submission and original ID photo are ready for manual review.";
+          await dbUpdateApplication(app.id, { screening: updatedScreening });
+          if (typeof dbNotifyScreeningUnavailable === "function") {
+            await dbNotifyScreeningUnavailable(
+              app.reference_no,
+              fullName,
+              "Customer submitted an update; original uploaded ID photo is ready for manual review."
+            );
+          }
+        }
+      });
     }
 
     await dbAddAiLog(
@@ -398,18 +409,6 @@ async function submitCustomerCorrection(appId) {
       "Customer Update Submitted: " + app.reference_no,
       fullName + " updated " + changedList.join(", ") + " for " + app.reference_no + "."
     );
-
-    if (app.assigned_agent && app.assigned_agent.indexOf("@") !== -1) {
-      await apiSendAgentAlertEmail(
-        app.assigned_agent,
-        "Customer Submitted Update",
-        app.reference_no,
-        fullName,
-        app.plan_name || "Red Fiber",
-        app.barangay || "Dasmariñas City",
-        "Customer updated: " + changedList.join(", ") + "."
-      );
-    }
 
     await dbAddLog(currentCustomer.email, "Customer submitted update (" + changedList.join(", ") + ") for " + app.reference_no);
     showAlert("Update Received", "Thank you! Your updates (" + changedList.join(", ") + ") have been submitted and your application continues in Processing.");

@@ -11,7 +11,14 @@ function getHomeForRole(role) {
   return (window.ROOT || "") + "customer.html";
 }
 
-window.onLoginCaptchaVerified = function (token) {
+window.onLoginCaptchaVerified = async function (token) {
+  if (token && typeof apiVerifyCaptcha === "function") {
+    var verifyRes = await apiVerifyCaptcha(token);
+    if (!verifyRes || verifyRes.verified === false) {
+      loginCaptchaVerified = false;
+      return;
+    }
+  }
   loginCaptchaVerified = true;
 };
 
@@ -92,23 +99,61 @@ function triggerLoginCaptcha() {
   }, 450);
 }
 
+async function checkAdminProvisionState() {
+  if (window.SYSTEM !== "admin" || typeof dbHasAdminAccount !== "function") return;
+  var box = document.getElementById("admin-provision-box");
+  if (!box) return;
+  var hasAdmin = await dbHasAdminAccount();
+  box.hidden = Boolean(hasAdmin);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   renderLoginCaptchaBox();
+  checkAdminProvisionState();
 });
+
+function showLockoutPopup() {
+  var isCustomer = (window.SYSTEM === "customer");
+  var msgHtml = isCustomer
+    ? 'You have reached ' + MAX_ATTEMPTS + ' failed login attempts. Please verify your Gmail account via OTP to reset your password.'
+    : 'You have reached ' + MAX_ATTEMPTS + ' failed login attempts. Please contact the System Administrator or refresh the page to try again.';
+  var actionBtn = isCustomer
+    ? '<button class="btn btn-red" onclick="closePopup(); openForgotModal();">Reset Password via Gmail OTP</button>'
+    : '';
+
+  openPopup(
+    '<h3>Sign-In Temporarily Locked</h3>' +
+    '<div class="notice bad mt">' + msgHtml + '</div>' +
+    '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
+      '<button class="btn" onclick="closePopup()">Close</button>' +
+      actionBtn +
+    '</div>'
+  );
+}
 
 async function handleLogin(event) {
   event.preventDefault();
 
   if (loginAttempts >= MAX_ATTEMPTS) {
-    openPopup(
-      '<h3>Account Locked</h3>' +
-      '<div class="notice bad mt">Your account has been temporarily locked due to 5 consecutive failed login attempts. Please click below to reset your password.</div>' +
-      '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
-        '<button class="btn" onclick="closePopup()">Close</button>' +
-        '<button class="btn btn-red" onclick="closePopup(); openForgotModal();">Reset Password Now</button>' +
-      '</div>'
-    );
+    showLockoutPopup();
     return;
+  }
+
+  var emailEl = document.getElementById("email");
+  var pwEl = document.getElementById("password");
+  var email = (emailEl ? emailEl.value : "").trim().toLowerCase();
+  var password = pwEl ? pwEl.value : "";
+
+  if (window.SYSTEM === "customer") {
+    if (typeof isCustomerGmail === "function" && !isCustomerGmail(email)) {
+      showAlert("Gmail Required", "Customer Login accepts @gmail.com accounts only. Internal business accounts must sign in on the Staff or Admin Login page.", "warn");
+      return;
+    }
+  } else {
+    if (typeof isCustomerGmail === "function" && isCustomerGmail(email)) {
+      showAlert("Business Account Required", "Gmail accounts are reserved for Customers. Please enter your @pigem.com business account credentials.", "warn");
+      return;
+    }
   }
 
   if (!loginCaptchaVerified && typeof grecaptcha !== "undefined" && grecaptcha.getResponse) {
@@ -128,12 +173,7 @@ async function handleLogin(event) {
     return;
   }
 
-  var emailEl = document.getElementById("email");
-  var pwEl = document.getElementById("password");
-  var email = (emailEl ? emailEl.value : "").trim();
-  var password = pwEl ? pwEl.value : "";
   var btn = document.getElementById("btn-login");
-
   btn.disabled = true;
   var oldText = btn.textContent;
   btn.textContent = "Signing in...";
@@ -152,14 +192,7 @@ async function handleLogin(event) {
     btn.textContent = oldText;
 
     if (loginAttempts >= MAX_ATTEMPTS) {
-      openPopup(
-        '<h3>Account Locked</h3>' +
-        '<div class="notice bad mt">You have exceeded the maximum of ' + MAX_ATTEMPTS + ' failed login attempts. For security reasons, please reset your password.</div>' +
-        '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
-          '<button class="btn" onclick="closePopup()">Close</button>' +
-          '<button class="btn btn-red" onclick="closePopup(); openForgotModal();">Reset Password Now</button>' +
-        '</div>'
-      );
+      showLockoutPopup();
     } else {
       var remaining = MAX_ATTEMPTS - loginAttempts;
       showAlert("Sign In Failed", (err.message || "Invalid email or password.") + " (" + remaining + " attempt" + (remaining === 1 ? "" : "s") + " remaining)", "bad");
@@ -168,14 +201,18 @@ async function handleLogin(event) {
 }
 
 function openForgotModal() {
+  if (window.SYSTEM !== "customer") {
+    showAlert("Administrator Managed", "Internal business account credentials are managed by the System Administrator.", "warn");
+    return;
+  }
   openPopup(
-    '<h3>Reset Your Password</h3>' +
-    '<p class="small muted mt">Enter your account email address. We will send a 6-digit verification code to reset your password.</p>' +
+    '<h3>Reset Customer Password</h3>' +
+    '<p class="small muted mt">Enter your registered @gmail.com address to receive a 6-digit verification code.</p>' +
     '<div class="mt">' +
-      '<label for="reset-email">Email Address</label>' +
-      '<input id="reset-email" type="email" placeholder="Enter your email">' +
+      '<label for="reset-email">Gmail Address</label>' +
+      '<input id="reset-email" type="email" placeholder="yourname@gmail.com">' +
     '</div>' +
-    '<div class="row mt-big" style="justify-content:flex-end">' +
+    '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
       '<button class="btn" onclick="closePopup()">Cancel</button>' +
       '<button class="btn btn-red" onclick="sendResetCode()">Send Code</button>' +
     '</div>'
@@ -184,22 +221,14 @@ function openForgotModal() {
 
 async function sendResetCode() {
   var email = document.getElementById("reset-email").value.trim().toLowerCase();
-  if (!email) {
-    showAlert("Email Required", "Please enter your email address.", "warn");
+  if (!email || (typeof isCustomerGmail === "function" && !isCustomerGmail(email))) {
+    showAlert("Gmail Required", "Please enter a valid @gmail.com Customer email address.", "warn");
     return;
   }
   try {
     var code = await dbStartPasswordReset(email);
     resetTargetEmail = email;
-    var subject = "PIGEM Account Security - Password Reset Verification Code";
-    var body =
-      "Dear Valued Client,\n\n" +
-      "We received a request to reset the password associated with your PIGEM account (" + email + ").\n\n" +
-      "Your 6-Digit Password Reset Verification Code is: " + code + "\n\n" +
-      "Please enter this verification code on the password reset screen to set your new password.\n\n" +
-      "Sincerely,\n" +
-      "PIGEM Combined Facilities Support Services";
-    await apiSendOtpEmail(email, code, "Password Reset", "Subscriber");
+    await apiSendOtpEmail(email, code, "Password Reset", "Customer");
     openFinishResetModal();
   } catch (err) {
     showAlert("Reset Failed", err.message || "Could not start password reset.", "bad");
@@ -209,9 +238,7 @@ async function sendResetCode() {
 function openFinishResetModal() {
   openPopup(
     '<h3>Enter Verification Code</h3>' +
-    '<div class="notice mt">A 6-digit verification code was sent to <b>' + resetTargetEmail + '</b>' +
-      '' +
-    '.</div>' +
+    '<div class="notice mt">A 6-digit verification code was sent to <b>' + escapeHtml(resetTargetEmail) + '</b>.</div>' +
     '<div class="mt">' +
       '<label for="reset-code">6-Digit Verification Code</label>' +
       '<input id="reset-code" type="text" maxlength="6" placeholder="123456">' +
@@ -220,7 +247,7 @@ function openFinishResetModal() {
       '<label for="reset-pw">New Password (at least 6 characters)</label>' +
       '<input id="reset-pw" type="password" placeholder="New password">' +
     '</div>' +
-    '<div class="row mt-big" style="justify-content:flex-end">' +
+    '<div class="row mt-big" style="justify-content:flex-end; gap:8px;">' +
       '<button class="btn" onclick="closePopup()">Cancel</button>' +
       '<button class="btn btn-red" onclick="confirmResetPassword()">Save New Password</button>' +
     '</div>'
@@ -233,7 +260,7 @@ async function confirmResetPassword() {
   try {
     await dbFinishPasswordReset(resetTargetEmail, code, pw);
     loginAttempts = 0;
-    showAlert("Password Updated", "Your password has been changed. You can now sign in with your new password.", "good");
+    showAlert("Password Updated", "Your password has been updated. You can now sign in with your Gmail account.", "good");
   } catch (err) {
     showAlert("Reset Failed", err.message || "Invalid code or password.", "bad");
   }

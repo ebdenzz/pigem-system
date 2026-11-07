@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="assets/images/logo.png">
-  <title>Admin Login | Combined Facilities Support Services</title>
+  <title>Admin Console Login | Combined Facilities Support Services</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -20,21 +20,27 @@
   <main class="auth-page">
     <div class="card auth-card">
       <div class="center">
-        <h2>Admin Login</h2>
+        <h2>Admin Console Login</h2>
+        <p class="small muted mt" style="margin-top:4px;">Protected single-administrator business console</p>
+      </div>
+
+      <div id="admin-provision-box" class="notice mt" hidden>
+        <b style="display:block; margin-bottom:4px;">First-Time System Setup</b>
+        No System Administrator account has been provisioned yet. Register the single Admin business account first to initialize staff accounts.
+        <div class="mt">
+          <a href="setup-accounts.html" class="btn btn-dark btn-full btn-small">Provision Admin Account &rarr;</a>
+        </div>
       </div>
 
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Email Address</label>
-          <input id="email" type="email" placeholder="Enter your email" required>
+          <label for="email">Admin Business Account</label>
+          <input id="email" type="email" placeholder="admin@pigem.com" required>
         </div>
 
         <div class="mt">
-          <div class="row between">
-            <label for="password" style="margin:0">Password</label>
-            <a href="#" class="small" style="color:var(--red); font-weight:600;" onclick="openForgotModal(); return false;">Forgot Password?</a>
-          </div>
-          <input id="password" type="password" class="mt" placeholder="Enter your password" required>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Enter your password" required>
         </div>
 
         <div id="login-recaptcha-wrap" style="display:flex; justify-content:center; margin:16px 0; min-height:78px;">
