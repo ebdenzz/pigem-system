@@ -1,6 +1,6 @@
 import html
 
-import os
+from os import getenv
 
 import re
 
@@ -18,16 +18,6 @@ from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
 from typing import Any, Dict, List, Optional
 
-try:
-
-    from dotenv import load_dotenv
-
-except ImportError:
-
-    load_dotenv = None
-
-_ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
-
 COMPANY_NAME = "PIGEM Combined Facilities Support Services"
 
 BRAND_RED = "#c8102e"
@@ -42,17 +32,9 @@ LIVE_BASE_URL = "https://pigem-system-web.vercel.app"
 
 _GMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", re.IGNORECASE)
 
-def _reload_env() -> None:
-
-    if load_dotenv is not None and os.path.exists(_ENV_FILE):
-
-        load_dotenv(_ENV_FILE, override=True)
-
 def _get_app_base_url() -> str:
 
-    _reload_env()
-
-    return (os.getenv("APP_BASE_URL") or LIVE_BASE_URL).strip().rstrip("/")
+    return (getenv("APP_BASE_URL") or LIVE_BASE_URL).strip().rstrip("/")
 
 def _resolve_customer_portal_link(raw_link: str = "") -> str:
 
@@ -78,23 +60,21 @@ def is_customer_gmail(email_addr: str) -> bool:
 
 def _get_smtp_config() -> Dict[str, Any]:
 
-    _reload_env()
-
-    host = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
+    host = (getenv("SMTP_HOST") or "smtp.gmail.com").strip()
 
     try:
 
-        port = int((os.getenv("SMTP_PORT") or "587").strip())
+        port = int((getenv("SMTP_PORT") or "587").strip())
 
     except ValueError:
 
         port = 587
 
-    user = (os.getenv("SMTP_USER") or "").strip()
+    user = (getenv("SMTP_USER") or "").strip()
 
-    password = (os.getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
+    password = (getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
 
-    raw_from = (os.getenv("SMTP_FROM") or "").strip()
+    raw_from = (getenv("SMTP_FROM") or "").strip()
 
     return {
 
@@ -138,7 +118,21 @@ def is_configured() -> bool:
 
 class BaseEmailTemplateRenderer:
 
-    def wrap_card(self, title: str, greeting_name: str, body_html: str, action_label: str = "", action_url: str = "") -> str:
+    def wrap_card(
+
+        self,
+
+        title: str,
+
+        greeting_name: str,
+
+        body_html: str,
+
+        action_label: str = "",
+
+        action_url: str = "",
+
+    ) -> str:
 
         safe_title = _escape(title)
 
@@ -476,143 +470,123 @@ def send(
 
             "unconfigured": True,
 
-            "reason": "Gmail SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in environment variables.",
+            "reason": "Gmail SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in Vercel Environment Variables.",
 
         }
 
     cfg = _get_smtp_config()
 
-    smtp_host = cfg["host"]
+    data = payload or {}
 
-    smtp_port = cfg["port"]
+    t_type = (template_type or "general").strip().lower()
 
-    smtp_user = cfg["user"]
+    if html_content:
 
-    smtp_pass = cfg["password"]
+        final_html = html_content
 
-    raw_from = cfg["raw_from"]
+    elif t_type == "otp":
 
-    payload = payload or {}
+        final_html = _renderer.render_otp(
 
-    final_html = html_content
+            code=str(data.get("code") or "000000"),
 
-    if not final_html:
+            recipient_name=str(data.get("customer_name") or "Valued Customer"),
 
-        lowered_subj = (subject or "").lower()
+            purpose=str(data.get("purpose") or "Account Verification"),
 
-        if template_type == "otp" or "otp" in lowered_subj or "verification code" in lowered_subj:
+        )
 
-            code_match = re.search(r"\b(\d{6})\b", message) or re.search(r"\b(\d{6})\b", subject or "")
+    elif t_type == "application_confirmation":
 
-            extracted_code = payload.get("code") or (code_match.group(1) if code_match else "000000")
+        final_html = _renderer.render_confirmation(
 
-            final_html = _renderer.render_otp(
+            ref_no=str(data.get("ref_no") or "PIGEM-PENDING"),
 
-                code=str(extracted_code),
+            customer_name=str(data.get("customer_name") or "Valued Applicant"),
 
-                recipient_name=payload.get("customer_name") or payload.get("full_name") or "Valued Customer",
+            plan_name=str(data.get("plan_name") or "Red Fiber Plan"),
 
-                purpose=payload.get("purpose") or "Verification",
+            speed=str(data.get("speed") or "100 Mbps"),
 
-            )
+            price=str(data.get("price") or "PHP 1,000"),
 
-        elif template_type == "application_confirmation" or "application confirmation" in lowered_subj:
+            address=str(data.get("address") or "Dasmari\u00f1as City, Cavite"),
 
-            final_html = _renderer.render_confirmation(
+            activation_link=str(data.get("activation_link") or ""),
 
-                ref_no=payload.get("ref_no") or "PENDING",
+            activation_code=str(data.get("activation_code") or ""),
 
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Applicant",
+            is_existing_account=bool(data.get("is_existing_account")),
 
-                plan_name=payload.get("plan_name") or "Red Fiber Plan",
+        )
 
-                speed=payload.get("speed") or "100 Mbps",
+    elif t_type == "correction_notice":
 
-                price=payload.get("price") or "Php 1,000",
+        final_html = _renderer.render_correction_notice(
 
-                address=payload.get("address") or "Dasmari\u00f1as City, Cavite",
+            ref_no=str(data.get("ref_no") or ""),
 
-                activation_link=payload.get("activation_link") or "",
+            customer_name=str(data.get("customer_name") or "Valued Customer"),
 
-                activation_code=payload.get("activation_code") or "",
+            portal_link=str(data.get("portal_link") or ""),
 
-                is_existing_account=bool(payload.get("is_existing_account")),
+            target_summary=str(data.get("target_summary") or "Application Detail / ID Photo Update"),
 
-            )
+        )
 
-        elif template_type == "correction_notice" or "correction" in lowered_subj or "update needed" in lowered_subj:
+    elif t_type == "status_update":
 
-            final_html = _renderer.render_correction_notice(
+        final_html = _renderer.render_status_update(
 
-                ref_no=payload.get("ref_no") or "APPLICATION",
+            ref_no=str(data.get("ref_no") or ""),
 
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Customer",
+            customer_name=str(data.get("customer_name") or "Valued Customer"),
 
-                portal_link=payload.get("portal_link") or "",
+            status=str(data.get("status") or "Processing"),
 
-                target_summary=payload.get("target_summary") or "Document or Information Update",
+            remarks=str(data.get("remarks") or ""),
 
-            )
+            portal_link=str(data.get("portal_link") or ""),
 
-        elif template_type == "status_update" or "application update" in lowered_subj:
+        )
 
-            final_html = _renderer.render_status_update(
+    elif t_type == "promotional":
 
-                ref_no=payload.get("ref_no") or "APPLICATION",
+        final_html = _renderer.render_promotional(
 
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Customer",
+            customer_name=str(data.get("customer_name") or "Valued Subscriber"),
 
-                status=payload.get("status") or "Processing",
+            headline=str(data.get("headline") or subject),
 
-                remarks=payload.get("remarks") or message,
+            body_text=str(data.get("body_text") or message),
 
-                portal_link=payload.get("portal_link") or "",
+            promo_plans=data.get("promo_plans"),
 
-            )
+        )
 
-        elif template_type == "promotional":
+    else:
 
-            final_html = _renderer.render_promotional(
+        final_html = _renderer.render_general(subject=subject, message=message)
 
-                customer_name=payload.get("customer_name") or "Valued Subscriber",
+    plain_fallback = (message or subject or COMPANY_NAME).strip()
 
-                headline=payload.get("headline") or subject,
+    display_name, parsed_addr = parseaddr(cfg["raw_from"])
 
-                body_text=payload.get("body") or message,
+    sender_addr = parsed_addr or cfg["user"]
 
-                promo_plans=payload.get("promo_plans"),
-
-            )
-
-        else:
-
-            final_html = _renderer.render_general(subject, message)
-
-    display_name = COMPANY_NAME
-
-    if raw_from:
-
-        parsed_name, _ = parseaddr(raw_from)
-
-        if parsed_name:
-
-            display_name = parsed_name
-
-    plain_fallback = (message or "").strip() or f"{subject}\n\n{COMPANY_NAME}\n{OFFICE_LINE}"
-
-    msg_id = make_msgid(domain="gmail.com")
+    sender_name = display_name or COMPANY_NAME
 
     mime_msg = MIMEMultipart("alternative")
 
-    mime_msg["From"] = formataddr((display_name, smtp_user))
+    mime_msg["Subject"] = Header(subject or "PIGEM Notification", "utf-8")
+
+    mime_msg["From"] = formataddr((str(Header(sender_name, "utf-8")), sender_addr))
 
     mime_msg["To"] = recipient
 
-    mime_msg["Subject"] = Header(subject or "PIGEM Notification", "utf-8")
-
     mime_msg["Date"] = formatdate(localtime=True)
 
-    mime_msg["Message-ID"] = msg_id
+    mime_msg["Message-ID"] = make_msgid(domain="gmail.com")
 
     mime_msg.attach(MIMEText(plain_fallback, "plain", "utf-8"))
 
@@ -620,52 +594,32 @@ def send(
 
     try:
 
-        ssl_ctx = ssl.create_default_context()
+        tls_context = ssl.create_default_context()
 
-        if smtp_port == 465:
+        if cfg["port"] == 465:
 
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20, context=ssl_ctx) as server:
+            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=20, context=tls_context) as server:
 
-                server.login(smtp_user, smtp_pass)
+                server.login(cfg["user"], cfg["password"])
 
-                server.sendmail(smtp_user, [recipient], mime_msg.as_string())
+                server.sendmail(sender_addr, [recipient], mime_msg.as_string())
 
         else:
 
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as server:
 
                 server.ehlo()
 
-                server.starttls(context=ssl_ctx)
+                server.starttls(context=tls_context)
 
                 server.ehlo()
 
-                server.login(smtp_user, smtp_pass)
+                server.login(cfg["user"], cfg["password"])
 
-                server.sendmail(smtp_user, [recipient], mime_msg.as_string())
+                server.sendmail(sender_addr, [recipient], mime_msg.as_string())
 
-        return {
+        return {"sent": True, "provider": "gmail_smtp", "to": recipient}
 
-            "sent": True,
+    except Exception as exc:
 
-            "id": msg_id.strip("<>"),
-
-            "provider": "gmail_smtp",
-
-            "reason": "",
-
-        }
-
-    except smtplib.SMTPAuthenticationError:
-
-        return {
-
-            "sent": False,
-
-            "reason": f"Gmail SMTP authentication failed for {smtp_user}. Verify that 2-Step Verification is active and SMTP_PASSWORD is a valid 16-character Google App Password.",
-
-        }
-
-    except Exception as error:
-
-        return {"sent": False, "reason": str(error)}
+        return {"sent": False, "reason": f"Gmail SMTP error: {exc}"}

@@ -1,10 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: Customer Account Activation Page (web/activate.html)
+     PURPOSE: Allows newly registered applicants to verify their 6-digit activation code and set their permanent account password.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" href="assets/images/logo.png">
   <title>Customer Account Activation</title>
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body class="gray-bg">
@@ -17,6 +24,7 @@
     </div>
   </header>
 
+  <!-- SECTION: Main Page Content Container -->
   <main class="auth-page" style="min-height:calc(100vh - 62px);">
     <div class="card auth-card">
       <div class="auth-head">
@@ -40,10 +48,16 @@
         </div>
       </div>
 
+      <!-- FORM: Interactive User Input Form -->
       <form id="activate-form" class="mt" onsubmit="submitActivation(event)">
         <div>
           <label for="act-email">Gmail Address</label>
           <input id="act-email" type="email" required placeholder="yourname@gmail.com">
+        </div>
+        <div class="mt">
+          <label for="act-username">Customer Username</label>
+          <input id="act-username" type="text" minlength="3" maxlength="30" required placeholder="e.g. juan.delacruz">
+          <div class="small muted" style="font-size:11.5px; margin-top:4px;">3 to 30 characters (letters, numbers, dots, or underscores). You can sign in using this username or your Gmail.</div>
         </div>
         <div class="mt">
           <label for="act-code">6-Digit OTP / Activation Code</label>
@@ -62,10 +76,15 @@
     </div>
   </main>
 
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- INLINE SCRIPT: Page-specific portal configuration and startup logic -->
   <script>
+    // Helper function `initActivatePage`: Executes portal workflow logic for `initActivatePage`.
     async function initActivatePage() {
       var params = new URLSearchParams(window.location.search);
       var email = params.get("email") || "";
@@ -79,6 +98,9 @@
 
       document.getElementById("act-email").value = email;
       document.getElementById("act-code").value = code;
+      if (typeof dbGetSuggestedUsername === "function") {
+        document.getElementById("act-username").value = await dbGetSuggestedUsername(email);
+      }
 
       if (await dbIsAccountActivated(email)) {
         document.getElementById("already-active-box").hidden = false;
@@ -86,23 +108,30 @@
       }
     }
 
+    // Action Handler `submitActivation` (params: event): Validates user input and commits state changes to submit activation.
     async function submitActivation(event) {
       event.preventDefault();
       var email = document.getElementById("act-email").value.trim();
+      var username = document.getElementById("act-username").value.trim().toLowerCase();
       var code = document.getElementById("act-code").value.trim();
       var pass = document.getElementById("act-pass").value;
       var pass2 = document.getElementById("act-pass2").value;
 
+      if (typeof isValidUsername === "function" && !isValidUsername(username)) {
+        showAlert("Invalid Username", "Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).", "warn");
+        return;
+      }
       if (pass !== pass2) {
         showAlert("Password Mismatch", "Your password and confirm password do not match.", "bad");
         return;
       }
 
       try {
-        await dbActivateCustomerAccount(email, code, pass);
+        var activatedUser = await dbActivateCustomerAccount(email, code, pass, username);
+        var unameLabel = (activatedUser && activatedUser.username) ? (" (@" + activatedUser.username + ")") : "";
         openPopup(
           '<h3>Account Activated!</h3>' +
-          '<div class="notice good mt">Your Customer Account is now active. You can now sign in and monitor your internet service application.</div>' +
+          '<div class="notice good mt">Your Customer Account' + escapeHtml(unameLabel) + ' is now active. You can now sign in and monitor your internet service application.</div>' +
           '<div class="row mt" style="justify-content:flex-end">' +
             '<a class="btn btn-red" href="customer.html">Open My Customer Account</a>' +
           '</div>'

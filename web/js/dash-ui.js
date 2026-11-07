@@ -191,6 +191,7 @@ function renderProfileDrawer(user) {
     '<div style="text-align:center; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       avatarHtml +
       '<div style="font-weight:800; font-size:16px">' + escapeHtml(user.full_name) + '</div>' +
+      (user.username ? '<div style="font-size:12.5px; font-weight:700; color:var(--red); margin-top:2px">@' + escapeHtml(user.username) + '</div>' : '') +
       '<div class="muted" style="font-size:12px">' + escapeHtml(user.email) + ' - ' + escapeHtml((user.role || "").toUpperCase()) + '</div>' +
       (user.intro ? '<div style="font-size:12px; margin-top:6px; font-style:italic">"' + escapeHtml(user.intro) + '"</div>' : '') +
     '</div>' +
@@ -208,6 +209,7 @@ function renderProfileDrawer(user) {
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Edit Profile</div>' +
       '<div id="prof-msg" class="msg"></div>' +
       '<div class="field"><label>Display Name</label><input id="prof-name" type="text" value="' + escapeHtml(user.full_name || "") + '" /></div>' +
+      '<div class="field"><label>Username</label><input id="prof-username" type="text" minlength="3" maxlength="30" value="' + escapeHtml(user.username || "") + '" placeholder="username" /></div>' +
       '<div class="field"><label>' + (user.role === "customer" ? "Short Bio" : "Short Bio / Role Note") + '</label><input id="prof-intro" type="text" value="' + escapeHtml(user.intro || "") + '" placeholder="' + (user.role === "customer" ? "Add a short bio or note" : "e.g. Senior Fiber Verification Agent") + '" /></div>' +
       '<div class="field"><label>Profile Photo</label><input id="prof-photo" type="file" accept="image/*" onchange="onProfilePhotoPick(this)" /></div>' +
       '<button type="button" class="btn btn-dark btn-sm" style="width:100%" onclick="saveProfileChanges()">Save Profile</button>' +
@@ -231,6 +233,7 @@ function renderProfileDrawer(user) {
 }
 
 var pendingAvatarDataUrl = "";
+
 function onProfilePhotoPick(inputEl) {
   var file = inputEl.files && inputEl.files[0];
   if (!file) return;
@@ -243,24 +246,37 @@ function onProfilePhotoPick(inputEl) {
 
 async function saveProfileChanges() {
   if (!dashCurrentUser) return;
+  hideMsg("prof-msg");
   var newName = document.getElementById("prof-name").value.trim() || dashCurrentUser.full_name;
+  var usernameEl = document.getElementById("prof-username");
+  var newUsername = usernameEl ? usernameEl.value.trim().toLowerCase() : (dashCurrentUser.username || "");
   var newIntro = document.getElementById("prof-intro").value.trim();
-  var users = getDemoUsers();
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === dashCurrentUser.id) {
-      users[i].full_name = newName;
-      users[i].intro = newIntro;
-      if (pendingAvatarDataUrl) users[i].avatar_url = pendingAvatarDataUrl;
-      dashCurrentUser = users[i];
-      break;
-    }
+
+  var changes = {
+    full_name: newName,
+    intro: newIntro
+  };
+  if (newUsername) {
+    changes.username = newUsername;
   }
-  writeSaved("pigem_users", users);
-  renderAvatarBtn(dashCurrentUser);
-  renderProfileDrawer(dashCurrentUser);
-  var nameLabel = document.getElementById("top-user-name");
-  if (nameLabel) nameLabel.textContent = dashCurrentUser.full_name;
-  showMsg("prof-msg", "ok", "Profile updated!");
+  if (pendingAvatarDataUrl) {
+    changes.avatar_url = pendingAvatarDataUrl;
+  }
+
+  try {
+    var updated = (typeof dbUpdateMyProfile === "function")
+      ? await dbUpdateMyProfile(dashCurrentUser.id, changes)
+      : null;
+    dashCurrentUser = Object.assign({}, dashCurrentUser, changes, updated || {});
+    pendingAvatarDataUrl = "";
+    renderAvatarBtn(dashCurrentUser);
+    renderProfileDrawer(dashCurrentUser);
+    var nameLabel = document.getElementById("top-user-name");
+    if (nameLabel) nameLabel.textContent = dashCurrentUser.full_name;
+    showMsg("prof-msg", "ok", "Profile updated!");
+  } catch (err) {
+    showMsg("prof-msg", "error", err.message || "Could not update profile.");
+  }
 }
 
 async function sendProfilePwOtp() {

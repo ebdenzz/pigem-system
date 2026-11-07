@@ -47,11 +47,81 @@ function getDemoUsers() {
 }
 
 function findDemoUserByEmail(email) {
+  var target = String(email || "").trim().toLowerCase();
   var users = getDemoUsers();
   for (var i = 0; i < users.length; i++) {
-    if (users[i].email === email) return users[i];
+    if (String(users[i].email || "").toLowerCase() === target) return users[i];
   }
   return null;
+}
+
+function findDemoUserByUsername(username) {
+  var target = String(username || "").trim().toLowerCase();
+  if (!target) return null;
+  var users = getDemoUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i].username || "").toLowerCase() === target) return users[i];
+  }
+  return null;
+}
+
+async function dbIsUsernameTaken(username, excludeUserId) {
+  var clean = String(username || "").trim().toLowerCase();
+  if (!clean) return false;
+
+  var localMatch = findDemoUserByUsername(clean);
+  if (localMatch && localMatch.id !== excludeUserId) {
+    return true;
+  }
+
+  if (!IS_DEMO_MODE && supabaseClient) {
+    var res = await supabaseClient.from("users").select("id, username").ilike("username", clean).limit(5);
+    if (res.data && res.data.length > 0) {
+      for (var i = 0; i < res.data.length; i++) {
+        if (res.data[i].id !== excludeUserId) return true;
+      }
+    }
+  }
+  return false;
+}
+
+async function dbGenerateUniqueUsername(fullName, email, preferredUsername) {
+  var seed = String(preferredUsername || "").trim().toLowerCase();
+  if (!seed || (typeof isValidUsername === "function" && !isValidUsername(seed))) {
+    seed = (typeof sanitizeUsernameSeed === "function")
+      ? sanitizeUsernameSeed(fullName, email)
+      : (String(email || "user").split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 24) || "user_account");
+  }
+  if (seed.length < 3) seed = (seed + "_user").slice(0, 24);
+
+  var candidate = seed.slice(0, 30);
+  if (!(await dbIsUsernameTaken(candidate, null))) {
+    return candidate;
+  }
+
+  for (var attempt = 1; attempt <= 25; attempt++) {
+    var suffix = attempt <= 9 ? String(attempt) : String(Math.floor(100 + Math.random() * 900));
+    var trimmedBase = seed.slice(0, Math.max(3, 30 - suffix.length - 1));
+    var nextCandidate = trimmedBase + "_" + suffix;
+    if (!(await dbIsUsernameTaken(nextCandidate, null))) {
+      return nextCandidate;
+    }
+  }
+  return (seed.slice(0, 22) + "_" + String(Date.now()).slice(-6));
+}
+
+async function dbGetSuggestedUsername(email) {
+  var cleanEmail = String(email || "").trim().toLowerCase();
+  var local = findDemoUserByEmail(cleanEmail);
+  if (local && local.username) return local.username;
+  if (!IS_DEMO_MODE && supabaseClient && cleanEmail) {
+    try {
+      var res = await supabaseClient.from("users").select("username, full_name").eq("email", cleanEmail).maybeSingle();
+      if (res.data && res.data.username) return res.data.username;
+      if (res.data && res.data.full_name) return await dbGenerateUniqueUsername(res.data.full_name, cleanEmail);
+    } catch (e) {}
+  }
+  return await dbGenerateUniqueUsername("", cleanEmail);
 }
 
 function getLoginPage() {
@@ -83,10 +153,13 @@ async function dbGetCurrentUser() {
   var authUser = session.user;
   var res = await supabaseClient.from("users").select("*").eq("email", authUser.email).maybeSingle();
   if (!res.data) {
+    var displayName = (authUser.user_metadata && authUser.user_metadata.full_name) || authUser.email;
+    var generatedUsername = await dbGenerateUniqueUsername(displayName, authUser.email);
     var row = {
       id: authUser.id,
+      username: generatedUsername,
       email: authUser.email,
-      full_name: (authUser.user_metadata && authUser.user_metadata.full_name) || authUser.email,
+      full_name: displayName,
       role: "customer",
       active: true,
       activated: true
@@ -98,14 +171,47 @@ async function dbGetCurrentUser() {
   return res.data;
 }
 
-async function dbSignIn(email, password) {
-  var cleanEmail = email.trim().toLowerCase();
-  if (SYSTEM === "customer" && typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
-    throw new Error("Customer Login accepts @gmail.com accounts only.");
+async function dbSignIn(identifier, password) {
+  var cleanInput = String(identifier || "").trim().toLowerCase();
+  if (!cleanInput) throw new Error("Please enter your username or email address.");
+
+  var cleanEmail = "";
+  var preloadedDbRow = null;
+
+  if (cleanInput.indexOf("@") !== -1) {
+    cleanEmail = cleanInput;
+    if (SYSTEM === "customer" && typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+      throw new Error("Customer Login accepts @gmail.com accounts or Customer usernames only.");
+    }
+    if ((SYSTEM === "staff" || SYSTEM === "admin") && typeof isCustomerGmail === "function" && isCustomerGmail(cleanEmail)) {
+      throw new Error("Internal portals require a business account or staff username, not a Gmail account.");
+    }
+  } else {
+    if (typeof isValidUsername === "function" && !isValidUsername(cleanInput)) {
+      throw new Error("Please enter a valid username (3-30 characters) or email address.");
+    }
+    var localByUser = findDemoUserByUsername(cleanInput);
+    if (localByUser) {
+      cleanEmail = String(localByUser.email || "").trim().toLowerCase();
+    }
+    if (!cleanEmail && !IS_DEMO_MODE && supabaseClient) {
+      var uRes = await supabaseClient.from("users").select("*").ilike("username", cleanInput).maybeSingle();
+      if (uRes.data) {
+        preloadedDbRow = uRes.data;
+        cleanEmail = String(uRes.data.email || "").trim().toLowerCase();
+      }
+    }
+    if (!cleanEmail) {
+      throw new Error("Invalid username or password.");
+    }
+    if (SYSTEM === "customer" && typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
+      throw new Error("This username belongs to an internal staff account. Please use the Staff or Admin Login page.");
+    }
+    if ((SYSTEM === "staff" || SYSTEM === "admin") && typeof isCustomerGmail === "function" && isCustomerGmail(cleanEmail)) {
+      throw new Error("Customer accounts must sign in on the Customer Login page.");
+    }
   }
-  if ((SYSTEM === "staff" || SYSTEM === "admin") && typeof isCustomerGmail === "function" && isCustomerGmail(cleanEmail)) {
-    throw new Error("Internal portals require a business account (e.g. name@pigem.com), not a Gmail account.");
-  }
+
   var user = null;
 
   var found = findDemoUserByEmail(cleanEmail);
@@ -115,10 +221,14 @@ async function dbSignIn(email, password) {
       throw new Error("Please activate your account first using the link sent to your email.");
     }
     if (!found.active) throw new Error("This account is disabled. Please contact PIGEM.");
+    if (!found.username) {
+      found.username = await dbGenerateUniqueUsername(found.full_name, found.email);
+    }
     user = found;
     if (!IS_DEMO_MODE) {
       await supabaseClient.from("users").upsert({
         id: user.id,
+        username: user.username,
         email: user.email,
         full_name: user.full_name,
         role: user.role,
@@ -128,7 +238,7 @@ async function dbSignIn(email, password) {
     }
   } else if (!IS_DEMO_MODE) {
 
-    var dbRow = await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
+    var dbRow = preloadedDbRow ? { data: preloadedDbRow } : await supabaseClient.from("users").select("*").eq("email", cleanEmail).maybeSingle();
     if (dbRow.data && (dbRow.data.activation_code === ("PW:" + password) || dbRow.data.activation_code === ("PW:" + enteredHash) || dbRow.data.activation_code === password)) {
       if (!dbRow.data.active) throw new Error("This account is disabled. Please contact PIGEM.");
       user = dbRow.data;
@@ -139,7 +249,7 @@ async function dbSignIn(email, password) {
       if (!user) throw new Error("This account is disabled. Please contact PIGEM.");
     }
   } else {
-    throw new Error("Wrong email or password.");
+    throw new Error("Invalid username/email or password.");
   }
 
   if (SYSTEM_ROLES[SYSTEM].indexOf(user.role) === -1) {
@@ -183,7 +293,7 @@ async function checkPageAccess(allowedRoles) {
   return user;
 }
 
-async function dbCreateAccountFromApplication(fullName, email) {
+async function dbCreateAccountFromApplication(fullName, email, preferredUsername) {
   var cleanEmail = email.trim().toLowerCase();
   if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
     throw new Error("Customer applications require a valid @gmail.com email address.");
@@ -194,14 +304,19 @@ async function dbCreateAccountFromApplication(fullName, email) {
     var users = getDemoUsers();
     for (var i = 0; i < users.length; i++) {
       if (users[i].email === cleanEmail) {
+        if (!users[i].username) {
+          users[i].username = await dbGenerateUniqueUsername(fullName, cleanEmail, preferredUsername);
+        }
         if (users[i].activated) return { user: users[i], status: "active", code: "" };
         users[i].activation_code = code;
         writeSaved("pigem_users", users);
         return { user: users[i], status: "pending", code: code };
       }
     }
+    var demoUsername = await dbGenerateUniqueUsername(fullName, cleanEmail, preferredUsername);
     var newUser = {
       id: "cust-" + Date.now(),
+      username: demoUsername,
       email: cleanEmail,
       password: "",
       full_name: fullName,
@@ -220,8 +335,13 @@ async function dbCreateAccountFromApplication(fullName, email) {
     return { user: existing.data, status: "active", code: "" };
   }
 
+  var assignedUsername = (existing.data && existing.data.username)
+    ? existing.data.username
+    : (await dbGenerateUniqueUsername(fullName, cleanEmail, preferredUsername));
+
   var pendingRow = {
     id: (existing.data && existing.data.id) || ("cust-" + Date.now()),
+    username: assignedUsername,
     email: cleanEmail,
     full_name: fullName,
     role: "customer",
@@ -233,10 +353,14 @@ async function dbCreateAccountFromApplication(fullName, email) {
   return { user: pendingRow, status: "new", code: code };
 }
 
-async function dbActivateCustomerAccount(email, code, newPassword) {
+async function dbActivateCustomerAccount(email, code, newPassword, chosenUsername) {
   var cleanEmail = email.trim().toLowerCase();
   if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
     throw new Error("Customer Account activation is for @gmail.com accounts only.");
+  }
+  var cleanChosenUser = String(chosenUsername || "").trim().toLowerCase();
+  if (cleanChosenUser && typeof isValidUsername === "function" && !isValidUsername(cleanChosenUser)) {
+    throw new Error("Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).");
   }
 
   if (IS_DEMO_MODE) {
@@ -245,6 +369,14 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
       if (users[i].email === cleanEmail) {
         if (users[i].activated) throw new Error("This account is already activated. Please log in.");
         if (users[i].activation_code !== code.trim()) throw new Error("The activation code is not correct.");
+        if (cleanChosenUser) {
+          if (await dbIsUsernameTaken(cleanChosenUser, users[i].id)) {
+            throw new Error("That username is already taken. Please choose another username.");
+          }
+          users[i].username = cleanChosenUser;
+        } else if (!users[i].username) {
+          users[i].username = await dbGenerateUniqueUsername(users[i].full_name, cleanEmail);
+        }
         users[i].password = newPassword;
         users[i].activated = true;
         users[i].activation_code = "";
@@ -264,10 +396,20 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
     throw new Error("The 6-digit activation code is not correct.");
   }
 
+  var finalUsername = existing.data.username || "";
+  if (cleanChosenUser) {
+    if (await dbIsUsernameTaken(cleanChosenUser, existing.data.id)) {
+      throw new Error("That username is already taken. Please choose another username.");
+    }
+    finalUsername = cleanChosenUser;
+  } else if (!finalUsername) {
+    finalUsername = await dbGenerateUniqueUsername(existing.data.full_name, cleanEmail);
+  }
+
   var signUpRes = await supabaseClient.auth.signUp({
     email: cleanEmail,
     password: newPassword,
-    options: { data: { full_name: existing.data.full_name } }
+    options: { data: { full_name: existing.data.full_name, username: finalUsername } }
   });
   if (signUpRes.error && signUpRes.error.message.toLowerCase().indexOf("already registered") === -1) {
     throw new Error(signUpRes.error.message);
@@ -276,6 +418,7 @@ async function dbActivateCustomerAccount(email, code, newPassword) {
   var authUserId = (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) || existing.data.id;
   await supabaseClient.from("users").update({
     id: authUserId,
+    username: finalUsername,
     activated: true,
     activation_code: "PW:" + newPassword
   }).eq("email", cleanEmail);
@@ -297,25 +440,8 @@ async function dbIsAccountActivated(email) {
   return Boolean(res.data && res.data.activated);
 }
 
-async function dbCreateAgentAccount(fullName, email, password) {
-  var cleanEmail = email.trim().toLowerCase();
-
-  if (IS_DEMO_MODE) {
-    if (findDemoUserByEmail(cleanEmail)) throw new Error("This email is already used.");
-    var users = getDemoUsers();
-    var agent = { id: "agent-" + Date.now(), email: cleanEmail, password: password, full_name: fullName, role: "agent", active: true, activated: true };
-    users.push(agent);
-    writeSaved("pigem_users", users);
-    await dbAddActivity("agent_created", fullName + " (" + cleanEmail + ")");
-    return agent;
-  }
-
-  var res = await supabaseClient.auth.signUp({ email: cleanEmail, password: password, options: { data: { full_name: fullName } } });
-  if (res.error) throw new Error(res.error.message);
-  var row = { id: res.data.user.id, email: cleanEmail, full_name: fullName, role: "agent", active: true, activated: true };
-  await supabaseClient.from("users").upsert(row);
-  await dbAddActivity("agent_created", fullName + " (" + cleanEmail + ")");
-  return row;
+async function dbCreateAgentAccount(fullName, email, password, username) {
+  return await dbCreateUserAccount(fullName, email, password, "agent", username);
 }
 
 async function dbUpdateMyProfile(userId, changes) {
@@ -323,7 +449,14 @@ async function dbUpdateMyProfile(userId, changes) {
 }
 
 async function dbAddLoginHistory(user, action) {
-  var row = { user_id: user.id, email: user.email, role: user.role, action: action, created_at: new Date().toISOString() };
+  var row = {
+    user_id: user.id,
+    username: user.username || null,
+    email: user.email,
+    role: user.role,
+    action: action,
+    created_at: new Date().toISOString()
+  };
   if (IS_DEMO_MODE) {
     var list = readSaved("pigem_login_history", []);
     list.unshift(row);
@@ -493,7 +626,13 @@ async function dbListMyNotifications(user) {
 
 async function dbAddActivity(action, detail) {
   var user = await dbGetCurrentUser();
-  var row = { actor_email: user ? user.email : "public", action: action, detail: String(detail || ""), created_at: new Date().toISOString() };
+  var row = {
+    actor_username: user && user.username ? user.username : null,
+    actor_email: user ? user.email : "public",
+    action: action,
+    detail: String(detail || ""),
+    created_at: new Date().toISOString()
+  };
   if (IS_DEMO_MODE) {
     var all = readSaved("pigem_activity", []);
     all.unshift(row);
@@ -516,25 +655,40 @@ async function dbListProfiles() {
 }
 
 async function dbUpdateProfile(userId, changes) {
-  if (IS_DEMO_MODE) {
-    var users = getDemoUsers();
-    for (var i = 0; i < users.length; i++) {
-      if (users[i].id === userId) {
-        users[i] = Object.assign({}, users[i], changes);
-        writeSaved("pigem_users", users);
-        return users[i];
-      }
+  var safeChanges = Object.assign({}, changes || {});
+  if (safeChanges.username != null) {
+    var cleanUser = String(safeChanges.username || "").trim().toLowerCase();
+    if (typeof isValidUsername === "function" && !isValidUsername(cleanUser)) {
+      throw new Error("Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).");
     }
-    return null;
+    if (await dbIsUsernameTaken(cleanUser, userId)) {
+      throw new Error("Username '@" + cleanUser + "' is already taken. Please choose another username.");
+    }
+    safeChanges.username = cleanUser;
   }
-  var res = await supabaseClient.from("users").update(changes).eq("id", userId).select("*").single();
+
+  var users = getDemoUsers();
+  var localUpdated = null;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].id === userId) {
+      users[i] = Object.assign({}, users[i], safeChanges);
+      localUpdated = users[i];
+      writeSaved("pigem_users", users);
+      break;
+    }
+  }
+
+  if (IS_DEMO_MODE) {
+    return localUpdated;
+  }
+  var res = await supabaseClient.from("users").update(safeChanges).eq("id", userId).select("*").single();
   if (res.error) throw new Error(res.error.message);
   return res.data;
 }
 
 function dbResetDemoData() {
   var keys = ["pigem_users", "pigem_applications", "pigem_notifications", "pigem_activity", "pigem_login_history",
-    "pigem_plans", "pigem_website_content", "pigem_system_settings", "pigem_session_customer"];
+    "pigem_provider_updates", "pigem_plans", "pigem_website_content", "pigem_system_settings", "pigem_session_customer"];
   for (var i = 0; i < keys.length; i++) localStorage.removeItem(keys[i]);
   sessionStorage.clear();
 }
@@ -928,10 +1082,13 @@ async function dbStartPasswordReset(email) {
       if (appCheck.data && appCheck.data.length > 0) {
         found = true;
         var a = appCheck.data[0];
+        var fallbackName = a.full_name || [a.first_name, a.last_name].filter(Boolean).join(" ") || clean;
+        var fallbackUser = await dbGenerateUniqueUsername(fallbackName, clean);
         var newRow = {
           id: a.customer_id || ("cust-" + Date.now()),
+          username: fallbackUser,
           email: clean,
-          full_name: a.full_name || [a.first_name, a.last_name].filter(Boolean).join(" ") || clean,
+          full_name: fallbackName,
           role: "customer",
           active: true,
           activated: true,
@@ -982,6 +1139,7 @@ async function dbFinishPasswordReset(email, code, newPw) {
       if (!updatedLocal) {
         users.push({
           id: existing.data.id,
+          username: existing.data.username || (await dbGenerateUniqueUsername(existing.data.full_name || clean, clean)),
           email: clean,
           password: newPw,
           full_name: existing.data.full_name || clean,
@@ -1097,10 +1255,51 @@ async function dbListLogs() {
   return list.map(function (r) {
     return {
       created_at: r.created_at,
+      actor_username: r.actor_username || "",
       actor_email: r.actor_email || "system",
       action: r.action + (r.detail ? " (" + r.detail + ")" : "")
     };
   });
+}
+
+async function dbRecordProviderUpdate(appId, providerRef, providerStatus, providerRemark, customerInstruction) {
+  if (!appId || !providerStatus) return null;
+  var currentUser = await dbGetCurrentUser();
+  var row = {
+    application_id: appId,
+    recorded_by: currentUser && currentUser.id ? currentUser.id : null,
+    provider_ref: providerRef || null,
+    provider_status: providerStatus,
+    provider_remark: providerRemark || null,
+    customer_instruction: customerInstruction || null,
+    created_at: new Date().toISOString()
+  };
+
+  if (IS_DEMO_MODE) {
+    var list = readSaved("pigem_provider_updates", []);
+    list.unshift(row);
+    writeSaved("pigem_provider_updates", list.slice(0, 300));
+    return row;
+  }
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient.from("provider_updates").insert(row);
+    } catch (e) {}
+  }
+  return row;
+}
+
+async function dbListProviderUpdates(appId) {
+  if (IS_DEMO_MODE) {
+    var all = readSaved("pigem_provider_updates", []);
+    return appId ? all.filter(function (r) { return r.application_id === appId; }) : all;
+  }
+  if (!supabaseClient) return [];
+  var query = supabaseClient.from("provider_updates").select("*").order("created_at", { ascending: false });
+  if (appId) query = query.eq("application_id", appId);
+  var res = await query.limit(100);
+  return res.data || [];
 }
 
 async function dbCreateAgentLink(agentEmail, note) {
@@ -1154,9 +1353,10 @@ async function dbHasAdminAccount() {
   }
 }
 
-async function dbCreateUserAccount(fullName, email, password, role) {
+async function dbCreateUserAccount(fullName, email, password, role, username) {
   var cleanEmail = email.trim().toLowerCase();
   var targetRole = role || "agent";
+  var cleanUsername = String(username || "").trim().toLowerCase();
 
   if (targetRole === "customer") {
     if (typeof isCustomerGmail === "function" && !isCustomerGmail(cleanEmail)) {
@@ -1166,6 +1366,17 @@ async function dbCreateUserAccount(fullName, email, password, role) {
     if (typeof isStaffBusinessEmail === "function" && !isStaffBusinessEmail(cleanEmail)) {
       throw new Error("Internal Agent, Manager, and Admin accounts must use a business account email (e.g. name@pigem.com), not a Gmail address.");
     }
+  }
+
+  if (cleanUsername) {
+    if (typeof isValidUsername === "function" && !isValidUsername(cleanUsername)) {
+      throw new Error("Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).");
+    }
+    if (await dbIsUsernameTaken(cleanUsername, null)) {
+      throw new Error("Username '@" + cleanUsername + "' is already taken. Please choose another username.");
+    }
+  } else {
+    cleanUsername = await dbGenerateUniqueUsername(fullName, cleanEmail);
   }
 
   if (targetRole === "admin") {
@@ -1188,7 +1399,7 @@ async function dbCreateUserAccount(fullName, email, password, role) {
         var signUpRes = await supabaseClient.auth.signUp({
           email: cleanEmail,
           password: password,
-          options: { data: { full_name: fullName, role: "customer" } }
+          options: { data: { full_name: fullName, username: cleanUsername, role: "customer" } }
         });
         if (signUpRes.data && signUpRes.data.user && signUpRes.data.user.id) {
           userId = signUpRes.data.user.id;
@@ -1198,6 +1409,7 @@ async function dbCreateUserAccount(fullName, email, password, role) {
 
     var dbRow = {
       id: userId,
+      username: cleanUsername,
       email: cleanEmail,
       full_name: fullName,
       role: targetRole,
@@ -1213,6 +1425,7 @@ async function dbCreateUserAccount(fullName, email, password, role) {
 
   var u = {
     id: userId,
+    username: cleanUsername,
     email: cleanEmail,
     password_hash: pwHash,
     full_name: fullName,
@@ -1224,7 +1437,7 @@ async function dbCreateUserAccount(fullName, email, password, role) {
   var filtered = users.filter(function (x) { return x.email !== cleanEmail; });
   filtered.push(u);
   writeSaved("pigem_users", filtered);
-  await dbAddActivity("user_registered", fullName + " (" + cleanEmail + " - " + targetRole + ")");
+  await dbAddActivity("user_registered", fullName + " (@" + cleanUsername + " / " + cleanEmail + " - " + targetRole + ")");
   return u;
 }
 

@@ -1,10 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link rel="icon" href="assets/images/logo.png">
   <title>Customer Account Activation</title>
+
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body class="gray-bg">
@@ -45,6 +48,11 @@
           <input id="act-email" type="email" required placeholder="yourname@gmail.com">
         </div>
         <div class="mt">
+          <label for="act-username">Customer Username</label>
+          <input id="act-username" type="text" minlength="3" maxlength="30" required placeholder="e.g. juan.delacruz">
+          <div class="small muted" style="font-size:11.5px; margin-top:4px;">3 to 30 characters (letters, numbers, dots, or underscores). You can sign in using this username or your Gmail.</div>
+        </div>
+        <div class="mt">
           <label for="act-code">6-Digit OTP / Activation Code</label>
           <input id="act-code" type="text" required placeholder="6-digit code">
         </div>
@@ -62,8 +70,11 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="js/config.js"></script>
+
   <script src="js/db.js"></script>
+
   <script>
     async function initActivatePage() {
       var params = new URLSearchParams(window.location.search);
@@ -78,6 +89,9 @@
 
       document.getElementById("act-email").value = email;
       document.getElementById("act-code").value = code;
+      if (typeof dbGetSuggestedUsername === "function") {
+        document.getElementById("act-username").value = await dbGetSuggestedUsername(email);
+      }
 
       if (await dbIsAccountActivated(email)) {
         document.getElementById("already-active-box").hidden = false;
@@ -88,20 +102,26 @@
     async function submitActivation(event) {
       event.preventDefault();
       var email = document.getElementById("act-email").value.trim();
+      var username = document.getElementById("act-username").value.trim().toLowerCase();
       var code = document.getElementById("act-code").value.trim();
       var pass = document.getElementById("act-pass").value;
       var pass2 = document.getElementById("act-pass2").value;
 
+      if (typeof isValidUsername === "function" && !isValidUsername(username)) {
+        showAlert("Invalid Username", "Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).", "warn");
+        return;
+      }
       if (pass !== pass2) {
         showAlert("Password Mismatch", "Your password and confirm password do not match.", "bad");
         return;
       }
 
       try {
-        await dbActivateCustomerAccount(email, code, pass);
+        var activatedUser = await dbActivateCustomerAccount(email, code, pass, username);
+        var unameLabel = (activatedUser && activatedUser.username) ? (" (@" + activatedUser.username + ")") : "";
         openPopup(
           '<h3>Account Activated!</h3>' +
-          '<div class="notice good mt">Your Customer Account is now active. You can now sign in and monitor your internet service application.</div>' +
+          '<div class="notice good mt">Your Customer Account' + escapeHtml(unameLabel) + ' is now active. You can now sign in and monitor your internet service application.</div>' +
           '<div class="row mt" style="justify-content:flex-end">' +
             '<a class="btn btn-red" href="customer.html">Open My Customer Account</a>' +
           '</div>'

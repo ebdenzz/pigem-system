@@ -1,12 +1,21 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: 4-Step Online Fiber Service Application Wizard (web/apply.html)
+     PURPOSE: Guides applicants through Plan Selection, Personal Details + Gmail OTP, Cavite Address Pinning, and Valid ID Upload.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" href="assets/images/logo.png">
   <title>Application Form | Combined Facilities Support Services</title>
+  <!-- IMPORT: Leaflet 1.9.4 CSS stylesheet for rendering the interactive Dasmarinas City coverage map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css">
+  <!-- IMPORT: Google reCAPTCHA v2 client widget script for anti-bot form and sign-in protection -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
@@ -25,6 +34,7 @@
     </div>
   </header>
 
+  <!-- SECTION: Main Page Content Container -->
   <main class="form-wrap">
     <!-- Progress Header (Clean, No "Step" Words) -->
     <div class="card" style="margin-bottom:18px;">
@@ -426,11 +436,17 @@
     </section>
   </main>
 
+  <!-- IMPORT: Leaflet 1.9.4 JavaScript mapping engine for pinning customer installation coordinates -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- IMPORT: Serverless Python FastAPI client (/api/*) for reCAPTCHA verification, ID screening, and Gmail SMTP emails -->
   <script src="js/api.js"></script>
+  <!-- IMPORT: 4-step application wizard controller handling validation, Gmail OTP, Leaflet map, and ID photo upload -->
   <script src="js/apply.js"></script>
 </body>
 </html>

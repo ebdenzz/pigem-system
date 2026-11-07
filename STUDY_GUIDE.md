@@ -44,7 +44,7 @@ Ang buong system—kasama ang **Public Website**, **Customer Portal**, **Interna
 ## 3. Folder at File Structure ng System (`C:\pigem-system`)
 
 - `vercel.json` — Cloud routing configuration na nagko-connect sa lahat ng HTML portals at `/api/*` FastAPI serverless routes.
-- `requirements.txt` at `api/requirements.txt` — Lightweight Python dependencies (`fastapi`, `python-multipart`, `python-dotenv`, `httpx`, `numpy`, `opencv-python-headless`) para sa Vercel Serverless.
+- `requirements.txt` at `api/requirements.txt` — Lightweight Python dependencies (`fastapi`, `python-multipart`, `httpx`, `numpy`, `opencv-python-headless`) para sa Vercel Serverless.
 - `schema.sql` — Kumpletong PostgreSQL table definitions, Row-Level Security policies, storage buckets, at seed data (walang `DROP` statements sa loob).
 - `api/`
   - `index.py` — Main FastAPI cloud router.

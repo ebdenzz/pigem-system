@@ -141,19 +141,24 @@ async function handleLogin(event) {
 
   var emailEl = document.getElementById("email");
   var pwEl = document.getElementById("password");
-  var email = (emailEl ? emailEl.value : "").trim().toLowerCase();
+  var identifier = (emailEl ? emailEl.value : "").trim().toLowerCase();
   var password = pwEl ? pwEl.value : "";
 
-  if (window.SYSTEM === "customer") {
-    if (typeof isCustomerGmail === "function" && !isCustomerGmail(email)) {
-      showAlert("Gmail Required", "Customer Login accepts @gmail.com accounts only. Internal business accounts must sign in on the Staff or Admin Login page.", "warn");
-      return;
+  if (identifier.indexOf("@") !== -1) {
+    if (window.SYSTEM === "customer") {
+      if (typeof isCustomerGmail === "function" && !isCustomerGmail(identifier)) {
+        showAlert("Gmail or Username Required", "Customer Login accepts Customer usernames or @gmail.com email addresses only.", "warn");
+        return;
+      }
+    } else {
+      if (typeof isCustomerGmail === "function" && isCustomerGmail(identifier)) {
+        showAlert("Business Account Required", "Gmail accounts are reserved for Customers. Please enter your staff username or @pigem.com business email.", "warn");
+        return;
+      }
     }
-  } else {
-    if (typeof isCustomerGmail === "function" && isCustomerGmail(email)) {
-      showAlert("Business Account Required", "Gmail accounts are reserved for Customers. Please enter your @pigem.com business account credentials.", "warn");
-      return;
-    }
+  } else if (typeof isValidUsername === "function" && !isValidUsername(identifier)) {
+    showAlert("Invalid Username", "Please enter a valid username (3 to 30 characters: letters, numbers, dots, underscores) or email address.", "warn");
+    return;
   }
 
   if (!loginCaptchaVerified && typeof grecaptcha !== "undefined" && grecaptcha.getResponse) {
@@ -179,7 +184,7 @@ async function handleLogin(event) {
   btn.textContent = "Signing in...";
 
   try {
-    var user = await dbSignIn(email, password);
+    var user = await dbSignIn(identifier, password);
     loginAttempts = 0;
     window.location.href = getHomeForRole(user.role);
   } catch (err) {

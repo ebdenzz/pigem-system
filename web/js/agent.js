@@ -841,6 +841,10 @@ async function saveAgentDecision(newStatus) {
     encoding_proof_url: proofUrl
   });
 
+  if (typeof dbRecordProviderUpdate === "function" && (newStatus === "Encoding" || newStatus === "Approved" || newStatus === "Rejected" || providerRef)) {
+    await dbRecordProviderUpdate(app.id, providerRef, newStatus, rawValidator || remarks, remarks);
+  }
+
   lastDetectedFields = null;
 
   await dbAddAiLog(

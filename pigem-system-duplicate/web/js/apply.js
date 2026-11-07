@@ -1,13 +1,16 @@
-// ============================================================
-// APPLICATION FORM SCRIPT (apply.html)
-// Clean 6-Panel Flow (No "Step" Words):
-//   Panel 0: Select Your Plan
-//   Panel 1: Personal Information
-//   Panel 2: Contact Information (with OTP)
-//   Panel 3: Installation Location Map & Address
-//   Panel 4: Valid ID Documents (Front & Back) - Responsive Camera / QR Code
-//   Panel 5: Subscriber Declaration & Consent
-// ============================================================
+// ============================================================================
+// FILE: web/js/apply.js
+// PURPOSE: 4-Step Customer Fiber Application Wizard Controller
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. Google reCAPTCHA v2 (`recaptcha/api.js`) -> Verifies human applicant before submission
+//   2. Leaflet 1.9.4 (`leaflet.js`)             -> Exposes `L` for Dasmarinas map pinning
+//   3. web/js/config.js -> Barangay coordinates, plan list, and validation helpers
+//   4. web/js/db.js     -> Saves application row, uploads Front/Back IDs to private bucket,
+//                          verifies Gmail OTP, and generates Customer activation code
+//   5. web/js/api.js    -> Triggers `/api/screen-async` background ID screening and sends
+//                          confirmation & OTP emails via `/api/notify`
+// ============================================================================
 
 var currentPanel = 0;
 var TOTAL_PANELS = 6;
@@ -41,12 +44,14 @@ function showReqTip(el, fieldName, detail) {
   el.appendChild(bubble);
 }
 
+// UI Interaction `hideReqTip` (params: el): Controls modal/panel visibility to hide req tip.
 function hideReqTip(el) {
   if (!el) return;
   var old = el.querySelector(".req-bubble:not(.error-pop)");
   if (old) old.remove();
 }
 
+// Helper function `flashErrorBubble` (params: fieldId, fieldName, message): Executes portal workflow logic for `flashErrorBubble`.
 function flashErrorBubble(fieldId, fieldName, message) {
   var asterisk = document.querySelector('.req[data-req-for="' + fieldId + '"]');
   if (!asterisk) return;
@@ -103,6 +108,7 @@ function initApplyPage() {
 
   renderPlanChoices();
   setupDeviceUploadUI();
+  // Event Listener: Runs initialization or state sync when `resize` fires
   window.addEventListener("resize", setupDeviceUploadUI);
 
   // If visitor hasn't verified security CAPTCHA yet, prompt verification now
@@ -124,6 +130,7 @@ function initApplyPage() {
   }
 }
 
+// UI Interaction `showApplySecurityCaptchaModal`: Controls modal/panel visibility to show apply security captcha modal.
 function showApplySecurityCaptchaModal() {
   openPopup(
     '<div class="center" style="padding:10px 4px;">' +
@@ -171,6 +178,7 @@ function showApplySecurityCaptchaModal() {
   }
 }
 
+// Helper function `onApplyCaptchaVerified` (params: token): Executes portal workflow logic for `onApplyCaptchaVerified`.
 async function onApplyCaptchaVerified(token) {
   if (token && typeof apiVerifyCaptcha === "function") {
     var vRes = await apiVerifyCaptcha(token);
@@ -196,6 +204,7 @@ async function onApplyCaptchaVerified(token) {
   }, 180);
 }
 
+// Helper function `triggerApplyPopupCaptcha`: Executes portal workflow logic for `triggerApplyPopupCaptcha`.
 function triggerApplyPopupCaptcha() {
   var check = document.getElementById("apply-popup-captcha-check");
   var card = document.getElementById("apply-popup-captcha-card");
@@ -234,6 +243,7 @@ function renderPlanChoices() {
   box.innerHTML = html;
 }
 
+// Helper function `pickPlan` (params: planId): Executes portal workflow logic for `pickPlan`.
 function pickPlan(planId) {
   selectedPlanId = String(planId);
   renderPlanChoices();
@@ -244,6 +254,7 @@ function pickPlan(planId) {
 // ============================================================
 var applyCaptchaVerified = false;
 
+// Helper function `triggerApplyCaptcha`: Executes portal workflow logic for `triggerApplyCaptcha`.
 function triggerApplyCaptcha() {
   if (applyCaptchaVerified) return;
   var check = document.getElementById("apply-captcha-check");
@@ -334,6 +345,7 @@ async function sendContactOtp() {
   btn.textContent = "Resend OTP";
 }
 
+// Helper function `verifyContactOtp`: Executes portal workflow logic for `verifyContactOtp`.
 function verifyContactOtp() {
   var entered = (document.getElementById("contact_otp_code").value || "").trim();
   if (!generatedContactOtp) {
@@ -433,6 +445,7 @@ function showPanel(index) {
 function validateCurrentPanel() {
   var firstInvalidEl = null;
 
+  // Helper function `markInvalid` (params: fieldId, name, msg, elToFocus): Executes portal workflow logic for `markInvalid`.
   function markInvalid(fieldId, name, msg, elToFocus) {
     flashErrorBubble(fieldId, name, msg);
     if (!firstInvalidEl) {
@@ -561,6 +574,7 @@ function validateCurrentPanel() {
   return true;
 }
 
+// Helper function `nextPanel`: Executes portal workflow logic for `nextPanel`.
 function nextPanel() {
   if (!validateCurrentPanel()) return;
   if (currentPanel < TOTAL_PANELS - 1) {
@@ -568,6 +582,7 @@ function nextPanel() {
   }
 }
 
+// Helper function `prevPanel`: Executes portal workflow logic for `prevPanel`.
 function prevPanel() {
   if (currentPanel > 0) {
     showPanel(currentPanel - 1);
@@ -605,6 +620,7 @@ function initMapPin() {
   }, 150);
 }
 
+// Action Handler `updatePinAndAddress` (params: lat, lng): Validates user input and commits state changes to update pin and address.
 async function updatePinAndAddress(lat, lng) {
   document.getElementById("lat").value = lat.toFixed(6);
   document.getElementById("lng").value = lng.toFixed(6);
@@ -664,6 +680,7 @@ async function updatePinAndAddress(lat, lng) {
   }
 }
 
+// Helper function `searchMapAddress`: Executes portal workflow logic for `searchMapAddress`.
 async function searchMapAddress() {
   var q = document.getElementById("map-search").value.trim();
   if (!q) return;
@@ -707,6 +724,7 @@ async function searchMapAddress() {
   await updatePinAndAddress(lat, lng);
 }
 
+// Helper function `useCurrentLocation`: Executes portal workflow logic for `useCurrentLocation`.
 function useCurrentLocation() {
   initMapPin();
   var statusEl = document.getElementById("map-status");
@@ -723,6 +741,7 @@ function useCurrentLocation() {
   }
   if (statusEl) statusEl.textContent = "Detecting current GPS location...";
 
+  // Helper function `onGeoSuccess` (params: pos): Executes portal workflow logic for `onGeoSuccess`.
   function onGeoSuccess(pos) {
     if (btn) {
       btn.disabled = false;
@@ -738,6 +757,7 @@ function useCurrentLocation() {
     updatePinAndAddress(lat, lng);
   }
 
+  // Helper function `onGeoError`: Executes portal workflow logic for `onGeoError`.
   function onGeoError() {
     navigator.geolocation.getCurrentPosition(
       onGeoSuccess,
@@ -780,6 +800,7 @@ function advanceLoadingStep(stepNum) {
   }
 }
 
+// Action Handler `submitRegistration`: Validates user input and commits state changes to submit registration.
 async function submitRegistration() {
   if (!validateCurrentPanel()) return;
 

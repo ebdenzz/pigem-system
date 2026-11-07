@@ -4,39 +4,43 @@ from difflib import SequenceMatcher
 
 import json
 
-import os
+from os import getenv
 
 import re
+
+import unicodedata
 
 import httpx
 
 MONTH_MAP = {
 
-    "JAN": "01", "JANUARY": "01",
+    "JAN": "01", "JANUARY": "01", "ENE": "01", "ENERO": "01",
 
-    "FEB": "02", "FEBRUARY": "02",
+    "FEB": "02", "FEBRUARY": "02", "PEB": "02", "PEBRERO": "02",
 
-    "MAR": "03", "MARCH": "03",
+    "MAR": "03", "MARCH": "03", "MARSO": "03",
 
-    "APR": "04", "APRIL": "04",
+    "APR": "04", "APRIL": "04", "ABR": "04", "ABRIL": "04",
 
-    "MAY": "05",
+    "MAY": "05", "MAYO": "05",
 
-    "JUN": "06", "JUNE": "06",
+    "JUN": "06", "JUNE": "06", "HUN": "06", "HUNYO": "06",
 
-    "JUL": "07", "JULY": "07",
+    "JUL": "07", "JULY": "07", "HUL": "07", "HULYO": "07",
 
-    "AUG": "08", "AUGUST": "08",
+    "AUG": "08", "AUGUST": "08", "AGO": "08", "AGOSTO": "08",
 
-    "SEP": "09", "SEPT": "09", "SEPTEMBER": "09",
+    "SEP": "09", "SEPT": "09", "SEPTEMBER": "09", "SET": "09", "SETYEMBRE": "09",
 
-    "OCT": "10", "OCTOBER": "10",
+    "OCT": "10", "OCTOBER": "10", "OKT": "10", "OKTUBRE": "10",
 
-    "NOV": "11", "NOVEMBER": "11",
+    "NOV": "11", "NOVEMBER": "11", "NOB": "11", "NOBYEMBRE": "11",
 
-    "DEC": "12", "DECEMBER": "12",
+    "DEC": "12", "DECEMBER": "12", "DIS": "12", "DISYEMBRE": "12",
 
 }
+
+NAME_SUFFIXES = {"JR", "SR", "II", "III", "IV", "V"}
 
 class BaseTextMatcher:
 
@@ -46,33 +50,101 @@ class BaseTextMatcher:
 
     _COMPACT_ID_REGEX = re.compile(r"[^A-Z0-9]")
 
+    _ID_PREFIX_REGEX = re.compile(r"^(?:PSN|PCN|CRN|PRN|VIN|TIN|SSS|GSIS|DLNO|IDNO|NO)")
+
     _ISO_DATE_REGEX = re.compile(r"\b(19\d{2}|20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b")
 
-    _MDY_DATE_REGEX = re.compile(r"\b(0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])[-/.](19\d{2}|20\d{2})\b")
+    _NUMERIC_DATE_REGEX = re.compile(r"\b(0?[1-9]|[12]\d|3[01])[-/.](0?[1-9]|[12]\d|3[01])[-/.](19\d{2}|20\d{2})\b")
 
-    _WORD_DATE_1_REGEX = re.compile(r"\b([A-Z]{3,9})\s+(0?[1-9]|[12]\d|3[01]),?\s+(19\d{2}|20\d{2})\b")
+    _WORD_DATE_1_REGEX = re.compile(r"\b([A-Z]{3,9})\.?\s+(0?[1-9]|[12]\d|3[01]),?\s+(19\d{2}|20\d{2})\b")
 
-    _WORD_DATE_2_REGEX = re.compile(r"\b(0?[1-9]|[12]\d|3[01])\s+([A-Z]{3,9}),?\s+(19\d{2}|20\d{2})\b")
+    _WORD_DATE_2_REGEX = re.compile(r"\b(0?[1-9]|[12]\d|3[01])\s+([A-Z]{3,9})\.?,?\s+(19\d{2}|20\d{2})\b")
+
+    _OCR_LOOKALIKE_GROUPS = (
+
+        {"0", "O", "Q", "D"},
+
+        {"1", "I", "L"},
+
+        {"2", "Z"},
+
+        {"5", "S"},
+
+        {"8", "B"},
+
+    )
 
     def compare(self, entered: dict, ocr_payload: dict) -> list:
 
         raise NotImplementedError("Subclasses must implement compare().")
 
+    def _strip_accents(self, text: str) -> str:
+
+        raw = str(text or "")
+
+        decomposed = unicodedata.normalize("NFKD", raw)
+
+        return decomposed.encode("ascii", "ignore").decode("ascii")
+
+    def _standardize_filipino_compounds(self, clean_upper: str) -> str:
+
+        s = " " + clean_upper + " "
+
+        replacements = (
+
+            (" DE LA ", " DELA "),
+
+            (" DE LOS ", " DELOS "),
+
+            (" DE LAS ", " DELAS "),
+
+            (" STO ", " SANTO "),
+
+            (" STA ", " SANTA "),
+
+        )
+
+        for src, dst in replacements:
+
+            s = s.replace(src, dst)
+
+        return self._MULTI_SPACE_REGEX.sub(" ", s).strip()
+
     def _clean_words(self, text: str) -> str:
 
-        upper = (text or "").upper()
+        ascii_upper = self._strip_accents(text).upper()
 
-        alnum = self._NON_ALNUM_REGEX.sub(" ", upper)
+        alnum = self._NON_ALNUM_REGEX.sub(" ", ascii_upper)
 
-        return self._MULTI_SPACE_REGEX.sub(" ", alnum).strip()
+        compact_spaces = self._MULTI_SPACE_REGEX.sub(" ", alnum).strip()
+
+        return self._standardize_filipino_compounds(compact_spaces)
 
     def _normalize_id_code(self, text: str) -> str:
 
-        return self._COMPACT_ID_REGEX.sub("", (text or "").upper())
+        ascii_upper = self._strip_accents(text).upper()
+
+        compact = self._COMPACT_ID_REGEX.sub("", ascii_upper)
+
+        return compact
+
+    def _chars_are_lookalikes(self, ch_a: str, ch_b: str) -> bool:
+
+        if ch_a == ch_b:
+
+            return True
+
+        for group in self._OCR_LOOKALIKE_GROUPS:
+
+            if ch_a in group and ch_b in group:
+
+                return True
+
+        return False
 
     def _extract_dates(self, text: str) -> set:
 
-        upper = (text or "").upper()
+        upper = self._strip_accents(text).upper()
 
         dates = set()
 
@@ -80,7 +152,7 @@ class BaseTextMatcher:
 
             dates.add(f"{int(y):04d}-{int(m):02d}-{int(d):02d}")
 
-        for p1, p2, y in self._MDY_DATE_REGEX.findall(upper):
+        for p1, p2, y in self._NUMERIC_DATE_REGEX.findall(upper):
 
             n1, n2 = int(p1), int(p2)
 
@@ -108,205 +180,495 @@ class BaseTextMatcher:
 
 class FieldComparisonEngine(BaseTextMatcher):
 
+    def _token_matches_list(self, token: str, candidate_words: list, min_ratio: float = 0.86) -> bool:
+
+        if token in candidate_words:
+
+            return True
+
+        for word in candidate_words:
+
+            if len(word) >= 3 and len(token) >= 3:
+
+                if SequenceMatcher(None, token, word).ratio() >= min_ratio:
+
+                    return True
+
+        return False
+
+    def _compare_name(self, entered: dict, ext_name: str, ext_first: str, ext_middle: str, ext_last: str, all_ocr_words: list) -> dict:
+
+        entered_full = (entered.get("full_name") or "").strip()
+
+        first_raw = (entered.get("first_name") or "").strip()
+
+        middle_raw = (entered.get("middle_name") or "").strip()
+
+        last_raw = (entered.get("last_name") or "").strip()
+
+        id_name_chunk = " ".join(filter(None, [ext_name, ext_first, ext_middle, ext_last]))
+
+        id_name_words = self._clean_words(id_name_chunk).split() if id_name_chunk else []
+
+        search_words = id_name_words if id_name_words else all_ocr_words
+
+        if not search_words:
+
+            return {
+
+                "field": "Full Name",
+
+                "key": "name",
+
+                "entered": entered_full,
+
+                "found_on_id": "Not clearly visible",
+
+                "status": "partial",
+
+                "note": "Applicant name could not be clearly read from the ID photo.",
+
+            }
+
+        if first_raw and last_raw:
+
+            req_tokens = [
+
+                t for t in (self._clean_words(first_raw).split() + self._clean_words(last_raw).split())
+
+                if len(t) > 1 and t not in NAME_SUFFIXES
+
+            ]
+
+            mid_clean = self._clean_words(middle_raw)
+
+            mid_tokens = [
+
+                t for t in mid_clean.split()
+
+                if t not in ("NA", "N", "NONE") and t not in NAME_SUFFIXES
+
+            ]
+
+            missing_core = [t for t in req_tokens if not self._token_matches_list(t, search_words, 0.86)]
+
+            middle_conflict = False
+
+            if mid_tokens and ext_middle:
+
+                ext_mid_tokens = [t for t in self._clean_words(ext_middle).split() if t not in NAME_SUFFIXES]
+
+                if ext_mid_tokens:
+
+                    first_entered_mid = mid_tokens[0]
+
+                    first_id_mid = ext_mid_tokens[0]
+
+                    if len(first_id_mid) == 1:
+
+                        if first_id_mid != first_entered_mid[0]:
+
+                            middle_conflict = True
+
+                    elif not self._token_matches_list(first_entered_mid, ext_mid_tokens, 0.84):
+
+                        middle_conflict = True
+
+            if not missing_core and not middle_conflict:
+
+                status = "match"
+
+                note = "Applicant first name, middle name/initial, and surname match the ID."
+
+            elif len(missing_core) == len(req_tokens):
+
+                status = "mismatch"
+
+                note = "Entered name does not match the name printed on the ID."
+
+            else:
+
+                status = "mismatch"
+
+                if middle_conflict and not missing_core:
+
+                    note = f"Middle name on form ({middle_raw}) differs from middle name on ID ({ext_middle})."
+
+                else:
+
+                    note = f"Name discrepancy detected on: {', '.join(missing_core)}."
+
+            return {
+
+                "field": "Full Name",
+
+                "key": "name",
+
+                "entered": entered_full,
+
+                "found_on_id": ext_name or " ".join(search_words[:6]),
+
+                "status": status,
+
+                "note": note,
+
+            }
+
+        name_parts = [
+
+            p for p in self._clean_words(entered_full).split()
+
+            if len(p) > 1 and p != "NA" and p not in NAME_SUFFIXES
+
+        ]
+
+        matched_parts = [p for p in name_parts if self._token_matches_list(p, search_words, 0.86)]
+
+        ratio = (len(matched_parts) / len(name_parts)) if name_parts else 0.0
+
+        if ratio >= 0.99:
+
+            status, note = "match", "All name parts match the uploaded ID."
+
+        else:
+
+            status = "mismatch"
+
+            note = f"Entered name ({entered_full}) differs from name read on ID ({ext_name or 'check ID'})."
+
+        return {
+
+            "field": "Full Name",
+
+            "key": "name",
+
+            "entered": entered_full,
+
+            "found_on_id": ext_name or (" ".join(matched_parts) if matched_parts else "Not clearly visible"),
+
+            "status": status,
+
+            "note": note,
+
+        }
+
+    def _compare_birth_date(self, entered_dob: str, ext_dob: str, lines: list) -> dict:
+
+        clean_entered = (entered_dob or "").strip()
+
+        ext_dob_dates = self._extract_dates(ext_dob) if ext_dob else set()
+
+        if ext_dob and re.match(r"^\d{4}-\d{2}-\d{2}$", ext_dob):
+
+            ext_dob_dates.add(ext_dob)
+
+        if ext_dob_dates:
+
+            if clean_entered in ext_dob_dates:
+
+                return {
+
+                    "field": "Birth Date",
+
+                    "key": "birth_date",
+
+                    "entered": clean_entered,
+
+                    "found_on_id": clean_entered,
+
+                    "status": "match",
+
+                    "note": "Birth date matches the date printed on the ID.",
+
+                }
+
+            dob_found = sorted(ext_dob_dates)[0]
+
+            return {
+
+                "field": "Birth Date",
+
+                "key": "birth_date",
+
+                "entered": clean_entered,
+
+                "found_on_id": dob_found,
+
+                "status": "mismatch",
+
+                "note": f"Entered birth date ({clean_entered}) differs from ID birth date ({dob_found}).",
+
+            }
+
+        dob_context_lines = []
+
+        for idx, ln in enumerate(lines):
+
+            upper_ln = ln.upper()
+
+            if any(k in upper_ln for k in ("BIRTH", "DOB", "KAPANGANAKAN", "BORN")):
+
+                dob_context_lines.append(ln)
+
+                if idx + 1 < len(lines):
+
+                    dob_context_lines.append(lines[idx + 1])
+
+        candidate_dates = self._extract_dates(" ".join(dob_context_lines))
+
+        if not candidate_dates:
+
+            candidate_dates = self._extract_dates(" ".join(lines))
+
+        if clean_entered in candidate_dates:
+
+            return {
+
+                "field": "Birth Date",
+
+                "key": "birth_date",
+
+                "entered": clean_entered,
+
+                "found_on_id": clean_entered,
+
+                "status": "match",
+
+                "note": "Birth date matches the date printed on the ID.",
+
+            }
+
+        if candidate_dates:
+
+            dob_found = sorted(candidate_dates)[0]
+
+            return {
+
+                "field": "Birth Date",
+
+                "key": "birth_date",
+
+                "entered": clean_entered,
+
+                "found_on_id": dob_found,
+
+                "status": "mismatch",
+
+                "note": f"Entered birth date ({clean_entered}) differs from ID date ({dob_found}).",
+
+            }
+
+        return {
+
+            "field": "Birth Date",
+
+            "key": "birth_date",
+
+            "entered": clean_entered,
+
+            "found_on_id": "Not clearly visible",
+
+            "status": "partial",
+
+            "note": "Birth date could not be clearly read from the ID photo.",
+
+        }
+
+    def _codes_match_strictly(self, entered_code: str, candidate_code: str) -> tuple:
+
+        if not entered_code or not candidate_code:
+
+            return False, ""
+
+        c_clean = self._ID_PREFIX_REGEX.sub("", candidate_code)
+
+        e_clean = self._ID_PREFIX_REGEX.sub("", entered_code)
+
+        for cand in (candidate_code, c_clean):
+
+            if not cand:
+
+                continue
+
+            if e_clean == cand or entered_code == cand:
+
+                return True, "exact"
+
+            if len(entered_code) == 4 and len(cand) >= 4 and cand.endswith(entered_code):
+
+                return True, "last4"
+
+            if len(entered_code) == len(cand) and len(entered_code) >= 8:
+
+                diffs = 0
+
+                all_lookalike = True
+
+                for ca, cb in zip(entered_code, cand):
+
+                    if ca != cb:
+
+                        diffs += 1
+
+                        if not self._chars_are_lookalikes(ca, cb):
+
+                            all_lookalike = False
+
+                            break
+
+                if diffs == 1 and all_lookalike:
+
+                    return True, "lookalike"
+
+        return False, ""
+
+    def _compare_id_number(self, entered_id: str, ext_id: str, alt_ids: list, compact_ocr: str) -> dict:
+
+        clean_entered_raw = (entered_id or "").strip()
+
+        compact_entered = self._normalize_id_code(clean_entered_raw)
+
+        candidates_raw = []
+
+        if ext_id:
+
+            candidates_raw.append(ext_id)
+
+        for item in alt_ids or []:
+
+            if item and str(item).strip() not in candidates_raw:
+
+                candidates_raw.append(str(item).strip())
+
+        for raw_cand in candidates_raw:
+
+            compact_cand = self._normalize_id_code(raw_cand)
+
+            matched, mode = self._codes_match_strictly(compact_entered, compact_cand)
+
+            if matched:
+
+                return {
+
+                    "field": "ID Number",
+
+                    "key": "id_number",
+
+                    "entered": clean_entered_raw,
+
+                    "found_on_id": raw_cand,
+
+                    "status": "match",
+
+                    "note": "ID number matches the number printed on the uploaded ID.",
+
+                }
+
+        if len(compact_entered) >= 6 and compact_entered in compact_ocr:
+
+            return {
+
+                "field": "ID Number",
+
+                "key": "id_number",
+
+                "entered": clean_entered_raw,
+
+                "found_on_id": ext_id or clean_entered_raw,
+
+                "status": "match",
+
+                "note": "ID number matches the uploaded document.",
+
+            }
+
+        if candidates_raw:
+
+            primary_found = candidates_raw[0]
+
+            return {
+
+                "field": "ID Number",
+
+                "key": "id_number",
+
+                "entered": clean_entered_raw,
+
+                "found_on_id": primary_found,
+
+                "status": "mismatch",
+
+                "note": f"Entered ID number ({clean_entered_raw}) does not match the number on the ID ({primary_found}).",
+
+            }
+
+        return {
+
+            "field": "ID Number",
+
+            "key": "id_number",
+
+            "entered": clean_entered_raw,
+
+            "found_on_id": "Not clearly visible",
+
+            "status": "partial",
+
+            "note": "ID number could not be clearly read from the uploaded photo; manual Agent check advised.",
+
+        }
+
     def compare(self, entered: dict, ocr_payload: dict) -> list:
 
         lines = list(ocr_payload.get("lines") or [])
 
         ext_name = str(ocr_payload.get("extracted_name") or "").strip()
 
+        ext_first = str(ocr_payload.get("extracted_first_name") or "").strip()
+
+        ext_middle = str(ocr_payload.get("extracted_middle_name") or "").strip()
+
+        ext_last = str(ocr_payload.get("extracted_last_name") or "").strip()
+
         ext_dob = str(ocr_payload.get("extracted_birth_date") or "").strip()
 
         ext_id = str(ocr_payload.get("extracted_id_number") or "").strip()
 
-        combined_chunks = list(lines)
+        alt_ids = list(ocr_payload.get("alternate_id_numbers") or [])
 
-        if ext_name:
+        combined_chunks = list(lines) + [ext_name, ext_dob, ext_id] + [str(x) for x in alt_ids]
 
-            combined_chunks.append(ext_name)
+        raw_joined = " ".join(x for x in combined_chunks if x)
 
-        if ext_dob:
-
-            combined_chunks.append(ext_dob)
-
-        if ext_id:
-
-            combined_chunks.append(ext_id)
-
-        raw_joined = " ".join(combined_chunks)
-
-        clean_ocr = self._clean_words(raw_joined)
+        all_ocr_words = self._clean_words(raw_joined).split()
 
         compact_ocr = self._normalize_id_code(raw_joined)
 
-        ocr_words = clean_ocr.split()
-
         results = []
 
-        entered_name = (entered.get("full_name") or "").strip()
+        if (entered.get("full_name") or "").strip():
 
-        if entered_name:
+            results.append(
 
-            name_parts = [p for p in self._clean_words(entered_name).split() if len(p) > 1 and p != "NA"]
+                self._compare_name(entered, ext_name, ext_first, ext_middle, ext_last, all_ocr_words)
 
-            matched_parts = []
+            )
 
-            for part in name_parts:
+        if (entered.get("birth_date") or "").strip():
 
-                if part in ocr_words:
+            results.append(
 
-                    matched_parts.append(part)
+                self._compare_birth_date(entered.get("birth_date") or "", ext_dob, lines)
 
-                else:
+            )
 
-                    for word in ocr_words:
+        if (entered.get("id_number") or "").strip():
 
-                        if SequenceMatcher(None, part, word).ratio() >= 0.80:
+            results.append(
 
-                            matched_parts.append(part)
+                self._compare_id_number(entered.get("id_number") or "", ext_id, alt_ids, compact_ocr)
 
-                            break
-
-            ratio = (len(matched_parts) / len(name_parts)) if name_parts else 0.0
-
-            if ratio >= 0.99:
-
-                status, note = "match", "All name parts were found on the ID."
-
-            elif ratio >= 0.50:
-
-                status, note = "partial", f"Found {len(matched_parts)} of {len(name_parts)} name parts on the ID."
-
-            else:
-
-                status, note = "mismatch", "The entered name does not match the name read on the ID."
-
-            results.append({
-
-                "field": "Full Name",
-
-                "key": "name",
-
-                "entered": entered_name,
-
-                "found_on_id": ext_name or (" ".join(matched_parts) if matched_parts else "Not clearly visible"),
-
-                "status": status,
-
-                "note": note,
-
-            })
-
-        entered_dob = (entered.get("birth_date") or "").strip()
-
-        if entered_dob:
-
-            found_dates = self._extract_dates(raw_joined)
-
-            if entered_dob in found_dates:
-
-                dob_status, dob_note = "match", "Birth date matches the date printed on the ID."
-
-                dob_found = entered_dob
-
-            elif len(found_dates) > 0:
-
-                dob_status = "mismatch"
-
-                dob_found = sorted(found_dates)[0]
-
-                dob_note = f"Entered birth date ({entered_dob}) differs from ID date ({dob_found})."
-
-            else:
-
-                dob_status = "partial"
-
-                dob_found = "Not clearly visible"
-
-                dob_note = "Birth date could not be clearly read from the ID photo."
-
-            results.append({
-
-                "field": "Birth Date",
-
-                "key": "birth_date",
-
-                "entered": entered_dob,
-
-                "found_on_id": dob_found,
-
-                "status": dob_status,
-
-                "note": dob_note,
-
-            })
-
-        entered_id = (entered.get("id_number") or "").strip()
-
-        if entered_id:
-
-            compact_id = self._normalize_id_code(entered_id)
-
-            if compact_id and compact_id in compact_ocr:
-
-                id_status, id_note, id_found = "match", "ID number matches the document.", entered_id
-
-            else:
-
-                best_ratio = 0.0
-
-                win = len(compact_id)
-
-                if win >= 4 and len(compact_ocr) >= win:
-
-                    for idx in range(0, len(compact_ocr) - win + 1):
-
-                        piece = compact_ocr[idx : idx + win]
-
-                        score = SequenceMatcher(None, compact_id, piece).ratio()
-
-                        if score > best_ratio:
-
-                            best_ratio = score
-
-                if best_ratio >= 0.85:
-
-                    id_status = "match"
-
-                    id_found = ext_id or entered_id
-
-                    id_note = "ID number closely matches the document."
-
-                elif best_ratio >= 0.65:
-
-                    id_status = "partial"
-
-                    id_found = ext_id or "Partially visible"
-
-                    id_note = "ID number partially matches; Agent verification recommended."
-
-                else:
-
-                    id_status = "mismatch"
-
-                    id_found = ext_id or "Not found on ID"
-
-                    id_note = "Entered ID number was not found on the uploaded ID."
-
-            results.append({
-
-                "field": "ID Number",
-
-                "key": "id_number",
-
-                "entered": entered_id,
-
-                "found_on_id": id_found,
-
-                "status": id_status,
-
-                "note": id_note,
-
-            })
+            )
 
         return results
 
@@ -330,9 +692,7 @@ class BaseLanguageClient:
 
         cleaned = self._TECH_TERMS_REGEX.sub("screening", text or "")
 
-        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
-
-        return cleaned
+        return re.sub(r"\s{2,}", " ", cleaned).strip()
 
     def _parse_json_text(self, raw_text: str) -> dict:
 
@@ -352,6 +712,64 @@ class GeminiScreeningService(BaseLanguageClient):
 
     _API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
+    _OCR_RESPONSE_SCHEMA = {
+
+        "type": "OBJECT",
+
+        "properties": {
+
+            "extracted_name": {"type": "STRING"},
+
+            "extracted_first_name": {"type": "STRING"},
+
+            "extracted_middle_name": {"type": "STRING"},
+
+            "extracted_last_name": {"type": "STRING"},
+
+            "extracted_birth_date": {"type": "STRING"},
+
+            "extracted_id_number": {"type": "STRING"},
+
+            "alternate_id_numbers": {
+
+                "type": "ARRAY",
+
+                "items": {"type": "STRING"},
+
+            },
+
+            "lines": {
+
+                "type": "ARRAY",
+
+                "items": {"type": "STRING"},
+
+            },
+
+        },
+
+        "required": [
+
+            "extracted_name",
+
+            "extracted_first_name",
+
+            "extracted_middle_name",
+
+            "extracted_last_name",
+
+            "extracted_birth_date",
+
+            "extracted_id_number",
+
+            "alternate_id_numbers",
+
+            "lines",
+
+        ],
+
+    }
+
     _FIELD_PATTERNS = [
 
         ("id_photo", re.compile(r"(blur|unclear|dark|glare|flash|unreadable|photo|image|id\s*copy|crop|cut\s*off)", re.I)),
@@ -360,7 +778,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
         ("birth_date", re.compile(r"(birth|birthday|dob|date\s*of\s*birth)", re.I)),
 
-        ("id_number", re.compile(r"(id\s*no|id\s*number|card\s*number|license\s*number)", re.I)),
+        ("id_number", re.compile(r"(id\s*no|id\s*number|card\s*number|license\s*number|psn|pcn|crn)", re.I)),
 
         ("email", re.compile(r"(email|gmail|already\s*registered|existing\s*email|duplicate\s*email)", re.I)),
 
@@ -372,9 +790,9 @@ class GeminiScreeningService(BaseLanguageClient):
 
     def _get_config(self) -> tuple:
 
-        api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+        api_key = (getenv("GEMINI_API_KEY") or "").strip()
 
-        model = (os.getenv("GEMINI_MODEL") or "gemini-flash-latest").strip()
+        model = (getenv("GEMINI_MODEL") or "gemini-flash-latest").strip()
 
         return api_key, model
 
@@ -384,7 +802,33 @@ class GeminiScreeningService(BaseLanguageClient):
 
         return bool(api_key)
 
-    def _call_gemini(self, parts: list, expect_json: bool = True, max_tokens: int = 450) -> str:
+    def _detect_mime_type(self, image_bytes: bytes) -> str:
+
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+
+            return "image/png"
+
+        if image_bytes.startswith(b"RIFF") and b"WEBP" in image_bytes[:16]:
+
+            return "image/webp"
+
+        return "image/jpeg"
+
+    def _call_gemini(
+
+        self,
+
+        parts: list,
+
+        expect_json: bool = True,
+
+        max_tokens: int = 600,
+
+        temperature: float = 0.0,
+
+        response_schema: dict = None,
+
+    ) -> str:
 
         api_key, primary_model = self._get_config()
 
@@ -392,11 +836,15 @@ class GeminiScreeningService(BaseLanguageClient):
 
             return ""
 
-        gen_cfg = {"temperature": 0.1, "maxOutputTokens": max_tokens}
+        gen_cfg = {"temperature": temperature, "maxOutputTokens": max_tokens}
 
         if expect_json:
 
             gen_cfg["responseMimeType"] = "application/json"
+
+            if response_schema:
+
+                gen_cfg["responseSchema"] = response_schema
 
         payload = {
 
@@ -416,9 +864,11 @@ class GeminiScreeningService(BaseLanguageClient):
 
         models_to_try = [primary_model]
 
-        if "gemini-2.0-flash" not in models_to_try:
+        for fallback_model in ("gemini-2.5-flash", "gemini-2.0-flash"):
 
-            models_to_try.append("gemini-2.0-flash")
+            if fallback_model not in models_to_try:
+
+                models_to_try.append(fallback_model)
 
         for model_name in models_to_try:
 
@@ -426,7 +876,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
             try:
 
-                reply = httpx.post(url, headers=headers, json=payload, timeout=22)
+                reply = httpx.post(url, headers=headers, json=payload, timeout=25)
 
                 if reply.status_code == 200:
 
@@ -454,9 +904,9 @@ class GeminiScreeningService(BaseLanguageClient):
 
         return ""
 
-    def extract_id_text(self, image_bytes: bytes) -> dict:
+    def extract_id_text(self, front_bytes: bytes, back_bytes: bytes = None, id_type: str = "") -> dict:
 
-        if not image_bytes or not self.is_available():
+        if not front_bytes or not self.is_available():
 
             return {
 
@@ -466,51 +916,111 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "extracted_name": "",
 
+                "extracted_first_name": "",
+
+                "extracted_middle_name": "",
+
+                "extracted_last_name": "",
+
                 "extracted_birth_date": "",
 
                 "extracted_id_number": "",
+
+                "alternate_id_numbers": [],
 
                 "note": "Vision text extraction is not configured.",
 
             }
 
-        b64_img = base64.b64encode(image_bytes).decode("ascii")
+        parts = []
 
-        prompt = (
+        front_b64 = base64.b64encode(front_bytes).decode("ascii")
 
-            "Read the visible printed text on this Philippine identification card image. "
+        parts.append({
 
-            "Do NOT guess unreadable characters and do NOT judge authenticity. "
+            "inline_data": {
 
-            "Return ONLY valid JSON with these exact keys:\n"
+                "mime_type": self._detect_mime_type(front_bytes),
 
-            "{\n"
+                "data": front_b64,
 
-            '  "extracted_name": "full name printed on the ID or empty string",\n'
+            }
 
-            '  "extracted_birth_date": "birth date normalized to YYYY-MM-DD if visible or empty string",\n'
+        })
 
-            '  "extracted_id_number": "primary ID number printed on the card or empty string",\n'
+        if back_bytes:
 
-            '  "lines": ["every visible text line on the ID in reading order"]\n'
+            back_b64 = base64.b64encode(back_bytes).decode("ascii")
 
-            "}"
+            parts.append({
+
+                "inline_data": {
+
+                    "mime_type": self._detect_mime_type(back_bytes),
+
+                    "data": back_b64,
+
+                }
+
+            })
+
+        declared_type_hint = (
+
+            f"The applicant selected ID type: '{id_type}'. " if id_type else ""
 
         )
 
+        side_hint = (
+
+            "Both FRONT and BACK images of the same Philippine identification card are attached. "
+
+            if back_bytes
+
+            else "The FRONT image of a Philippine identification card is attached. "
+
+        )
+
+        prompt = (
+
+            side_hint
+
+            + declared_type_hint
+
+            + "Read every visible printed character with extreme character-by-character precision:\n"
+
+            "1. Do NOT guess blurred or covered characters and do NOT judge legal authenticity.\n"
+
+            "2. Separate the cardholder's printed First/Given Name (`Pangalan`), Middle Name (`Gitnang Apelyido`), "
+
+            "and Last Name/Surname (`Apelyido`), and set `extracted_name` to `First Middle Last`.\n"
+
+            "3. For `extracted_birth_date`, extract ONLY the cardholder's Date of Birth (`Petsa ng Kapanganakan` / `Date of Birth`), "
+
+            "NEVER the Date of Issue or Expiration Date, normalized strictly to `YYYY-MM-DD` (or empty string if unreadable).\n"
+
+            "4. For `extracted_id_number`, extract the primary card/license/ID number exactly as printed. "
+
+            "If a secondary number is also printed on the front or back (for example PhilSys 16-digit PCN and 12-digit PSN, "
+
+            "or CRN and serial number), include all secondary numbers in `alternate_id_numbers`.\n"
+
+            "5. Put every readable text line from the card in `lines`."
+
+        )
+
+        parts.append({"text": prompt})
+
         raw = self._call_gemini(
 
-            parts=[
-
-                {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}},
-
-                {"text": prompt},
-
-            ],
+            parts=parts,
 
             expect_json=True,
 
-            max_tokens=500,
+            max_tokens=650,
+
+            temperature=0.0,
+
+            response_schema=self._OCR_RESPONSE_SCHEMA,
 
         )
 
@@ -524,9 +1034,17 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "extracted_name": "",
 
+                "extracted_first_name": "",
+
+                "extracted_middle_name": "",
+
+                "extracted_last_name": "",
+
                 "extracted_birth_date": "",
 
                 "extracted_id_number": "",
+
+                "alternate_id_numbers": [],
 
                 "note": "Vision OCR service did not return a response.",
 
@@ -540,6 +1058,8 @@ class GeminiScreeningService(BaseLanguageClient):
 
             clean_lines = [str(x).strip() for x in raw_lines if str(x).strip()]
 
+            alt_nums = [str(x).strip() for x in (parsed.get("alternate_id_numbers") or []) if str(x).strip()]
+
             return {
 
                 "available": True,
@@ -550,9 +1070,17 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "extracted_name": str(parsed.get("extracted_name") or "").strip(),
 
+                "extracted_first_name": str(parsed.get("extracted_first_name") or "").strip(),
+
+                "extracted_middle_name": str(parsed.get("extracted_middle_name") or "").strip(),
+
+                "extracted_last_name": str(parsed.get("extracted_last_name") or "").strip(),
+
                 "extracted_birth_date": str(parsed.get("extracted_birth_date") or "").strip(),
 
                 "extracted_id_number": str(parsed.get("extracted_id_number") or "").strip(),
+
+                "alternate_id_numbers": alt_nums,
 
             }
 
@@ -570,9 +1098,17 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "extracted_name": "",
 
+                "extracted_first_name": "",
+
+                "extracted_middle_name": "",
+
+                "extracted_last_name": "",
+
                 "extracted_birth_date": "",
 
                 "extracted_id_number": "",
+
+                "alternate_id_numbers": [],
 
             }
 
@@ -610,15 +1146,17 @@ class GeminiScreeningService(BaseLanguageClient):
 
             status = comp.get("status", "")
 
+            note = comp.get("note", "")
+
             if status == "mismatch":
 
-                findings.append(f"{field_name} entered on the form does not match the uploaded ID.")
+                findings.append(note or f"{field_name} entered on the form does not match the uploaded ID.")
 
-                guidance.append(f"Please inspect the ID and confirm whether the customer should update their {field_name.lower()}.")
+                guidance.append(f"Inspect the ID and confirm whether the customer should update their {field_name.lower()}.")
 
             elif status == "partial":
 
-                findings.append(f"{field_name} could only be partially verified from the ID photo.")
+                findings.append(note or f"{field_name} could only be partially verified from the ID photo.")
 
                 guidance.append(f"Visually verify the {field_name.lower()} on the ID before forwarding for encoding.")
 
@@ -638,13 +1176,35 @@ class GeminiScreeningService(BaseLanguageClient):
 
             return {"available": False, **fallback}
 
+        has_any_concern = bool(quality.get("issues")) or any(
+
+            c.get("status") in ("mismatch", "partial") for c in comparisons
+
+        )
+
+        if not has_any_concern:
+
+            return {"available": True, **fallback}
+
         summary_data = {
 
             "image_issues": quality.get("issues", []),
 
             "field_checks": [
 
-                {"field": c.get("field"), "status": c.get("status"), "note": c.get("note")}
+                {
+
+                    "field": c.get("field"),
+
+                    "entered": c.get("entered"),
+
+                    "found_on_id": c.get("found_on_id"),
+
+                    "status": c.get("status"),
+
+                    "note": c.get("note"),
+
+                }
 
                 for c in comparisons
 
@@ -658,9 +1218,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
             "Do NOT mention technical words like AI, Gemini, OCR, or OpenCV. "
 
-            "Remember these findings are preliminary for human review only. "
-
-            "Summarize these screening checks in plain, professional English. "
+            "State the specific discrepancy clearly so the Agent can verify it quickly. "
 
             'Return ONLY valid JSON: {"findings": ["short point"], "guidance": ["short action tip for the agent"]}.\n\n'
 
@@ -668,7 +1226,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
         )
 
-        raw = self._call_gemini(parts=[{"text": prompt}], expect_json=True, max_tokens=280)
+        raw = self._call_gemini(parts=[{"text": prompt}], expect_json=True, max_tokens=280, temperature=0.1)
 
         if raw:
 
@@ -712,13 +1270,13 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "Hello! Thank you for applying with PIGEM. We noticed a slight difference between the name on your form "
 
-                "and your valid ID—please review and update your name in your portal so it matches your ID."
+                "and your valid ID—please review and update your name in your Customer Account so it matches your ID."
 
             ),
 
             "birth_date": (
 
-                "Hello! Thank you for applying with PIGEM. Please check and update your date of birth in your Customer Portal "
+                "Hello! Thank you for applying with PIGEM. Please check and update your date of birth in your Customer Account "
 
                 "so it matches the birth date printed on your valid ID."
 
@@ -726,7 +1284,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
             "id_number": (
 
-                "Hello! Thank you for applying with PIGEM. Please review and update your ID number in your Customer Portal "
+                "Hello! Thank you for applying with PIGEM. Please review and update your ID number in your Customer Account "
 
                 "so it matches the number printed on your submitted valid ID."
 
@@ -734,9 +1292,9 @@ class GeminiScreeningService(BaseLanguageClient):
 
             "email": (
 
-                "Hello! Thank you for applying with PIGEM. It looks like your email address already has an active registration "
+                "Hello! Thank you for applying with PIGEM. It looks like your Gmail address already has an active registration "
 
-                "with the provider—could you please provide an alternative active email address to continue processing?"
+                "with the provider—could you please provide an alternative @gmail.com address to continue processing?"
 
             ),
 
@@ -744,7 +1302,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "Hello! Thank you for applying with PIGEM. Please review or provide an active mobile number in your "
 
-                "Customer Portal so our team can reach you smoothly regarding your installation."
+                "Customer Account so our team can reach you smoothly regarding your installation."
 
             ),
 
@@ -752,13 +1310,13 @@ class GeminiScreeningService(BaseLanguageClient):
 
                 "Hello! Thank you for applying with PIGEM. Could you please confirm or update your complete installation "
 
-                "address and nearest landmark in your Customer Portal so we can verify fiber coverage accurately?"
+                "address and nearest landmark in your Customer Account so we can verify fiber coverage accurately?"
 
             ),
 
             "general": (
 
-                "Hello! Thank you for applying with PIGEM. Please sign in to your Customer Portal to review and update "
+                "Hello! Thank you for applying with PIGEM. Please sign in to your Customer Account to review and update "
 
                 "the highlighted details on your application so we can continue processing your request right away."
 
@@ -784,9 +1342,11 @@ class GeminiScreeningService(BaseLanguageClient):
 
             "Rewrite the staff verification note below into a warm, polite, plain-English 2-sentence message "
 
-            "to a home internet applicant asking them to update the specific detail in their Customer Portal. "
+            "to a home internet applicant asking them to update the specific detail in their Customer Account. "
 
-            "Do NOT mention AI, Gemini, OCR, or technical terms. Start with 'Hello!'.\n\n"
+            "Do NOT include sensitive ID numbers in the message and do NOT mention AI, Gemini, OCR, or technical terms. "
+
+            "Start with 'Hello!'.\n\n"
 
             f"Verification note: {clean_note}\n"
 
@@ -796,7 +1356,7 @@ class GeminiScreeningService(BaseLanguageClient):
 
         )
 
-        raw = self._call_gemini(parts=[{"text": prompt}], expect_json=True, max_tokens=200)
+        raw = self._call_gemini(parts=[{"text": prompt}], expect_json=True, max_tokens=200, temperature=0.15)
 
         if raw:
 
@@ -840,9 +1400,9 @@ def is_available() -> bool:
 
     return _gemini_service.is_available()
 
-def extract_id_text(image_bytes: bytes) -> dict:
+def extract_id_text(front_bytes: bytes, back_bytes: bytes = None, id_type: str = "") -> dict:
 
-    return _gemini_service.extract_id_text(image_bytes)
+    return _gemini_service.extract_id_text(front_bytes, back_bytes=back_bytes, id_type=id_type)
 
 def compare_fields(entered: dict, ocr_payload: dict) -> list:
 

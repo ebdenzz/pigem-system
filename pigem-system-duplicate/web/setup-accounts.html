@@ -1,14 +1,22 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: Initial Staff & Administrator Account Provisioning Utility (web/setup-accounts.html)
+     PURPOSE: One-time setup page for registering verified Supabase Auth credentials for PIGEM role accounts.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" href="assets/images/logo.png">
   <title>Admin Account Provisioning | Combined Facilities Support Services</title>
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
+  <!-- SECTION: Top Navigation Header & Brand Identity Bar -->
   <header class="simple-bar">
     <div class="container" style="display:flex; align-items:center; gap:12px;">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
@@ -16,6 +24,7 @@
     </div>
   </header>
 
+  <!-- SECTION: Main Page Content Container -->
   <main class="auth-page">
     <div class="card auth-card" style="max-width:460px;">
 
@@ -41,10 +50,16 @@
           <p class="small muted mt" style="margin-top:4px;">Create the sole Admin business account (non-Gmail) to manage all internal staff credentials.</p>
         </div>
 
+        <!-- FORM: Interactive User Input Form -->
         <form class="mt-big" onsubmit="registerSingleAdmin(event)">
           <div>
             <label for="adm-name">Administrator Full Name</label>
             <input id="adm-name" type="text" placeholder="Enter full name" required>
+          </div>
+          <div class="mt">
+            <label for="adm-username">Administrator Username</label>
+            <input id="adm-username" type="text" minlength="3" maxlength="30" placeholder="pigem_admin" required>
+            <div class="small muted" style="font-size:11.5px; margin-top:4px;">3 to 30 characters (letters, numbers, dots, or underscores).</div>
           </div>
           <div class="mt">
             <label for="adm-email">Admin Business Email (Not Gmail)</label>
@@ -77,11 +92,17 @@
     </div>
   </main>
 
+  <!-- INLINE SCRIPT: Page-specific portal configuration and startup logic -->
   <script>window.SYSTEM = "admin";</script>
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- INLINE SCRIPT: Page-specific portal configuration and startup logic -->
   <script>
+    // Helper function `initProvisioningPage`: Executes portal workflow logic for `initProvisioningPage`.
     async function initProvisioningPage() {
       var loadingEl = document.getElementById("provision-loading-box");
       var lockedEl = document.getElementById("provision-locked-box");
@@ -99,16 +120,22 @@
       }
     }
 
+    // Helper function `registerSingleAdmin` (params: event): Executes portal workflow logic for `registerSingleAdmin`.
     async function registerSingleAdmin(event) {
       event.preventDefault();
       var name = document.getElementById("adm-name").value.trim();
+      var username = document.getElementById("adm-username").value.trim().toLowerCase();
       var email = document.getElementById("adm-email").value.trim().toLowerCase();
       var pw = document.getElementById("adm-pw").value;
       var pw2 = document.getElementById("adm-pw2").value;
       var btn = document.getElementById("btn-save-admin");
 
-      if (!name || !email || !pw) {
-        showAlert("Missing Fields", "Please complete all fields.", "warn");
+      if (!name || !username || !email || !pw) {
+        showAlert("Missing Fields", "Please complete all fields including Username.", "warn");
+        return;
+      }
+      if (typeof isValidUsername === "function" && !isValidUsername(username)) {
+        showAlert("Invalid Username", "Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).", "warn");
         return;
       }
       if (!isStaffBusinessEmail(email)) {
@@ -127,9 +154,9 @@
       btn.disabled = true;
       btn.textContent = "Provisioning Admin...";
       try {
-        await dbCreateUserAccount(name, email, pw, "admin");
+        await dbCreateUserAccount(name, email, pw, "admin", username);
         await initProvisioningPage();
-        showAlert("Admin Provisioned", "System Administrator account (" + email + ") is ready. You can now sign in to the Admin Console to create Manager and Agent accounts.", "good");
+        showAlert("Admin Provisioned", "System Administrator account (@" + username + " / " + email + ") is ready. You can now sign in to the Admin Console to create Manager and Agent accounts.", "good");
       } catch (err) {
         showAlert("Provisioning Failed", err.message || "Could not provision Admin account.", "bad");
       } finally {

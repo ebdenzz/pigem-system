@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import sys
 
@@ -10,25 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 
-try:
+_API_DIRECTORY = str(Path(__file__).resolve().parent)
 
-    from dotenv import load_dotenv
+if _API_DIRECTORY not in sys.path:
 
-except ImportError:
-
-    load_dotenv = None
-
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-if _THIS_DIR not in sys.path:
-
-    sys.path.insert(0, _THIS_DIR)
-
-_ENV_PATH = os.path.join(_THIS_DIR, ".env")
-
-if load_dotenv is not None and os.path.exists(_ENV_PATH):
-
-    load_dotenv(_ENV_PATH)
+    sys.path.insert(0, _API_DIRECTORY)
 
 import _auth
 
@@ -150,9 +136,19 @@ async def screen_document(
 
     id_front: UploadFile = File(...),
 
+    id_back: Optional[UploadFile] = File(None),
+
     full_name: str = Form(""),
 
+    first_name: str = Form(""),
+
+    middle_name: str = Form(""),
+
+    last_name: str = Form(""),
+
     birth_date: str = Form(""),
+
+    id_type: str = Form(""),
 
     id_number: str = Form(""),
 
@@ -160,19 +156,37 @@ async def screen_document(
 
 ):
 
-    image_bytes = await id_front.read()
+    front_bytes = await id_front.read()
 
-    quality_result, cropped_jpeg = _quality.enhance_and_crop(image_bytes)
+    back_bytes = await id_back.read() if id_back is not None else None
 
-    ocr_input = cropped_jpeg if cropped_jpeg else image_bytes
+    quality_result, cropped_front = _quality.enhance_and_crop(front_bytes)
 
-    ocr_result = _gemini.extract_id_text(ocr_input)
+    ocr_front_input = cropped_front if cropped_front else front_bytes
+
+    ocr_back_input = None
+
+    if back_bytes:
+
+        _, cropped_back = _quality.enhance_and_crop(back_bytes)
+
+        ocr_back_input = cropped_back if cropped_back else back_bytes
+
+    ocr_result = _gemini.extract_id_text(ocr_front_input, ocr_back_input, id_type=id_type)
 
     entered = {
 
         "full_name": full_name,
 
+        "first_name": first_name,
+
+        "middle_name": middle_name,
+
+        "last_name": last_name,
+
         "birth_date": birth_date,
+
+        "id_type": id_type,
 
         "id_number": id_number,
 

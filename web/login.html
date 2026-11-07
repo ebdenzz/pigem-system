@@ -1,11 +1,15 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link rel="icon" href="assets/images/logo.png">
   <title>Customer Login | Combined Facilities Support Services</title>
+
   <link rel="stylesheet" href="assets/style.css">
+
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body class="public-page">
@@ -23,13 +27,13 @@
     <div class="card auth-card">
       <div class="center">
         <h2>Customer Login</h2>
-        <p class="small muted mt" style="margin-top:4px;">Sign in using your registered Gmail account</p>
+        <p class="small muted mt" style="margin-top:4px;">Sign in using your Customer username or registered Gmail account</p>
       </div>
 
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Gmail Address</label>
-          <input id="email" type="email" placeholder="yourname@gmail.com" required>
+          <label for="email">Username or Gmail Address</label>
+          <input id="email" type="text" autocomplete="username" placeholder="username or yourname@gmail.com" required>
         </div>
 
         <div class="mt">
@@ -54,10 +58,15 @@
   <script>
 window.SYSTEM = "customer";
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="js/config.js"></script>
+
   <script src="js/db.js"></script>
+
   <script src="js/api.js"></script>
+
   <script src="js/login.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import os
+from os import getenv
 
 import re
 
@@ -22,9 +22,9 @@ class SupabaseTokenVerifier(BaseTokenVerifier):
 
     def _get_credentials(self) -> tuple:
 
-        url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
+        url = (getenv("SUPABASE_URL") or "").strip().rstrip("/")
 
-        key = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
+        key = (getenv("SUPABASE_ANON_KEY") or "").strip()
 
         return url, key
 
@@ -36,7 +36,7 @@ class SupabaseTokenVerifier(BaseTokenVerifier):
 
     def is_recaptcha_configured(self) -> bool:
 
-        secret = (os.getenv("RECAPTCHA_SECRET_KEY") or "").strip()
+        secret = (getenv("RECAPTCHA_SECRET_KEY") or "").strip()
 
         return bool(secret)
 
@@ -94,7 +94,7 @@ class SupabaseTokenVerifier(BaseTokenVerifier):
 
             return {"verified": False, "reason": "Missing CAPTCHA verification token."}
 
-        secret = (os.getenv("RECAPTCHA_SECRET_KEY") or "").strip()
+        secret = (getenv("RECAPTCHA_SECRET_KEY") or "").strip()
 
         if not secret:
 

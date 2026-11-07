@@ -1,8 +1,13 @@
-// ============================================================
-// SHARED DASHBOARD UI HELPERS (Agent, Manager, and Admin)
-// Splash screen, Light/Dark/Device theme, Smart Topbar Search,
-// Notifications Bell, Circle Profile Drawer, Simple Charts & Calendar
-// ============================================================
+// ============================================================================
+// FILE: web/js/dash-ui.js
+// PURPOSE: Shared Dashboard Shell UI (Theme, Search, Notifications & Avatar Menu)
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. web/js/config.js -> Global `CONFIG`, popup helpers, and role guide utilities
+//   2. web/js/db.js     -> `dbGetNotifications()`, `dbMarkAllNotificationsRead()`,
+//                          `dbUpdateOwnProfile()`, `dbChangeOwnPassword()`, `dbSignOut()`
+//   3. web/js/api.js    -> `apiSendOtpEmail()` for profile/password security verification
+// ============================================================================
 
 var dashCurrentUser = null;
 var dashSearchApps = [];
@@ -41,6 +46,7 @@ function initDashUI(user, apps, onSelectAppCallback) {
   });
 }
 
+// Action Handler `updateDashSearchApps` (params: apps): Validates user input and commits state changes to update dash search apps.
 function updateDashSearchApps(apps) {
   dashSearchApps = apps || [];
 }
@@ -121,6 +127,7 @@ function onTopSearchInput(inputEl) {
   box.classList.remove("hidden");
 }
 
+// Helper function `jumpToNav` (params: target): Executes portal workflow logic for `jumpToNav`.
 function jumpToNav(target) {
   var box = document.getElementById("top-search-results");
   if (box) box.classList.add("hidden");
@@ -129,6 +136,7 @@ function jumpToNav(target) {
   }
 }
 
+// Helper function `jumpToApp` (params: appId): Executes portal workflow logic for `jumpToApp`.
 function jumpToApp(appId) {
   var box = document.getElementById("top-search-results");
   if (box) box.classList.add("hidden");
@@ -137,6 +145,7 @@ function jumpToApp(appId) {
   }
 }
 
+// Helper function `autoLinkUrls` (params: text): Executes portal workflow logic for `autoLinkUrls`.
 function autoLinkUrls(text) {
   var escaped = escapeHtml(text || "");
   return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:var(--red); text-decoration:underline; word-break:break-all;">$1</a>');
@@ -170,6 +179,7 @@ async function refreshNotifBell(user) {
   }
 }
 
+// UI Interaction `toggleNotifModal`: Controls modal/panel visibility to toggle notif modal.
 function toggleNotifModal() {
   var m = document.getElementById("notif-modal");
   if (m) m.classList.toggle("hidden");
@@ -182,6 +192,7 @@ function getInitials(name) {
   return String(name || "U").slice(0, 2).toUpperCase();
 }
 
+// UI Renderer `renderAvatarBtn` (params: user): Builds and updates DOM elements for avatar btn.
 function renderAvatarBtn(user) {
   var btn = document.getElementById("avatar-btn");
   if (!btn || !user) return;
@@ -192,11 +203,13 @@ function renderAvatarBtn(user) {
   }
 }
 
+// UI Interaction `toggleProfileDrawer`: Controls modal/panel visibility to toggle profile drawer.
 function toggleProfileDrawer() {
   var d = document.getElementById("profile-drawer");
   if (d) d.classList.toggle("hidden");
 }
 
+// UI Renderer `renderProfileDrawer` (params: user): Builds and updates DOM elements for profile drawer.
 function renderProfileDrawer(user) {
   var box = document.getElementById("profile-drawer-body");
   if (!box || !user) return;
@@ -209,6 +222,7 @@ function renderProfileDrawer(user) {
     '<div style="text-align:center; padding-bottom:14px; border-bottom:1px solid var(--line)">' +
       avatarHtml +
       '<div style="font-weight:800; font-size:16px">' + escapeHtml(user.full_name) + '</div>' +
+      (user.username ? '<div style="font-size:12.5px; font-weight:700; color:var(--red); margin-top:2px">@' + escapeHtml(user.username) + '</div>' : '') +
       '<div class="muted" style="font-size:12px">' + escapeHtml(user.email) + ' - ' + escapeHtml((user.role || "").toUpperCase()) + '</div>' +
       (user.intro ? '<div style="font-size:12px; margin-top:6px; font-style:italic">"' + escapeHtml(user.intro) + '"</div>' : '') +
     '</div>' +
@@ -228,6 +242,7 @@ function renderProfileDrawer(user) {
       '<div style="font-size:12px; font-weight:700; margin-bottom:8px">Edit Profile</div>' +
       '<div id="prof-msg" class="msg"></div>' +
       '<div class="field"><label>Display Name</label><input id="prof-name" type="text" value="' + escapeHtml(user.full_name || "") + '" /></div>' +
+      '<div class="field"><label>Username</label><input id="prof-username" type="text" minlength="3" maxlength="30" value="' + escapeHtml(user.username || "") + '" placeholder="username" /></div>' +
       '<div class="field"><label>' + (user.role === "customer" ? "Short Bio" : "Short Bio / Role Note") + '</label><input id="prof-intro" type="text" value="' + escapeHtml(user.intro || "") + '" placeholder="' + (user.role === "customer" ? "Add a short bio or note" : "e.g. Senior Fiber Verification Agent") + '" /></div>' +
       '<div class="field"><label>Profile Photo</label><input id="prof-photo" type="file" accept="image/*" onchange="onProfilePhotoPick(this)" /></div>' +
       '<button type="button" class="btn btn-dark btn-sm" style="width:100%" onclick="saveProfileChanges()">Save Profile</button>' +
@@ -253,6 +268,7 @@ function renderProfileDrawer(user) {
 }
 
 var pendingAvatarDataUrl = "";
+// Helper function `onProfilePhotoPick` (params: inputEl): Executes portal workflow logic for `onProfilePhotoPick`.
 function onProfilePhotoPick(inputEl) {
   var file = inputEl.files && inputEl.files[0];
   if (!file) return;
@@ -263,28 +279,43 @@ function onProfilePhotoPick(inputEl) {
   reader.readAsDataURL(file);
 }
 
+// Action Handler `saveProfileChanges`: Validates user input and commits profile changes (including unique username) to Supabase and local session cache.
 async function saveProfileChanges() {
   if (!dashCurrentUser) return;
+  hideMsg("prof-msg");
   var newName = document.getElementById("prof-name").value.trim() || dashCurrentUser.full_name;
+  var usernameEl = document.getElementById("prof-username");
+  var newUsername = usernameEl ? usernameEl.value.trim().toLowerCase() : (dashCurrentUser.username || "");
   var newIntro = document.getElementById("prof-intro").value.trim();
-  var users = getDemoUsers();
-  for (var i = 0; i < users.length; i++) {
-    if (users[i].id === dashCurrentUser.id) {
-      users[i].full_name = newName;
-      users[i].intro = newIntro;
-      if (pendingAvatarDataUrl) users[i].avatar_url = pendingAvatarDataUrl;
-      dashCurrentUser = users[i];
-      break;
-    }
+
+  var changes = {
+    full_name: newName,
+    intro: newIntro
+  };
+  if (newUsername) {
+    changes.username = newUsername;
   }
-  writeSaved("pigem_users", users);
-  renderAvatarBtn(dashCurrentUser);
-  renderProfileDrawer(dashCurrentUser);
-  var nameLabel = document.getElementById("top-user-name");
-  if (nameLabel) nameLabel.textContent = dashCurrentUser.full_name;
-  showMsg("prof-msg", "ok", "Profile updated!");
+  if (pendingAvatarDataUrl) {
+    changes.avatar_url = pendingAvatarDataUrl;
+  }
+
+  try {
+    var updated = (typeof dbUpdateMyProfile === "function")
+      ? await dbUpdateMyProfile(dashCurrentUser.id, changes)
+      : null;
+    dashCurrentUser = Object.assign({}, dashCurrentUser, changes, updated || {});
+    pendingAvatarDataUrl = "";
+    renderAvatarBtn(dashCurrentUser);
+    renderProfileDrawer(dashCurrentUser);
+    var nameLabel = document.getElementById("top-user-name");
+    if (nameLabel) nameLabel.textContent = dashCurrentUser.full_name;
+    showMsg("prof-msg", "ok", "Profile updated!");
+  } catch (err) {
+    showMsg("prof-msg", "error", err.message || "Could not update profile.");
+  }
 }
 
+// Helper function `sendProfilePwOtp`: Executes portal workflow logic for `sendProfilePwOtp`.
 async function sendProfilePwOtp() {
   if (!dashCurrentUser) return;
   try {
@@ -297,6 +328,7 @@ async function sendProfilePwOtp() {
   }
 }
 
+// Action Handler `confirmProfilePwOtp`: Validates user input and commits state changes to confirm profile pw otp.
 async function confirmProfilePwOtp() {
   if (!dashCurrentUser) return;
   var code = document.getElementById("prof-pw-code").value.trim();
@@ -332,6 +364,7 @@ function renderBars(boxId, rows) {
   box.innerHTML = html;
 }
 
+// UI Renderer `renderColumns` (params: boxId, cols): Builds and updates DOM elements for columns.
 function renderColumns(boxId, cols) {
   var box = document.getElementById(boxId);
   if (!box) return;

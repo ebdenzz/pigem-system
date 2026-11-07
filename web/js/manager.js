@@ -408,6 +408,10 @@ async function saveMgrOverride() {
     encoded: (newStatus === "Encoding" || newStatus === "Approved" || newStatus === "Submitted to Provider") ? true : app.encoded
   });
 
+  if (typeof dbRecordProviderUpdate === "function" && (newStatus === "Encoding" || newStatus === "Approved" || newStatus === "Rejected")) {
+    await dbRecordProviderUpdate(app.id, app.provider_ref || "", newStatus, effectiveRemarks, effectiveRemarks);
+  }
+
   await dbAddAiLog(app.id, app.reference_no, "Manager (" + currentManager.full_name + ")", "Manager set status to " + newStatus + " (Agent: " + (agentEmail || "Unassigned") + ")");
   await dbAddLog(currentManager.email, "Manager updated " + app.reference_no + " -> " + newStatus);
 
@@ -467,7 +471,7 @@ function renderAgentPerformance() {
     }
     html +=
       '<tr>' +
-        '<td><b>' + escapeHtml(u.full_name) + '</b></td>' +
+        '<td><b>' + escapeHtml(u.full_name) + '</b>' + (u.username ? '<div class="tiny muted">@' + escapeHtml(u.username) + '</div>' : '') + '</td>' +
         '<td>' + escapeHtml(u.email) + '</td>' +
         '<td><span class="badge badge-blue">' + active + '</span></td>' +
         '<td><span class="badge badge-yellow">' + fix + '</span></td>' +
@@ -738,6 +742,7 @@ function savePlansCms() {
 }
 
 var currentEditingFaqs = [];
+
 function renderFaqEditorRows(faqs) {
   currentEditingFaqs = faqs.slice();
   var box = document.getElementById("cms-faqs-list");

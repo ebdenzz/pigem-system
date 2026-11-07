@@ -89,6 +89,7 @@ function initApplyPage() {
 
   renderPlanChoices();
   setupDeviceUploadUI();
+
   window.addEventListener("resize", setupDeviceUploadUI);
 
   if (sessionStorage.getItem("pigem_captcha_verified") !== "true") {

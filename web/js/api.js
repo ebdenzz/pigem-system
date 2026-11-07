@@ -1,7 +1,9 @@
 function _getPortalBaseUrl() {
+
   if (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin.indexOf("http") === 0) {
     return window.location.origin;
   }
+
   return (typeof CONFIG !== "undefined" && CONFIG.PUBLIC_URL) ? CONFIG.PUBLIC_URL : "https://pigem-system-web.vercel.app";
 }
 
@@ -12,7 +14,9 @@ function _apiEndpoint(path) {
 
 async function apiVerifyCaptcha(token) {
   var clean = String(token || "").trim();
+
   if (!clean) return { verified: false };
+
   try {
     var res = await fetch(_apiEndpoint("/verify-captcha"), {
       method: "POST",
@@ -23,6 +27,7 @@ async function apiVerifyCaptcha(token) {
     var data = await res.json();
     return { verified: data.verified === true };
   } catch (err) {
+
     return { verified: true, fallback: true };
   }
 }
@@ -31,10 +36,12 @@ function apiStartBackgroundScreening(applicationId) {
   if (!applicationId) return Promise.resolve({ queued: false });
 
   return (async function () {
+
     var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     var timer = controller ? setTimeout(function () { controller.abort(); }, 55000) : null;
     try {
       var headers = { "Content-Type": "application/json" };
+
       if (typeof dbGetToken === "function") {
         var token = await dbGetToken();
         if (token) headers["Authorization"] = "Bearer " + token;
@@ -46,24 +53,28 @@ function apiStartBackgroundScreening(applicationId) {
         body: JSON.stringify({ application_id: String(applicationId) })
       };
       if (controller) fetchOpts.signal = controller.signal;
+
       var res = await fetch(_apiEndpoint("/screen-async"), fetchOpts);
       if (timer) clearTimeout(timer);
       if (!res.ok) return { queued: false, offline: true };
       return await res.json();
     } catch (err) {
+
       if (timer) clearTimeout(timer);
       return { queued: false, offline: true };
     }
   })();
 }
 
-async function apiRunScreening(idFrontFile, customerDetails) {
+async function apiRunScreening(idFrontFile, customerDetails, idBackFile) {
+
   var offlineResult = {
     preliminary: true,
     status: "offline",
     overall_status: "Manual Review",
     blur_score: "N/A",
     name_match: false,
+    birth_date_match: false,
     id_number_match: false,
     issues: ["Automated screening service is currently unavailable. Manual verification is active."]
   };
@@ -71,16 +82,27 @@ async function apiRunScreening(idFrontFile, customerDetails) {
   if (!idFrontFile) return offlineResult;
 
   try {
+    var details = customerDetails || {};
     var formData = new FormData();
+
     formData.append("id_front", idFrontFile);
-    formData.append("full_name", (customerDetails && customerDetails.full_name) || "");
-    formData.append("birth_date", (customerDetails && customerDetails.birth_date) || "");
-    formData.append("id_number", (customerDetails && customerDetails.id_number) || "");
+    var backBlob = idBackFile || details.id_back || null;
+    if (backBlob) {
+      formData.append("id_back", backBlob);
+    }
+
+    formData.append("full_name", details.full_name || "");
+    formData.append("first_name", details.first_name || "");
+    formData.append("middle_name", details.middle_name || "");
+    formData.append("last_name", details.last_name || "");
+    formData.append("birth_date", details.birth_date || "");
+    formData.append("id_type", details.id_type || "");
+    formData.append("id_number", details.id_number || "");
 
     var headers = {};
-    var token = await dbGetToken();
-    if (token) {
-      headers["Authorization"] = "Bearer " + token;
+    if (typeof dbGetToken === "function") {
+      var token = await dbGetToken();
+      if (token) headers["Authorization"] = "Bearer " + token;
     }
 
     var response = await fetch(_apiEndpoint("/screen"), {
@@ -93,10 +115,20 @@ async function apiRunScreening(idFrontFile, customerDetails) {
     var data = await response.json();
     var q = data.quality || {};
     var notes = data.ai || {};
-    data.overall_status = (q.issues && q.issues.length > 0) ? "Needs Review" : "Verified";
+    var comps = Array.isArray(data.comparisons) ? data.comparisons : [];
+
+    var nameComp = comps.find(function (c) { return c.key === "full_name"; });
+    var dobComp = comps.find(function (c) { return c.key === "birth_date"; });
+    var idComp = comps.find(function (c) { return c.key === "id_number"; });
+
+    data.name_match = Boolean(nameComp && nameComp.status === "match");
+    data.birth_date_match = Boolean(dobComp && dobComp.status === "match");
+    data.id_number_match = Boolean(idComp && idComp.status === "match");
+
+    var hasQualityIssue = Boolean(q.issues && q.issues.length > 0);
+    var hasFieldGap = comps.length > 0 && !(data.name_match && data.birth_date_match && data.id_number_match);
+    data.overall_status = (hasQualityIssue || hasFieldGap) ? "Needs Review" : "Verified";
     data.blur_score = q.blur_score || "OK";
-    data.name_match = true;
-    data.id_number_match = true;
     data.issues = (notes.findings && notes.findings.length) ? notes.findings : (q.issues || []);
     return data;
   } catch (error) {
@@ -106,6 +138,7 @@ async function apiRunScreening(idFrontFile, customerDetails) {
 
 async function apiSendEmail(toEmail, subjectText, messageText, options) {
   options = options || {};
+
   if (typeof options === "string") {
     options = { template_type: options };
   }
@@ -115,9 +148,9 @@ async function apiSendEmail(toEmail, subjectText, messageText, options) {
 
   try {
     var headers = { "Content-Type": "application/json" };
-    var token = await dbGetToken();
-    if (token) {
-      headers["Authorization"] = "Bearer " + token;
+    if (typeof dbGetToken === "function") {
+      var token = await dbGetToken();
+      if (token) headers["Authorization"] = "Bearer " + token;
     }
 
     var res = await fetch(_apiEndpoint("/notify"), {
@@ -214,6 +247,7 @@ async function apiSendCorrectionEmail(toEmail, customerName, refNo, remarks, tar
 
 async function apiSendStatusEmail(toEmail, customerName, refNo, status, remarks, targetSummary) {
   var st = (status || "").toLowerCase();
+
   if (st.indexOf("correction") !== -1 || st.indexOf("need") !== -1) {
     return await apiSendCorrectionEmail(toEmail, customerName, refNo, remarks, targetSummary);
   }
@@ -269,8 +303,10 @@ async function apiGeneratePoliteRemark(rawRemark, chosenField) {
 
   var headers = { "Content-Type": "application/json" };
   try {
-    var token = await dbGetToken();
-    if (token) headers["Authorization"] = "Bearer " + token;
+    if (typeof dbGetToken === "function") {
+      var token = await dbGetToken();
+      if (token) headers["Authorization"] = "Bearer " + token;
+    }
   } catch (e) {}
 
   var res = await fetch(_apiEndpoint("/polite-remark"), {

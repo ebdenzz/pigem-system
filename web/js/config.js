@@ -202,6 +202,7 @@ function writeSaved(key, value) {
 }
 
 function getActivePlans() { return readSaved("pigem_plans", CONFIG.PLANS); }
+
 function saveActivePlans(plans) {
   writeSaved("pigem_plans", plans);
   if (typeof dbSaveLivePlans === "function") dbSaveLivePlans(plans);
@@ -213,6 +214,7 @@ function getWebsiteContent() {
   merged.asset_library = Object.assign({}, DEFAULT_CONTENT.asset_library, saved.asset_library || {});
   return merged;
 }
+
 function saveWebsiteContent(content) {
   writeSaved("pigem_website_content", content);
   if (typeof dbSaveLiveWebsiteContent === "function") dbSaveLiveWebsiteContent(content);
@@ -225,6 +227,7 @@ function getSystemSettings() {
     maintenance_message: "The website, application form, and account activation are currently under scheduled maintenance while we update our content. Please come back shortly."
   }, readSaved("pigem_system_settings", {}));
 }
+
 function saveSystemSettings(settings) {
   writeSaved("pigem_system_settings", settings);
   if (typeof dbSaveLiveSystemSettings === "function") dbSaveLiveSystemSettings(settings);
@@ -336,6 +339,7 @@ function toggleMenu() {
 }
 
 var sliderTimers = {};
+
 function startSlider(sliderId, slides) {
   var box = document.getElementById(sliderId);
   if (!box) return;
@@ -575,6 +579,7 @@ class BaseFieldValidator {
   constructor() {
     this._emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     this._gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    this._usernameRegex = /^[a-zA-Z0-9._]{3,30}$/;
     this._mobileRegex = /^09\d{9}$/;
     this._stripSeparatorsRegex = /[\s\-]+/g;
   }
@@ -589,6 +594,12 @@ class BaseFieldValidator {
 }
 
 class ApplicantFormValidator extends BaseFieldValidator {
+  isValidUsername(username) {
+    var clean = String(username || "").trim();
+    if (!clean) return false;
+    return this._usernameRegex.test(clean);
+  }
+
   isValidEmail(email) {
     var clean = String(email || "").trim();
     if (!clean) return false;
@@ -658,6 +669,20 @@ function isCustomerGmail(email) {
 
 function isStaffBusinessEmail(email) {
   return FORM_VALIDATOR.isStaffBusinessEmail(email);
+}
+
+function isValidUsername(username) {
+  return FORM_VALIDATOR.isValidUsername(username);
+}
+
+function sanitizeUsernameSeed(fullName, email) {
+  var emailPart = String(email || "").split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "");
+  var namePart = String(fullName || "").toLowerCase().replace(/\s+/g, ".").replace(/[^a-z0-9._]/g, "");
+  var base = (emailPart.length >= 3 ? emailPart : namePart).replace(/^[._]+|[._]+$/g, "").replace(/[._]{2,}/g, "_");
+  if (base.length < 3) {
+    base = "user_" + String(Date.now()).slice(-4);
+  }
+  return base.slice(0, 24);
 }
 
 var DEFAULT_POPUP_GUIDES = [

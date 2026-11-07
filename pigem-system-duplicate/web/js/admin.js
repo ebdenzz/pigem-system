@@ -1,15 +1,21 @@
-// ============================================================
-// TECHNICAL MANAGEMENT SYSTEM (ADMIN) LOGIC
-// Exclusive technical console for the Admin role:
-// Controls Cloud AI Screening Engine, Vercel FastAPI Serverless Endpoints,
-// Google Gemini Vision / OpenCV / reCAPTCHA v2 / LocationIQ / Supabase / Gmail SMTP APIs, Accounts, and Logs.
-// ============================================================
+// ============================================================================
+// FILE: web/js/admin.js
+// PURPOSE: System Administrator Governance, Staff Accounts & Diagnostics Controller
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. web/js/config.js  -> Role guide toggles, password validation, and confirmation modals
+//   2. web/js/db.js      -> `checkPageAccess(['admin'])`, `dbGetAllUsers()`, `dbCreateStaffUser()`,
+//                           `dbAdminUpdateUserStatus()`, `dbGetSystemSettings()`, `dbGetLogs()`
+//   3. web/js/api.js     -> `apiCheckHealth()` for live OpenCV, Gemini, SMTP & reCAPTCHA status
+//   4. web/js/dash-ui.js -> Shared console layout, dark-mode toggle, and audit search
+// ============================================================================
 
 var currentAdmin = null;
 var adminApps = [];
 var adminUsers = [];
 var activeAdminTab = "overview";
 
+// Event Listener: Runs initialization or state sync when `DOMContentLoaded` fires
 window.addEventListener("DOMContentLoaded", async function () {
   currentAdmin = await requireLogin(["admin"]);
   if (!currentAdmin) return;
@@ -25,6 +31,7 @@ window.addEventListener("DOMContentLoaded", async function () {
   }, 220);
 });
 
+// `refreshAdminData`: Reloads staff accounts, system settings, popup guide states, cloud health, and audit logs for the Admin Console.
 async function refreshAdminData() {
   adminApps = await dbListAllApplications();
   adminUsers = await dbListUsers();
@@ -79,6 +86,7 @@ async function refreshAdminData() {
   await renderAdminLogs();
 }
 
+// UI Interaction `showTab` (params: tab): Controls modal/panel visibility to show tab.
 function showTab(tab) {
   activeAdminTab = tab;
   var tabs = ["overview", "maintenance", "ai", "apis", "accounts", "logs", "calendar", "reports"];
@@ -102,6 +110,7 @@ function renderMaintState() {
   }
 }
 
+// `toggleMaintMode`: Enables or disables global Maintenance Mode in Supabase system_settings and records an audit log.
 function toggleMaintMode() {
   var next = !isMaintenanceOn();
   openConfirmPopup(
@@ -125,6 +134,7 @@ function toggleMaintMode() {
   );
 }
 
+// `renderAdminPopupGuides`: Renders per-role onboarding guide controls so the Admin can toggle automatic help popups.
 async function renderAdminPopupGuides() {
   var body = document.getElementById("admin-popup-guides-body");
   if (!body || typeof dbListPopupGuides !== "function") return;
@@ -152,6 +162,7 @@ async function renderAdminPopupGuides() {
   body.innerHTML = html || '<tr><td colspan="5" class="muted">No pop-up guides configured.</td></tr>';
 }
 
+// `adminToggleGuideAutoShow` (params: guideId, nextAutoShow): Saves whether a specific role's welcome guide automatically appears on portal sign-in.
 async function adminToggleGuideAutoShow(guideId, nextAutoShow) {
   var guide = POPUP_GUIDE_MANAGER.getGuide(guideId);
   if (!guide) return;
@@ -164,6 +175,7 @@ async function adminToggleGuideAutoShow(guideId, nextAutoShow) {
 // 2. AI Screening Control (Exclusive to Admin)
 var lastHealthData = null;
 
+// `renderAiState`: Updates the Automated Requirements Screening status indicator and toggle switch in the Admin Console.
 async function renderAiState() {
   var on = isAiEnabled();
   var health = await apiCheckHealth();
@@ -214,6 +226,7 @@ async function renderAiState() {
   box.innerHTML = html;
 }
 
+// `toggleAiMode`: Enables or pauses automated OpenCV + Gemini Vision ID screening across new applications.
 function toggleAiMode() {
   var next = !isAiEnabled();
   openConfirmPopup(
@@ -368,6 +381,7 @@ function renderAdminUsers() {
     html +=
       '<tr>' +
         '<td><b>' + escapeHtml(u.full_name) + '</b></td>' +
+        '<td><code>@' + escapeHtml(u.username || "-") + '</code></td>' +
         '<td>' + escapeHtml(u.email) + '</td>' +
         '<td>' + roleCell + '</td>' +
         '<td>' + (u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Disabled</span>') + '</td>' +
@@ -377,15 +391,25 @@ function renderAdminUsers() {
   body.innerHTML = html;
 }
 
+// `adminCreateUser`: Validates inputs and registers a new Agent or Manager staff account with a unique username in Supabase.
 async function adminCreateUser() {
   hideMsg("acc-msg");
   var name = document.getElementById("new-acc-name").value.trim();
+  var usernameInput = document.getElementById("new-acc-username");
+  var username = (usernameInput ? usernameInput.value : "").trim().toLowerCase();
   var email = document.getElementById("new-acc-email").value.trim().toLowerCase();
   var pw = (document.getElementById("new-acc-pw").value || "").trim();
   var role = document.getElementById("new-acc-role").value;
 
   if (!name || !email) {
-    showMsg("acc-msg", "error", "Please enter both Full Name and Business Account Email.");
+    showMsg("acc-msg", "error", "Please enter Full Name, Username, and Business Account Email.");
+    return;
+  }
+  if (!username && typeof sanitizeUsernameSeed === "function") {
+    username = sanitizeUsernameSeed(name, email);
+  }
+  if (typeof isValidUsername === "function" && !isValidUsername(username)) {
+    showMsg("acc-msg", "error", "Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).");
     return;
   }
   if (!isStaffBusinessEmail(email)) {
@@ -402,18 +426,20 @@ async function adminCreateUser() {
   }
 
   try {
-    await dbCreateUserAccount(name, email, pw, role);
-    await dbAddLog(currentAdmin.email, "Created " + role + " business account for " + email);
+    var created = await dbCreateUserAccount(name, email, pw, role, username);
+    await dbAddLog(currentAdmin.email, "Created " + role + " business account for @" + (created.username || username) + " (" + email + ")");
     document.getElementById("new-acc-name").value = "";
+    if (usernameInput) usernameInput.value = "";
     document.getElementById("new-acc-email").value = "";
     document.getElementById("new-acc-pw").value = "";
-    showMsg("acc-msg", "ok", "Business account created for " + email + " (" + role + ").");
+    showMsg("acc-msg", "ok", "Business account created for @" + (created.username || username) + " (" + email + " - " + role + ").");
     await refreshAdminData();
   } catch (err) {
     showMsg("acc-msg", "error", err.message);
   }
 }
 
+// `adminOpenResetPasswordModal` (params: userId, userEmail): Opens the Administrator password-reset dialog for a selected staff or customer account.
 function adminOpenResetPasswordModal(userId, userEmail) {
   window._adminResetTargetId = userId;
   window._adminResetTargetEmail = userEmail;
@@ -431,6 +457,7 @@ function adminOpenResetPasswordModal(userId, userEmail) {
   );
 }
 
+// Helper function `adminConfirmResetPassword`: Executes portal workflow logic for `adminConfirmResetPassword`.
 async function adminConfirmResetPassword() {
   var pwEl = document.getElementById("adm-reset-pw");
   var newPw = pwEl ? pwEl.value.trim() : "";
@@ -448,6 +475,7 @@ async function adminConfirmResetPassword() {
   }
 }
 
+// Helper function `adminChangeRole` (params: userId, newRole): Executes portal workflow logic for `adminChangeRole`.
 async function adminChangeRole(userId, newRole) {
   if (newRole === "admin") {
     showAlert("Single Admin Rule", "Only one System Administrator account is permitted in the system.", "warn");
@@ -459,6 +487,7 @@ async function adminChangeRole(userId, newRole) {
   await refreshAdminData();
 }
 
+// Helper function `adminToggleActive` (params: userId, activeState): Executes portal workflow logic for `adminToggleActive`.
 async function adminToggleActive(userId, activeState) {
   await dbUpdateUser(userId, { active: activeState });
   await dbAddLog(currentAdmin.email, (activeState ? "Enabled" : "Disabled") + " user " + userId);
@@ -472,7 +501,10 @@ async function renderAdminLogs() {
   if (logBody) {
     var h1 = "";
     for (var i = 0; i < Math.min(logs.length, 30); i++) {
-      h1 += '<tr><td>' + formatDate(logs[i].created_at) + '</td><td><b>' + escapeHtml(logs[i].actor_email) + '</b></td><td>' + escapeHtml(logs[i].action) + '</td></tr>';
+      var actorDisplay = logs[i].actor_username
+        ? ('@' + logs[i].actor_username + ' (' + logs[i].actor_email + ')')
+        : logs[i].actor_email;
+      h1 += '<tr><td>' + formatDate(logs[i].created_at) + '</td><td><b>' + escapeHtml(actorDisplay) + '</b></td><td>' + escapeHtml(logs[i].action) + '</td></tr>';
     }
     logBody.innerHTML = h1 || '<tr><td colspan="3" class="muted">No activity logs yet.</td></tr>';
   }
@@ -483,7 +515,10 @@ async function renderAdminLogs() {
     var h2 = "";
     for (var j = 0; j < Math.min(hist.length, 30); j++) {
       var ev = hist[j];
-      h2 += '<tr><td>' + formatDate(ev.created_at) + '</td><td><b>' + escapeHtml(ev.email) + '</b></td><td>' + escapeHtml(ev.role) + '</td><td><span class="badge ' + (ev.action === "login" ? "badge-green" : "badge-gray") + '">' + escapeHtml(ev.action) + '</span></td></tr>';
+      var userDisplay = ev.username
+        ? ('@' + ev.username + ' (' + ev.email + ')')
+        : ev.email;
+      h2 += '<tr><td>' + formatDate(ev.created_at) + '</td><td><b>' + escapeHtml(userDisplay) + '</b></td><td>' + escapeHtml(ev.role) + '</td><td><span class="badge ' + (ev.action === "login" ? "badge-green" : "badge-gray") + '">' + escapeHtml(ev.action) + '</span></td></tr>';
     }
     histBody.innerHTML = h2 || '<tr><td colspan="4" class="muted">No login events recorded yet.</td></tr>';
   }
@@ -515,6 +550,7 @@ function exportApplicationsCsv() {
   document.body.removeChild(link);
 }
 
+// Helper function `resetDemoDatabase`: Executes portal workflow logic for `resetDemoDatabase`.
 function resetDemoDatabase() {
   localStorage.removeItem("pigem_apps");
   localStorage.removeItem("pigem_users");
@@ -526,6 +562,7 @@ function resetDemoDatabase() {
   });
 }
 
+// Helper function `adminSendTestEmail`: Executes portal workflow logic for `adminSendTestEmail`.
 async function adminSendTestEmail() {
   var btn = document.getElementById("btn-test-email");
   var to = document.getElementById("test-email-to").value.trim();

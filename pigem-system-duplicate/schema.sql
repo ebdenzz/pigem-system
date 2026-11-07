@@ -1,8 +1,8 @@
 -- ============================================================
 -- PIGEM WEB-BASED INTERNET SERVICE APPLICATION SYSTEM
--- PostgreSQL Cloud Schema (Supabase - 13 Tables + 2 Buckets)
--- Note: Run the separate DROP reset script first only when
---       performing a clean database reset.
+-- PostgreSQL Cloud Schema (Supabase - 14 Tables + 2 Buckets)
+-- Note: Run the separate reset script first only when
+--       performing a clean database re-initialization.
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -20,12 +20,15 @@ $$;
 
 -- ============================================================
 -- 1. USER ACCOUNTS & ROLE IDENTITY GOVERNANCE
+--    - Every user role (admin, manager, agent, customer) has a unique username
 --    - Customers: @gmail.com accounts only
 --    - Agents, Manager, Admin: Business accounts (non-Gmail)
 --    - Single Admin Rule: Enforced via idx_users_single_admin
 -- ============================================================
 CREATE TABLE public.users (
   id TEXT PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL
+    CHECK (username ~ '^[a-zA-Z0-9._]{3,30}$'),
   email TEXT UNIQUE NOT NULL,
   full_name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'customer'
@@ -42,6 +45,9 @@ CREATE TABLE public.users (
     OR (role IN ('admin', 'manager', 'agent') AND email LIKE '%@%' AND lower(email) NOT LIKE '%@gmail.com')
   )
 );
+
+CREATE UNIQUE INDEX idx_users_username_lower
+  ON public.users (lower(username));
 
 CREATE UNIQUE INDEX idx_users_single_admin
   ON public.users ((role))
@@ -63,7 +69,7 @@ CREATE TABLE public.plans (
 );
 
 -- ============================================================
--- 3. GLOBAL SYSTEM SETTINGS (AI Screening & Maintenance Mode)
+-- 3. GLOBAL SYSTEM SETTINGS (Screening & Maintenance Mode)
 -- ============================================================
 CREATE TABLE public.system_settings (
   id TEXT PRIMARY KEY,
@@ -240,7 +246,23 @@ CREATE TABLE public.corrections (
 CREATE INDEX idx_corrections_application_id ON public.corrections (application_id);
 
 -- ============================================================
--- 10. IN-SYSTEM PORTAL NOTIFICATIONS (Customer, Agent, Manager)
+-- 10. PROVIDER ENCODING & VALIDATION UPDATES
+-- ============================================================
+CREATE TABLE public.provider_updates (
+  id BIGSERIAL PRIMARY KEY,
+  application_id TEXT NOT NULL REFERENCES public.applications(id) ON DELETE CASCADE,
+  recorded_by TEXT REFERENCES public.users(id) ON DELETE SET NULL,
+  provider_ref TEXT,
+  provider_status TEXT NOT NULL,
+  provider_remark TEXT,
+  customer_instruction TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_provider_updates_application_id ON public.provider_updates (application_id);
+
+-- ============================================================
+-- 11. IN-SYSTEM PORTAL NOTIFICATIONS (Customer, Agent, Manager, Admin)
 -- ============================================================
 CREATE TABLE public.notifications (
   id BIGSERIAL PRIMARY KEY,
@@ -258,11 +280,12 @@ CREATE INDEX idx_notifications_role ON public.notifications (role);
 CREATE INDEX idx_notifications_created_at ON public.notifications (created_at DESC);
 
 -- ============================================================
--- 11. AUTHENTICATION & SESSION AUDIT HISTORY
+-- 12. AUTHENTICATION & SESSION AUDIT HISTORY
 -- ============================================================
 CREATE TABLE public.login_history (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT,
+  username TEXT,
   email TEXT,
   role TEXT,
   action TEXT NOT NULL DEFAULT 'login',
@@ -272,10 +295,11 @@ CREATE TABLE public.login_history (
 CREATE INDEX idx_login_history_created_at ON public.login_history (created_at DESC);
 
 -- ============================================================
--- 12. TECHNICAL & OPERATIONAL ACTIVITY LOGS
+-- 13. TECHNICAL & OPERATIONAL ACTIVITY LOGS
 -- ============================================================
 CREATE TABLE public.system_logs (
   id BIGSERIAL PRIMARY KEY,
+  actor_username TEXT,
   actor_email TEXT,
   action TEXT NOT NULL,
   detail TEXT,
@@ -285,7 +309,7 @@ CREATE TABLE public.system_logs (
 CREATE INDEX idx_system_logs_created_at ON public.system_logs (created_at DESC);
 
 -- ============================================================
--- 13. ROLE-BASED PORTAL POP-UP GUIDES
+-- 14. ROLE-BASED PORTAL POP-UP GUIDES
 -- ============================================================
 CREATE TABLE public.popup_guides (
   id TEXT PRIMARY KEY,
@@ -319,6 +343,7 @@ ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screenings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.corrections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.provider_updates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
@@ -333,6 +358,7 @@ CREATE POLICY "Allow all on applications" ON public.applications FOR ALL USING (
 CREATE POLICY "Allow all on documents" ON public.documents FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on screenings" ON public.screenings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on corrections" ON public.corrections FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on provider_updates" ON public.provider_updates FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on login_history" ON public.login_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on system_logs" ON public.system_logs FOR ALL USING (true) WITH CHECK (true);
@@ -452,7 +478,7 @@ INSERT INTO public.popup_guides (id, portal, audience_tone, title, intro, steps,
     'technical',
     'Technical Management System - Cloud Architecture & Controls',
     'Administrator diagnostic reference for Vercel Serverless FastAPI endpoints, OpenCV + Google Gemini Vision screening, account governance, and in-system status alerts:',
-    '["Vercel Serverless FastAPI (/api): Hosts REST endpoints (/api/health, /api/verify-captcha, /api/screen-async, /api/screen, /api/notify, /api/polite-remark) serving all external and internal web portals.", "Two-Stage OpenCV + Gemini Vision Pipeline: Stage 1 runs OpenCV blur, glare, brightness, and contrast diagnostics; Stage 2 generates a 4-corner perspective-cropped working copy in documents/cropped/ and executes Google Gemini Vision OCR + deterministic field comparison for human Agent confirmation.", "Account & Notification Governance: Customers sign in strictly with @gmail.com accounts and receive Gmail SMTP notifications; the single provisioned Admin manages @pigem.com business accounts for Agents and the Manager, who receive in-system website notifications.", "Protected System Switches: Maintenance Mode, AI Screening toggles, and Popup Guides (public.popup_guides) require explicit admin confirmation and broadcast status notifications to internal dashboards."]'::jsonb,
+    '["Vercel Serverless FastAPI (/api): Hosts REST endpoints (/api/health, /api/verify-captcha, /api/screen-async, /api/screen, /api/notify, /api/polite-remark) serving all external and internal web portals.", "Two-Stage OpenCV + Gemini Vision Pipeline: Stage 1 runs OpenCV blur, glare, brightness, and contrast diagnostics; Stage 2 generates a 4-corner perspective-cropped working copy in documents/cropped/ and executes Google Gemini Vision OCR + deterministic field comparison for human Agent confirmation.", "Account & Username Governance: Every Customer, Agent, Manager, and Admin account holds a unique username alongside its role-governed email address; Customers receive Gmail SMTP notifications while internal staff receive in-system website notifications.", "Protected System Switches: Maintenance Mode, AI Screening toggles, and Popup Guides (public.popup_guides) require explicit admin confirmation and broadcast status notifications to internal dashboards."]'::jsonb,
     'All administrative actions and login sessions are recorded in public.system_logs and public.login_history.',
     'Proceed to Console',
     true,

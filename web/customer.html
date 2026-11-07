@@ -1,10 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Applications - PIGEM Customer Portal</title>
+
   <link rel="icon" type="image/png" href="assets/images/logo.png" />
+
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
@@ -15,6 +18,7 @@
         <img src="assets/images/logo.png" alt="PIGEM" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page" />
         <div><b style="cursor:default; user-select:none;">Combined Facilities Support Services</b></div>
       </div>
+
       <nav class="nav-links">
         <button type="button" class="btn btn-outline btn-sm" onclick="showPortalGuide('customer_portal_guide')">Guide</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotifModal()">
@@ -75,11 +79,17 @@
   <script>
 window.SYSTEM = "customer";
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="js/config.js"></script>
+
   <script src="js/db.js"></script>
+
   <script src="js/api.js"></script>
+
   <script src="js/dash-ui.js"></script>
+
   <script src="js/customer.js"></script>
 </body>
 </html>

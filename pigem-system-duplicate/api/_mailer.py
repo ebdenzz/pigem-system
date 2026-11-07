@@ -1,32 +1,54 @@
 """
-PIGEM Web-Based Internet Service Application System
-Customer Email Notification Module - Powered by Gmail SMTP (Python smtplib)
+================================================================================
+FILE: api/_mailer.py
+PURPOSE:
+  Customer Email Notification Module powered by Encrypted Gmail SMTP (`smtplib`).
 
-Rules:
-- Emails are sent EXCLUSIVELY to verified @gmail.com Customer accounts.
-- Internal Agent, Manager, and Admin business accounts (@pigem.com) never receive
-  external emails; internal status coordination uses in-system website notifications.
-- Clean, lightweight, professional card layout compliant with Republic Act No. 10173.
+CORE GOVERNANCE & PRIVACY RULES:
+  1. Customer-Only Delivery (`@gmail.com` Exclusivity): Emails are sent ONLY to
+     verified `@gmail.com` Customer addresses. Internal business accounts
+     (`@pigem.com` for Agent, Manager, and Admin) are automatically skipped
+     because internal coordination uses in-system website notifications.
+  2. Clean, Lightweight Professional Card UI: Renders a concise, mobile-friendly
+     540px HTML card with top `#c8102e` brand accent and plain-text fallback.
+  3. RA 10173 Data Privacy Compliance: Correction emails notify the Customer
+     that an update is needed without exposing sensitive personal/ID data in
+     email text, directing them to sign in to their Customer Account.
+================================================================================
 """
 
+# ------------------------------------------------------------------------------
+# IMPORTS EXPLANATION (Why each library is imported in the cloud):
+# ------------------------------------------------------------------------------
+# `html` escapes user-provided strings (`<`, `>`, `&`) so names or addresses
+# never break HTML email formatting or inject unsafe tags.
 import html
-import os
+
+# `getenv` (from Python's standard `os` module) reads `SMTP_HOST`, `SMTP_PORT`,
+# `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `APP_BASE_URL` configured in
+# the Vercel Cloud Environment Variables dashboard (`Config` & `Secret`).
+from os import getenv
+
+# `re` (Regular Expressions) enforces that recipient addresses match `@gmail.com`.
 import re
+
+# `smtplib` and `ssl` (standard Python libraries) open an encrypted STARTTLS
+# connection to `smtp.gmail.com` on port `587` to send emails securely.
 import smtplib
 import ssl
+
+# Standard `email.*` modules construct RFC-compliant multipart emails containing
+# both a plain-text body and a styled HTML card body.
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, formatdate, make_msgid, parseaddr
+
+# Standard type annotations for clean function signatures.
 from typing import Any, Dict, List, Optional
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
 
-_ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
-
+# Brand & office constants displayed in the clean HTML card header and footer
 COMPANY_NAME = "PIGEM Combined Facilities Support Services"
 BRAND_RED = "#c8102e"
 BRAND_DARK = "#101828"
@@ -34,23 +56,17 @@ BRAND_BORDER = "#e2e8f0"
 OFFICE_LINE = "Dasmari\u00f1as City, Cavite | Tel: (046) 458-0908 | Hotline: 101-733 (RED)"
 LIVE_BASE_URL = "https://pigem-system-web.vercel.app"
 
+# Regular Expression matching strictly valid `@gmail.com` Customer email addresses
 _GMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", re.IGNORECASE)
 
 
-def _reload_env() -> None:
-    """Load local api/.env when present; on Vercel Cloud, variables come from os.environ."""
-    if load_dotenv is not None and os.path.exists(_ENV_FILE):
-        load_dotenv(_ENV_FILE, override=True)
-
-
 def _get_app_base_url() -> str:
-    """Return the live application base URL from APP_BASE_URL or the default Vercel domain."""
-    _reload_env()
-    return (os.getenv("APP_BASE_URL") or LIVE_BASE_URL).strip().rstrip("/")
+    """Returns `APP_BASE_URL` from Vercel Cloud env or defaults to the live Vercel URL."""
+    return (getenv("APP_BASE_URL") or LIVE_BASE_URL).strip().rstrip("/")
 
 
 def _resolve_customer_portal_link(raw_link: str = "") -> str:
-    """Return the Customer Portal URL."""
+    """Returns a valid direct link to the Customer Portal (`customer.html`)."""
     clean = (raw_link or "").strip()
     if clean:
         return clean
@@ -58,28 +74,28 @@ def _resolve_customer_portal_link(raw_link: str = "") -> str:
 
 
 def _escape(val: Any) -> str:
-    """HTML-escape untrusted values safely."""
+    """Safely HTML-escapes dynamic values before inserting into HTML templates."""
     if val is None:
         return ""
     return html.escape(str(val))
 
 
 def is_customer_gmail(email_addr: str) -> bool:
-    """Return True strictly for valid @gmail.com customer addresses."""
+    """Returns True strictly when `email_addr` ends with `@gmail.com`."""
     return bool(_GMAIL_REGEX.match((email_addr or "").strip()))
 
 
 def _get_smtp_config() -> Dict[str, Any]:
-    """Read Gmail SMTP credentials from environment variables."""
-    _reload_env()
-    host = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
+    """Reads Gmail SMTP settings injected by Vercel Cloud Environment Variables."""
+    host = (getenv("SMTP_HOST") or "smtp.gmail.com").strip()
     try:
-        port = int((os.getenv("SMTP_PORT") or "587").strip())
+        port = int((getenv("SMTP_PORT") or "587").strip())
     except ValueError:
         port = 587
-    user = (os.getenv("SMTP_USER") or "").strip()
-    password = (os.getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
-    raw_from = (os.getenv("SMTP_FROM") or "").strip()
+    user = (getenv("SMTP_USER") or "").strip()
+    # Strip spaces from 16-character Google App Passwords (`xxxx xxxx xxxx xxxx`)
+    password = (getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
+    raw_from = (getenv("SMTP_FROM") or "").strip()
     return {
         "host": host,
         "port": port,
@@ -90,7 +106,7 @@ def _get_smtp_config() -> Dict[str, Any]:
 
 
 def is_configured() -> bool:
-    """Return True when SMTP_USER and SMTP_PASSWORD are set."""
+    """Returns True when real `SMTP_USER` and `SMTP_PASSWORD` values exist in env."""
     cfg = _get_smtp_config()
     user = cfg["user"]
     pw = cfg["password"]
@@ -105,10 +121,24 @@ def is_configured() -> bool:
     return user.lower() not in placeholders and pw.lower() not in placeholders
 
 
+# ------------------------------------------------------------------------------
+# BASE EMAIL CARD RENDERER (OOP Abstraction & Inheritance)
+# ------------------------------------------------------------------------------
 class BaseEmailTemplateRenderer:
-    """Abstract base renderer providing a clean, lightweight, professional card layout."""
+    """
+    Parent class providing the shared, lightweight 540px HTML card wrapper
+    used by all Customer transactional and promotional email templates.
+    """
 
-    def wrap_card(self, title: str, greeting_name: str, body_html: str, action_label: str = "", action_url: str = "") -> str:
+    def wrap_card(
+        self,
+        title: str,
+        greeting_name: str,
+        body_html: str,
+        action_label: str = "",
+        action_url: str = "",
+    ) -> str:
+        """Wraps email content inside a clean, responsive corporate card."""
         safe_title = _escape(title)
         safe_name = _escape(greeting_name or "Valued Customer")
         button_block = ""
@@ -161,10 +191,14 @@ class BaseEmailTemplateRenderer:
 </html>"""
 
 
+# ------------------------------------------------------------------------------
+# CONCRETE CUSTOMER EMAIL RENDERER (OOP Inheritance)
+# ------------------------------------------------------------------------------
 class CustomerEmailRenderer(BaseEmailTemplateRenderer):
-    """Concrete renderer for all five Customer-only email notifications."""
+    """Renders all five Customer email types using clean, simple formatting."""
 
     def render_otp(self, code: str, recipient_name: str, purpose: str) -> str:
+        """1. 6-Digit Security OTP (Contact Verification & Customer Password Recovery)."""
         body = (
             f"<p style='margin:0 0 14px 0;'>Use the 6-digit verification code below to complete your <b>{_escape(purpose)}</b> request:</p>"
             f"<div style='background:#f8fafc;border:1px solid {BRAND_BORDER};border-radius:6px;padding:14px;text-align:center;margin:14px 0;'>"
@@ -186,6 +220,7 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
         activation_code: str,
         is_existing_account: bool,
     ) -> str:
+        """2. Application Reference Number & Customer Account Activation Notice."""
         portal_url = _resolve_customer_portal_link()
         if is_existing_account or not activation_code:
             note = "<p style='margin:12px 0 0 0;'>This application is linked to your existing Customer Account. Sign in anytime to check your status.</p>"
@@ -212,6 +247,7 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
         return self.wrap_card("Application Received", customer_name, body, cta_label, cta_url)
 
     def render_correction_notice(self, ref_no: str, customer_name: str, portal_link: str, target_summary: str) -> str:
+        """3. RA 10173 Privacy-Safe Correction Notice (no raw ID data exposed in email)."""
         body = (
             f"<p style='margin:0 0 12px 0;'>Your application <b>{_escape(ref_no)}</b> requires a quick update before we can proceed.</p>"
             f"<div style='background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px 14px;font-size:13.5px;'>"
@@ -228,6 +264,7 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
         )
 
     def render_status_update(self, ref_no: str, customer_name: str, status: str, remarks: str, portal_link: str) -> str:
+        """4. Application Status Update (`Approved`, `Rejected`, or `Processing`)."""
         raw = (status or "").lower()
         if "approv" in raw:
             clean_status = "Approved"
@@ -266,6 +303,7 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
         body_text: str,
         promo_plans: Optional[List[Dict[str, str]]] = None,
     ) -> str:
+        """5. Promotional Service Announcement for opted-in `@gmail.com` Customers."""
         plans_rows = ""
         if promo_plans:
             items = "".join(
@@ -285,6 +323,7 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
         )
 
     def render_general(self, subject: str, message: str) -> str:
+        """Fallback general Customer email template."""
         body = f"<p style='margin:0;'>{_escape(message).replace(chr(10), '<br>')}</p>"
         return self.wrap_card(subject or "Notification", "Valued Customer", body)
 
@@ -292,6 +331,9 @@ class CustomerEmailRenderer(BaseEmailTemplateRenderer):
 _renderer = CustomerEmailRenderer()
 
 
+# ------------------------------------------------------------------------------
+# MAIN GMAIL SMTP TLS SENDER
+# ------------------------------------------------------------------------------
 def send(
     to: str,
     subject: str,
@@ -300,11 +342,15 @@ def send(
     template_type: str = "general",
     payload: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Send a clean HTML + plain-text email strictly to a @gmail.com Customer address via Gmail SMTP."""
+    """
+    Sends a clean multipart (Plain-Text + HTML) email via encrypted Gmail SMTP
+    strictly to `@gmail.com` Customer accounts.
+    """
     recipient = (to or "").strip().lower()
     if not recipient or "@" not in recipient:
         return {"sent": False, "reason": "Recipient email address is invalid or empty."}
 
+    # Enforce Customer-only `@gmail.com` delivery; skip internal `@pigem.com` accounts
     if not is_customer_gmail(recipient):
         return {
             "sent": False,
@@ -316,109 +362,92 @@ def send(
         return {
             "sent": False,
             "unconfigured": True,
-            "reason": "Gmail SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in environment variables.",
+            "reason": "Gmail SMTP is not configured. Set SMTP_USER and SMTP_PASSWORD in Vercel Environment Variables.",
         }
 
     cfg = _get_smtp_config()
-    smtp_host = cfg["host"]
-    smtp_port = cfg["port"]
-    smtp_user = cfg["user"]
-    smtp_pass = cfg["password"]
-    raw_from = cfg["raw_from"]
+    data = payload or {}
+    t_type = (template_type or "general").strip().lower()
 
-    payload = payload or {}
-    final_html = html_content
+    # Select the matching Customer HTML template if custom HTML was not passed
+    if html_content:
+        final_html = html_content
+    elif t_type == "otp":
+        final_html = _renderer.render_otp(
+            code=str(data.get("code") or "000000"),
+            recipient_name=str(data.get("customer_name") or "Valued Customer"),
+            purpose=str(data.get("purpose") or "Account Verification"),
+        )
+    elif t_type == "application_confirmation":
+        final_html = _renderer.render_confirmation(
+            ref_no=str(data.get("ref_no") or "PIGEM-PENDING"),
+            customer_name=str(data.get("customer_name") or "Valued Applicant"),
+            plan_name=str(data.get("plan_name") or "Red Fiber Plan"),
+            speed=str(data.get("speed") or "100 Mbps"),
+            price=str(data.get("price") or "PHP 1,000"),
+            address=str(data.get("address") or "Dasmari\u00f1as City, Cavite"),
+            activation_link=str(data.get("activation_link") or ""),
+            activation_code=str(data.get("activation_code") or ""),
+            is_existing_account=bool(data.get("is_existing_account")),
+        )
+    elif t_type == "correction_notice":
+        final_html = _renderer.render_correction_notice(
+            ref_no=str(data.get("ref_no") or ""),
+            customer_name=str(data.get("customer_name") or "Valued Customer"),
+            portal_link=str(data.get("portal_link") or ""),
+            target_summary=str(data.get("target_summary") or "Application Detail / ID Photo Update"),
+        )
+    elif t_type == "status_update":
+        final_html = _renderer.render_status_update(
+            ref_no=str(data.get("ref_no") or ""),
+            customer_name=str(data.get("customer_name") or "Valued Customer"),
+            status=str(data.get("status") or "Processing"),
+            remarks=str(data.get("remarks") or ""),
+            portal_link=str(data.get("portal_link") or ""),
+        )
+    elif t_type == "promotional":
+        final_html = _renderer.render_promotional(
+            customer_name=str(data.get("customer_name") or "Valued Subscriber"),
+            headline=str(data.get("headline") or subject),
+            body_text=str(data.get("body_text") or message),
+            promo_plans=data.get("promo_plans"),
+        )
+    else:
+        final_html = _renderer.render_general(subject=subject, message=message)
 
-    if not final_html:
-        lowered_subj = (subject or "").lower()
-        if template_type == "otp" or "otp" in lowered_subj or "verification code" in lowered_subj:
-            code_match = re.search(r"\b(\d{6})\b", message) or re.search(r"\b(\d{6})\b", subject or "")
-            extracted_code = payload.get("code") or (code_match.group(1) if code_match else "000000")
-            final_html = _renderer.render_otp(
-                code=str(extracted_code),
-                recipient_name=payload.get("customer_name") or payload.get("full_name") or "Valued Customer",
-                purpose=payload.get("purpose") or "Verification",
-            )
-        elif template_type == "application_confirmation" or "application confirmation" in lowered_subj:
-            final_html = _renderer.render_confirmation(
-                ref_no=payload.get("ref_no") or "PENDING",
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Applicant",
-                plan_name=payload.get("plan_name") or "Red Fiber Plan",
-                speed=payload.get("speed") or "100 Mbps",
-                price=payload.get("price") or "Php 1,000",
-                address=payload.get("address") or "Dasmari\u00f1as City, Cavite",
-                activation_link=payload.get("activation_link") or "",
-                activation_code=payload.get("activation_code") or "",
-                is_existing_account=bool(payload.get("is_existing_account")),
-            )
-        elif template_type == "correction_notice" or "correction" in lowered_subj or "update needed" in lowered_subj:
-            final_html = _renderer.render_correction_notice(
-                ref_no=payload.get("ref_no") or "APPLICATION",
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Customer",
-                portal_link=payload.get("portal_link") or "",
-                target_summary=payload.get("target_summary") or "Document or Information Update",
-            )
-        elif template_type == "status_update" or "application update" in lowered_subj:
-            final_html = _renderer.render_status_update(
-                ref_no=payload.get("ref_no") or "APPLICATION",
-                customer_name=payload.get("customer_name") or payload.get("full_name") or "Customer",
-                status=payload.get("status") or "Processing",
-                remarks=payload.get("remarks") or message,
-                portal_link=payload.get("portal_link") or "",
-            )
-        elif template_type == "promotional":
-            final_html = _renderer.render_promotional(
-                customer_name=payload.get("customer_name") or "Valued Subscriber",
-                headline=payload.get("headline") or subject,
-                body_text=payload.get("body") or message,
-                promo_plans=payload.get("promo_plans"),
-            )
-        else:
-            final_html = _renderer.render_general(subject, message)
+    plain_fallback = (message or subject or COMPANY_NAME).strip()
 
-    display_name = COMPANY_NAME
-    if raw_from:
-        parsed_name, _ = parseaddr(raw_from)
-        if parsed_name:
-            display_name = parsed_name
+    # Format sender display name and email address cleanly
+    display_name, parsed_addr = parseaddr(cfg["raw_from"])
+    sender_addr = parsed_addr or cfg["user"]
+    sender_name = display_name or COMPANY_NAME
 
-    plain_fallback = (message or "").strip() or f"{subject}\n\n{COMPANY_NAME}\n{OFFICE_LINE}"
-    msg_id = make_msgid(domain="gmail.com")
-
+    # Build standard multipart/alternative MIME message
     mime_msg = MIMEMultipart("alternative")
-    mime_msg["From"] = formataddr((display_name, smtp_user))
-    mime_msg["To"] = recipient
     mime_msg["Subject"] = Header(subject or "PIGEM Notification", "utf-8")
+    mime_msg["From"] = formataddr((str(Header(sender_name, "utf-8")), sender_addr))
+    mime_msg["To"] = recipient
     mime_msg["Date"] = formatdate(localtime=True)
-    mime_msg["Message-ID"] = msg_id
+    mime_msg["Message-ID"] = make_msgid(domain="gmail.com")
 
     mime_msg.attach(MIMEText(plain_fallback, "plain", "utf-8"))
     mime_msg.attach(MIMEText(final_html, "html", "utf-8"))
 
+    # Connect to Gmail SMTP over encrypted TLS (Port 587 STARTTLS or Port 465 SSL)
     try:
-        ssl_ctx = ssl.create_default_context()
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20, context=ssl_ctx) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, [recipient], mime_msg.as_string())
+        tls_context = ssl.create_default_context()
+        if cfg["port"] == 465:
+            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=20, context=tls_context) as server:
+                server.login(cfg["user"], cfg["password"])
+                server.sendmail(sender_addr, [recipient], mime_msg.as_string())
         else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as server:
                 server.ehlo()
-                server.starttls(context=ssl_ctx)
+                server.starttls(context=tls_context)
                 server.ehlo()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, [recipient], mime_msg.as_string())
+                server.login(cfg["user"], cfg["password"])
+                server.sendmail(sender_addr, [recipient], mime_msg.as_string())
 
-        return {
-            "sent": True,
-            "id": msg_id.strip("<>"),
-            "provider": "gmail_smtp",
-            "reason": "",
-        }
-    except smtplib.SMTPAuthenticationError:
-        return {
-            "sent": False,
-            "reason": f"Gmail SMTP authentication failed for {smtp_user}. Verify that 2-Step Verification is active and SMTP_PASSWORD is a valid 16-character Google App Password.",
-        }
-    except Exception as error:
-        return {"sent": False, "reason": str(error)}
+        return {"sent": True, "provider": "gmail_smtp", "to": recipient}
+    except Exception as exc:
+        return {"sent": False, "reason": f"Gmail SMTP error: {exc}"}

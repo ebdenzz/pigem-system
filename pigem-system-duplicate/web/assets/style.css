@@ -1,3 +1,15 @@
+/* ============================================================================
+ * FILE: web/assets/style.css
+ * PURPOSE: Unified Corporate Stylesheet for PIGEM Fiber Application System
+ * ----------------------------------------------------------------------------
+ * DESIGN SYSTEM ARCHITECTURE:
+ *   1. `:root` & `[data-theme="dark"]` -> Brand colors, typography & shadows
+ *   2. Public Portal Components        -> Navbar, Hero, Fiber Plan Cards, Footer
+ *   3. 4-Step Application Wizard       -> Stepper, Validation Bubbles, Leaflet Map
+ *   4. Role Dashboards (Customer/Staff)-> Sidebar, KPI Cards, Status Badges, Modals
+ *   5. Responsive `@media` Breakpoints -> Mobile, Tablet, and Desktop layouts
+ * ============================================================================ */
+
 /* ============================================================
    PIGEM - ONE PLAIN CSS FILE (no Tailwind)
    1. Colors (light + dark)      7. Popups and notices
@@ -302,6 +314,7 @@ details p { margin-top: 10px; color: var(--muted); font-size: 15px; }
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
   animation: modalFadeIn 0.18s ease-out;
 }
+/* Smooth UI animation keyframes: @keyframes modalFadeIn */
 @keyframes modalFadeIn {
   from { opacity: 0; transform: translateY(6px) scale(0.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -582,6 +595,7 @@ body.drawer-open .drawer-back { display: block; }
 .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; }
 .typing i:nth-child(2) { animation-delay: 0.2s; }
 .typing i:nth-child(3) { animation-delay: 0.4s; }
+/* Smooth UI animation keyframes: @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } } */
 @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 
 /* ---------- 12. Tablet and phone sizes ---------- */
@@ -596,6 +610,7 @@ body.drawer-open .drawer-back { display: block; }
   .menu-toggle { display: flex; }
 }
 
+/* Responsive layout breakpoint rule: @media (max-width: 640px) */
 @media (max-width: 640px) {
   h1, .slide-text h1 { font-size: 28px; }
   h2 { font-size: 23px; }
@@ -620,6 +635,7 @@ body.drawer-open .drawer-back { display: block; }
 /* ---------- 13. Shared utility & dashboard layout classes ---------- */
 [hidden], .hidden { display: none !important; }
 
+/* Light-mode CSS custom properties (corporate crimson palette, spacing, and shadows) */
 :root { --soft: var(--bg-soft); }
 
 .topbar-inner {
@@ -906,6 +922,7 @@ body.drawer-open .drawer-back { display: block; }
 }
 .chat-item .who { font-weight: 700; font-size: 12px; margin-bottom: 3px; color: var(--red); }
 
+/* Responsive layout breakpoint rule: @media (max-width: 900px) */
 @media (max-width: 900px) {
   .dash-wrap { grid-template-columns: 1fr; }
 }
@@ -1055,6 +1072,7 @@ html[data-theme="dark"] .simple-bar img {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
+/* Smooth UI animation keyframes: @keyframes spin */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1073,6 +1091,7 @@ html[data-theme="dark"] .simple-bar img {
   margin: 0 auto 20px;
   animation: spin 0.9s linear infinite;
 }
+/* Smooth UI animation keyframes: @keyframes spin */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1139,6 +1158,7 @@ html[data-theme="dark"] .simple-bar img {
   gap: 12px;
   margin-top: 10px;
 }
+/* Responsive layout breakpoint rule: @media (max-width: 640px) */
 @media (max-width: 640px) {
   .id-sample-grid { grid-template-columns: 1fr; }
 }
@@ -1292,6 +1312,7 @@ html[data-theme="dark"] .status-banner.info {
   border: 1px solid var(--line);
   font-size: 12.5px;
 }
+/* Responsive layout breakpoint rule: @media (max-width: 640px) */
 @media (max-width: 640px) {
   .check-pill-grid { grid-template-columns: 1fr; }
 }

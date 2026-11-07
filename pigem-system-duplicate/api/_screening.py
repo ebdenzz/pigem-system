@@ -1,30 +1,72 @@
 """
-Cloud Two-Stage Requirements Screening Coordinator.
-Uses OOP Abstraction, Inheritance, Encapsulation, Regular Expressions, and Fail-Safe Fallbacks:
-  - BaseCloudGateway           : Abstract storage and database contract
-  - SupabaseApplicationGateway : Connects FastAPI serverless functions to Supabase REST & Storage
-  - CloudScreeningCoordinator  : Executes OpenCV quality/auto-crop + Gemini Vision OCR + defined
-                                 field comparisons, storing preliminary findings for Agent review
+================================================================================
+FILE: api/_screening.py
+PURPOSE:
+  Cloud Two-Stage Requirements Screening Coordinator connecting Supabase Cloud
+  Storage & PostgreSQL with OpenCV (`_quality.py`) and Google Gemini Vision OCR
+  + Deterministic Field Matching (`_gemini.py`).
+
+WORKFLOW & HUMAN-IN-THE-LOOP RULE:
+  1. Checks `system_settings.ai_enabled` first; if paused by the Admin (or if
+     the Vision API is temporarily unavailable), safely falls back to manual
+     Agent review using the Customer's original uploaded ID photos.
+  2. Stage 1 (`FastQualityScanner`): Checks sharpness, lighting, glare, and
+     contrast on the uploaded Valid ID.
+  3. Stage 2 (`DocumentCropEnhancer` + `GeminiScreeningService` +
+     `FieldComparisonEngine`):
+       - Generates a perspective-cropped & contrast-enhanced working copy of
+         the Front ID and uploads it to `documents/cropped/` in Supabase Storage.
+       - Also reads and enhances the Back ID (`id_back_path`) when available so
+         details printed on the back of Philippine IDs are captured accurately.
+       - Compares `First Name`, `Middle Name`, `Last Name`, `Birth Date`, and
+         `ID Number` deterministically against the extracted ID text.
+       - Saves preliminary findings and a draft polite message strictly for
+         human Agent confirmation (never auto-approving or auto-rejecting).
+================================================================================
 """
 
+# ------------------------------------------------------------------------------
+# IMPORTS EXPLANATION (Why each library is imported in the cloud):
+# ------------------------------------------------------------------------------
+# `base64` decodes fallback Data-URL images (`data:image/jpeg;base64,...`) if an
+# applicant submitted an inline encoded photo.
 import base64
+
+# `datetime` and `timezone` stamp screening logs and database updates in UTC ISO
+# format (`2026-11-07T...Z`).
 from datetime import datetime, timezone
-import os
+
+# `getenv` (from Python's standard `os` module) reads `SUPABASE_URL` and
+# `SUPABASE_ANON_KEY` from Vercel Cloud Environment Variables (`Config`/`Secret`).
+from os import getenv
+
+# `re` (Regular Expressions) cleans filenames and parses base64 image headers.
 import re
+
+# `time` provides epoch timestamps for cropped filenames and alert throttling.
 import time
+
+# `urllib.parse` URL-encodes `application_id` safely before REST queries.
 import urllib.parse
+
+# `httpx` performs HTTPS REST and Storage Bucket calls to Supabase Cloud.
 import httpx
 
+# Internal sibling modules for Vision OCR/comparison and OpenCV quality/cropping
 import _gemini
 import _quality
 
 
 def _utc_iso() -> str:
+    """Returns the current UTC timestamp formatted as an ISO-8601 string."""
     return datetime.now(timezone.utc).isoformat()
 
 
+# ------------------------------------------------------------------------------
+# ABSTRACT CLOUD GATEWAY CONTRACT (OOP Abstraction)
+# ------------------------------------------------------------------------------
 class BaseCloudGateway:
-    """Abstract parent class defining cloud database and bucket operations."""
+    """Abstract parent class defining required cloud database and storage methods."""
 
     def is_configured(self) -> bool:
         raise NotImplementedError()
@@ -36,14 +78,22 @@ class BaseCloudGateway:
         raise NotImplementedError()
 
 
+# ------------------------------------------------------------------------------
+# CONCRETE SUPABASE REST & STORAGE GATEWAY (OOP Inheritance & Encapsulation)
+# ------------------------------------------------------------------------------
 class SupabaseApplicationGateway(BaseCloudGateway):
-    """Concrete gateway communicating with Supabase PostgreSQL REST API and Storage Buckets."""
+    """
+    Communicates over HTTPS with Supabase PostgreSQL (`applications`,
+    `system_settings`, `documents`, `screenings`, `notifications`) and the
+    Supabase `documents` Storage Bucket.
+    """
 
     _DATA_URL_REGEX = re.compile(r"^data:image/[a-zA-Z0-9.+-]+;base64,(.+)$")
 
     def _credentials(self) -> tuple:
-        url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
-        key = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
+        """Reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Vercel Cloud env."""
+        url = (getenv("SUPABASE_URL") or "").strip().rstrip("/")
+        key = (getenv("SUPABASE_ANON_KEY") or "").strip()
         return url, key
 
     def is_configured(self) -> bool:
@@ -51,6 +101,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return bool(url and key)
 
     def _headers(self, content_type: str = "application/json", extra: dict = None) -> dict:
+        """Builds authenticated PostgREST / Storage HTTP headers."""
         _, key = self._credentials()
         hdrs = {
             "apikey": key,
@@ -63,6 +114,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return hdrs
 
     def is_screening_enabled(self) -> bool:
+        """Checks `public.system_settings` (`id = 'main'`) to see if AI Screening is ON."""
         if not self.is_configured():
             return True
         url, _ = self._credentials()
@@ -81,6 +133,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return True
 
     def fetch_application(self, app_id: str):
+        """Fetches a single Customer application record from `public.applications`."""
         if not self.is_configured() or not app_id:
             return None
         url, _ = self._credentials()
@@ -99,6 +152,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return None
 
     def update_application(self, app_id: str, patch: dict) -> bool:
+        """Updates screening progress or preliminary results on `public.applications`."""
         if not self.is_configured() or not app_id:
             return False
         url, _ = self._credentials()
@@ -117,7 +171,10 @@ class SupabaseApplicationGateway(BaseCloudGateway):
             return False
 
     def download_id_bytes(self, id_source: str):
-        """Downloads raw Valid ID bytes from Supabase Storage bucket URL or Data URL fallback."""
+        """
+        Downloads raw Valid ID image bytes from a Supabase `documents` bucket
+        public URL, relative storage path, or base64 Data-URL fallback.
+        """
         src = (id_source or "").strip()
         if not src:
             return None
@@ -145,7 +202,10 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return None
 
     def upload_cropped_id(self, ref_no: str, jpeg_bytes: bytes) -> str:
-        """Uploads the OpenCV cropped working copy to the Supabase 'documents' bucket."""
+        """
+        Uploads the OpenCV perspective-cropped working copy to `documents/cropped/`
+        in Supabase Storage without modifying the Customer's original ID file.
+        """
         if not self.is_configured() or not jpeg_bytes:
             return ""
         url, _ = self._credentials()
@@ -166,6 +226,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         return ""
 
     def insert_notification(self, row: dict) -> None:
+        """Inserts an in-system dashboard notification into `public.notifications`."""
         if not self.is_configured():
             return
         url, _ = self._credentials()
@@ -179,7 +240,15 @@ class SupabaseApplicationGateway(BaseCloudGateway):
         except Exception:
             pass
 
-    def insert_screening_record(self, app_id: str, quality_obj: dict, ocr_obj: dict, comps: list, remark: str) -> None:
+    def insert_screening_record(
+        self,
+        app_id: str,
+        quality_obj: dict,
+        ocr_obj: dict,
+        comps: list,
+        remark: str,
+    ) -> None:
+        """Inserts an audit row into `public.screenings` for traceability."""
         if not self.is_configured():
             return
         url, _ = self._credentials()
@@ -201,6 +270,7 @@ class SupabaseApplicationGateway(BaseCloudGateway):
             pass
 
     def insert_document_record(self, app_id: str, doc_type: str, file_path: str, version: str) -> None:
+        """Records the separate cropped working copy inside `public.documents`."""
         if not self.is_configured() or not file_path:
             return
         url, _ = self._credentials()
@@ -220,14 +290,22 @@ class SupabaseApplicationGateway(BaseCloudGateway):
             pass
 
 
+# ------------------------------------------------------------------------------
+# TWO-STAGE SCREENING COORDINATOR
+# ------------------------------------------------------------------------------
 class CloudScreeningCoordinator:
-    """Executes OpenCV + Gemini Vision OCR screening and stores preliminary findings for Agent review."""
+    """
+    Coordinates Stage 1 (OpenCV readability scan) and Stage 2 (safe working-copy
+    crop + Front & Back Gemini Vision OCR + deterministic field comparison),
+    storing preliminary findings strictly for human Agent review.
+    """
 
     def __init__(self, gateway: SupabaseApplicationGateway) -> None:
         self._gateway = gateway
         self._last_alert_at = 0.0
 
     def _notify_staff_unavailable(self, ref_no: str, cust_name: str, reason_note: str) -> None:
+        """Posts an in-system notification to Agents & Manager when manual fallback activates."""
         now_ts = time.time()
         if now_ts - self._last_alert_at < 60.0:
             return
@@ -253,6 +331,7 @@ class CloudScreeningCoordinator:
         })
 
     def run_pipeline(self, app_id: str) -> dict:
+        """Executes the full Two-Stage requirements screening workflow."""
         clean_id = (app_id or "").strip()
         if not clean_id:
             return {"queued": False, "completed": False, "reason": "Missing application_id."}
@@ -266,7 +345,7 @@ class CloudScreeningCoordinator:
         ref_no = app_row.get("ref_no") or app_row.get("reference_no") or clean_id
         cust_name = app_row.get("full_name") or "Customer"
 
-        # 1. Fail-safe check when Admin pauses screening in system_settings
+        # 1. Fail-safe manual fallback when Admin pauses screening in system_settings
         if not self._gateway.is_screening_enabled():
             self._gateway.update_application(
                 clean_id,
@@ -284,7 +363,7 @@ class CloudScreeningCoordinator:
             self._notify_staff_unavailable(ref_no, cust_name, "screening paused in settings")
             return {"queued": False, "completed": False, "state": "paused"}
 
-        # 2. Fail-safe check when Gemini API Key is not configured yet
+        # 2. Fail-safe manual fallback when GEMINI_API_KEY is not configured
         if not _gemini.is_available():
             self._gateway.update_application(
                 clean_id,
@@ -303,7 +382,7 @@ class CloudScreeningCoordinator:
             return {"queued": False, "completed": False, "state": "unavailable"}
 
         try:
-            # Stage 1: Rapid OpenCV image readability assessment
+            # Stage 1: Rapid OpenCV image readability assessment on Front ID
             self._gateway.update_application(
                 clean_id,
                 {
@@ -318,9 +397,11 @@ class CloudScreeningCoordinator:
                 },
             )
 
-            id_src = app_row.get("id_front_path") or app_row.get("id_image_url") or ""
-            raw_bytes = self._gateway.download_id_bytes(id_src)
-            if not raw_bytes:
+            front_src = app_row.get("id_front_path") or app_row.get("id_image_url") or ""
+            back_src = app_row.get("id_back_path") or ""
+
+            front_raw_bytes = self._gateway.download_id_bytes(front_src)
+            if not front_raw_bytes:
                 self._gateway.update_application(
                     clean_id,
                     {
@@ -336,7 +417,10 @@ class CloudScreeningCoordinator:
                 )
                 return {"queued": False, "completed": False, "state": "unavailable"}
 
-            fast_q = _quality.quick_check(raw_bytes)
+            # Also download Back ID when uploaded so back-printed ID numbers/dates are read
+            back_raw_bytes = self._gateway.download_id_bytes(back_src) if back_src else None
+
+            fast_q = _quality.quick_check(front_raw_bytes)
             early_warn = bool(fast_q.get("severe") or fast_q.get("issues"))
             stage1_msg = (
                 "Hold Recommended: Potential lighting or sharpness issue detected—creating enhanced working copy and extracting text."
@@ -359,26 +443,46 @@ class CloudScreeningCoordinator:
                 },
             )
 
-            # Stage 2: OpenCV 4-corner working-copy crop + Gemini Vision OCR + Defined Field Comparison
-            full_q, cropped_jpeg = _quality.enhance_and_crop(raw_bytes)
+            # Stage 2: Safe OpenCV working-copy crop + Front & Back Gemini Vision OCR + Strict Comparison
+            full_q, cropped_front_jpeg = _quality.enhance_and_crop(front_raw_bytes)
             cropped_url = ""
-            if cropped_jpeg:
-                cropped_url = self._gateway.upload_cropped_id(ref_no, cropped_jpeg)
+            if cropped_front_jpeg:
+                cropped_url = self._gateway.upload_cropped_id(ref_no, cropped_front_jpeg)
                 if cropped_url:
-                    self._gateway.insert_document_record(clean_id, app_row.get("id_type") or "Valid ID", cropped_url, "cropped")
+                    self._gateway.insert_document_record(
+                        clean_id,
+                        app_row.get("id_type") or "Valid ID",
+                        cropped_url,
+                        "cropped",
+                    )
 
-            ocr_input_bytes = cropped_jpeg if cropped_jpeg else raw_bytes
-            ocr_data = _gemini.extract_id_text(ocr_input_bytes)
+            ocr_front_bytes = cropped_front_jpeg if cropped_front_jpeg else front_raw_bytes
+            ocr_back_bytes = None
+            if back_raw_bytes:
+                _, cropped_back_jpeg = _quality.enhance_and_crop(back_raw_bytes)
+                ocr_back_bytes = cropped_back_jpeg if cropped_back_jpeg else back_raw_bytes
 
+            declared_id_type = str(app_row.get("id_type") or "").strip()
+            ocr_data = _gemini.extract_id_text(
+                ocr_front_bytes,
+                back_bytes=ocr_back_bytes,
+                id_type=declared_id_type,
+            )
+
+            # Pass structured First, Middle, Last, Birth Date, ID Type, and ID Number to comparison rules
             entered_data = {
                 "full_name": app_row.get("full_name") or "",
+                "first_name": app_row.get("first_name") or "",
+                "middle_name": app_row.get("middle_name") or "",
+                "last_name": app_row.get("last_name") or "",
                 "birth_date": app_row.get("birth_date") or "",
+                "id_type": declared_id_type,
                 "id_number": app_row.get("id_number") or "",
             }
             comparisons = _gemini.compare_fields(entered_data, ocr_data)
             guidance_notes = _gemini.write_guidance(full_q, comparisons)
 
-            # Determine preliminary concerns for human Agent review (never auto-deciding Needs Correction)
+            # Collect preliminary concerns strictly for human Agent review
             suggested_fields = []
             concern_reasons = []
 
@@ -388,14 +492,20 @@ class CloudScreeningCoordinator:
 
             for comp in comparisons:
                 c_key = comp.get("key")
-                if comp.get("status") == "mismatch" and c_key in ("name", "birth_date", "id_number"):
+                c_status = comp.get("status")
+                if c_status == "mismatch" and c_key in ("name", "birth_date", "id_number"):
                     if c_key not in suggested_fields:
                         suggested_fields.append(c_key)
-                    concern_reasons.append(f"{comp.get('field')} mismatch with Valid ID")
+                    concern_reasons.append(comp.get("note") or f"{comp.get('field')} mismatch with Valid ID")
+                elif c_status == "partial" and c_key in ("name", "birth_date", "id_number"):
+                    # If text could not be clearly read from the card, prompt Agent to check ID photo clarity
+                    if "id_photo" not in suggested_fields and full_q.get("issues"):
+                        suggested_fields.append("id_photo")
+                    concern_reasons.append(comp.get("note") or f"{comp.get('field')} requires visual verification")
 
-            review_recommended = bool(len(suggested_fields) > 0 or full_q.get("issues"))
+            review_recommended = bool(len(concern_reasons) > 0 or full_q.get("issues"))
             suggested_polite_message = ""
-            suggested_summary = ", ".join(concern_reasons) if concern_reasons else ""
+            suggested_summary = "; ".join(concern_reasons) if concern_reasons else ""
 
             if review_recommended:
                 raw_summary = suggested_summary or "; ".join(full_q.get("issues") or ["Document clarification needed"])
@@ -420,12 +530,12 @@ class CloudScreeningCoordinator:
                 "suggested_fields": suggested_fields,
                 "suggested_polite_message": suggested_polite_message,
                 "name_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "name"),
-                "birth_date_match": all(c.get("status") != "mismatch" for c in comparisons if c.get("key") == "birth_date"),
+                "birth_date_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "birth_date"),
                 "id_number_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "id_number"),
             }
 
             final_advisory = (
-                f"Preliminary finding for Agent review: {suggested_summary or '; '.join(findings_list[:2])}."
+                f"Preliminary finding for Agent review: {suggested_summary or '; '.join(findings_list[:2])}"
                 if review_recommended
                 else "Screening completed: ID working copy is clear and entered details match extracted information."
             )
@@ -497,4 +607,5 @@ _coordinator = CloudScreeningCoordinator(_gateway)
 
 
 def run_application_screening(app_id: str) -> dict:
+    """Entry function called by `/api/screen-async` to screen an application."""
     return _coordinator.run_pipeline(app_id)

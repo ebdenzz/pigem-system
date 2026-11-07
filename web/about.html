@@ -1,10 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link rel="icon" href="assets/images/logo.png">
   <title>About PIGEM | Combined Facilities Support Services</title>
+
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body class="public-page">
@@ -15,6 +18,7 @@
         <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page">
         <span style="cursor:default; user-select:none;">Combined Facilities Support Services</span>
       </div>
+
       <nav class="menu">
         <a href="index.html" class="hide-phone">Home</a>
         <a href="about.html" class="active hide-phone">About PIGEM</a>
@@ -30,6 +34,7 @@
   </header>
 
   <div class="side-menu-back" onclick="toggleMenu()"></div>
+
   <aside class="side-menu">
     <div class="row between" style="padding-bottom:12px; border-bottom:1px solid var(--line); align-items:center;">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -125,8 +130,11 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="js/config.js"></script>
+
   <script src="js/db.js"></script>
+
   <script>
     function initAboutPage() {
       var content = getWebsiteContent();

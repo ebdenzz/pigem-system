@@ -2,7 +2,7 @@ import base64
 
 from datetime import datetime, timezone
 
-import os
+from os import getenv
 
 import re
 
@@ -40,9 +40,9 @@ class SupabaseApplicationGateway(BaseCloudGateway):
 
     def _credentials(self) -> tuple:
 
-        url = (os.getenv("SUPABASE_URL") or "").strip().rstrip("/")
+        url = (getenv("SUPABASE_URL") or "").strip().rstrip("/")
 
-        key = (os.getenv("SUPABASE_ANON_KEY") or "").strip()
+        key = (getenv("SUPABASE_ANON_KEY") or "").strip()
 
         return url, key
 
@@ -286,7 +286,21 @@ class SupabaseApplicationGateway(BaseCloudGateway):
 
             pass
 
-    def insert_screening_record(self, app_id: str, quality_obj: dict, ocr_obj: dict, comps: list, remark: str) -> None:
+    def insert_screening_record(
+
+        self,
+
+        app_id: str,
+
+        quality_obj: dict,
+
+        ocr_obj: dict,
+
+        comps: list,
+
+        remark: str,
+
+    ) -> None:
 
         if not self.is_configured():
 
@@ -530,11 +544,13 @@ class CloudScreeningCoordinator:
 
             )
 
-            id_src = app_row.get("id_front_path") or app_row.get("id_image_url") or ""
+            front_src = app_row.get("id_front_path") or app_row.get("id_image_url") or ""
 
-            raw_bytes = self._gateway.download_id_bytes(id_src)
+            back_src = app_row.get("id_back_path") or ""
 
-            if not raw_bytes:
+            front_raw_bytes = self._gateway.download_id_bytes(front_src)
+
+            if not front_raw_bytes:
 
                 self._gateway.update_application(
 
@@ -564,7 +580,9 @@ class CloudScreeningCoordinator:
 
                 return {"queued": False, "completed": False, "state": "unavailable"}
 
-            fast_q = _quality.quick_check(raw_bytes)
+            back_raw_bytes = self._gateway.download_id_bytes(back_src) if back_src else None
+
+            fast_q = _quality.quick_check(front_raw_bytes)
 
             early_warn = bool(fast_q.get("severe") or fast_q.get("issues"))
 
@@ -606,27 +624,63 @@ class CloudScreeningCoordinator:
 
             )
 
-            full_q, cropped_jpeg = _quality.enhance_and_crop(raw_bytes)
+            full_q, cropped_front_jpeg = _quality.enhance_and_crop(front_raw_bytes)
 
             cropped_url = ""
 
-            if cropped_jpeg:
+            if cropped_front_jpeg:
 
-                cropped_url = self._gateway.upload_cropped_id(ref_no, cropped_jpeg)
+                cropped_url = self._gateway.upload_cropped_id(ref_no, cropped_front_jpeg)
 
                 if cropped_url:
 
-                    self._gateway.insert_document_record(clean_id, app_row.get("id_type") or "Valid ID", cropped_url, "cropped")
+                    self._gateway.insert_document_record(
 
-            ocr_input_bytes = cropped_jpeg if cropped_jpeg else raw_bytes
+                        clean_id,
 
-            ocr_data = _gemini.extract_id_text(ocr_input_bytes)
+                        app_row.get("id_type") or "Valid ID",
+
+                        cropped_url,
+
+                        "cropped",
+
+                    )
+
+            ocr_front_bytes = cropped_front_jpeg if cropped_front_jpeg else front_raw_bytes
+
+            ocr_back_bytes = None
+
+            if back_raw_bytes:
+
+                _, cropped_back_jpeg = _quality.enhance_and_crop(back_raw_bytes)
+
+                ocr_back_bytes = cropped_back_jpeg if cropped_back_jpeg else back_raw_bytes
+
+            declared_id_type = str(app_row.get("id_type") or "").strip()
+
+            ocr_data = _gemini.extract_id_text(
+
+                ocr_front_bytes,
+
+                back_bytes=ocr_back_bytes,
+
+                id_type=declared_id_type,
+
+            )
 
             entered_data = {
 
                 "full_name": app_row.get("full_name") or "",
 
+                "first_name": app_row.get("first_name") or "",
+
+                "middle_name": app_row.get("middle_name") or "",
+
+                "last_name": app_row.get("last_name") or "",
+
                 "birth_date": app_row.get("birth_date") or "",
+
+                "id_type": declared_id_type,
 
                 "id_number": app_row.get("id_number") or "",
 
@@ -650,19 +704,29 @@ class CloudScreeningCoordinator:
 
                 c_key = comp.get("key")
 
-                if comp.get("status") == "mismatch" and c_key in ("name", "birth_date", "id_number"):
+                c_status = comp.get("status")
+
+                if c_status == "mismatch" and c_key in ("name", "birth_date", "id_number"):
 
                     if c_key not in suggested_fields:
 
                         suggested_fields.append(c_key)
 
-                    concern_reasons.append(f"{comp.get('field')} mismatch with Valid ID")
+                    concern_reasons.append(comp.get("note") or f"{comp.get('field')} mismatch with Valid ID")
 
-            review_recommended = bool(len(suggested_fields) > 0 or full_q.get("issues"))
+                elif c_status == "partial" and c_key in ("name", "birth_date", "id_number"):
+
+                    if "id_photo" not in suggested_fields and full_q.get("issues"):
+
+                        suggested_fields.append("id_photo")
+
+                    concern_reasons.append(comp.get("note") or f"{comp.get('field')} requires visual verification")
+
+            review_recommended = bool(len(concern_reasons) > 0 or full_q.get("issues"))
 
             suggested_polite_message = ""
 
-            suggested_summary = ", ".join(concern_reasons) if concern_reasons else ""
+            suggested_summary = "; ".join(concern_reasons) if concern_reasons else ""
 
             if review_recommended:
 
@@ -706,7 +770,7 @@ class CloudScreeningCoordinator:
 
                 "name_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "name"),
 
-                "birth_date_match": all(c.get("status") != "mismatch" for c in comparisons if c.get("key") == "birth_date"),
+                "birth_date_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "birth_date"),
 
                 "id_number_match": all(c.get("status") == "match" for c in comparisons if c.get("key") == "id_number"),
 
@@ -714,7 +778,7 @@ class CloudScreeningCoordinator:
 
             final_advisory = (
 
-                f"Preliminary finding for Agent review: {suggested_summary or '; '.join(findings_list[:2])}."
+                f"Preliminary finding for Agent review: {suggested_summary or '; '.join(findings_list[:2])}"
 
                 if review_recommended
 

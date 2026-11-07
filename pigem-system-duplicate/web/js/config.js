@@ -1,8 +1,14 @@
-// ============================================================
-// PIGEM SETTINGS AND SHARED HELPERS (used by every page)
-// ============================================================
+// ============================================================================
+// FILE: web/js/config.js
+// PURPOSE: Global Cloud Configuration, Dasmarinas Barangay Directory & UI Helpers
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS / BROWSER APIS USED:
+//   - Browser `window`, `document`, `localStorage`, and `CustomEvent` APIs
+//   - Exports global `CONFIG` object consumed by `db.js`, `api.js`, and all portals
+//   - Provides barangay coordinate bounds, default fiber plans, CMS content,
+//     password strength rules, and accessible custom modal/guide dialogs
+// ============================================================================
 
-// Pages inside /staff and /admin set ROOT = "../" so pictures and links still work
 var ROOT = window.ROOT || "";
 
 var CONFIG = {
@@ -182,6 +188,7 @@ function imageFallback(img, filePath) {
   }
 }
 
+// UI Interaction `showSystemMaintenanceNotice` (params: customMsg): Controls modal/panel visibility to show system maintenance notice.
 function showSystemMaintenanceNotice(customMsg) {
   var existing = document.getElementById("sys-maintenance-banner");
   if (existing) return;
@@ -226,27 +233,33 @@ function readSaved(key, defaultValue) {
   try { return JSON.parse(raw); } catch (e) { return defaultValue; }
 }
 
+// Helper function `writeSaved` (params: key, value): Executes portal workflow logic for `writeSaved`.
 function writeSaved(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+// Data Accessor `getActivePlans`: Retrieves or refreshes state to get active plans.
 function getActivePlans() { return readSaved("pigem_plans", CONFIG.PLANS); }
+// Action Handler `saveActivePlans` (params: plans): Validates user input and commits state changes to save active plans.
 function saveActivePlans(plans) {
   writeSaved("pigem_plans", plans);
   if (typeof dbSaveLivePlans === "function") dbSaveLivePlans(plans);
 }
 
+// Data Accessor `getWebsiteContent`: Retrieves or refreshes state to get website content.
 function getWebsiteContent() {
   var saved = readSaved("pigem_website_content", {});
   var merged = Object.assign({}, DEFAULT_CONTENT, saved);
   merged.asset_library = Object.assign({}, DEFAULT_CONTENT.asset_library, saved.asset_library || {});
   return merged;
 }
+// Action Handler `saveWebsiteContent` (params: content): Validates user input and commits state changes to save website content.
 function saveWebsiteContent(content) {
   writeSaved("pigem_website_content", content);
   if (typeof dbSaveLiveWebsiteContent === "function") dbSaveLiveWebsiteContent(content);
 }
 
+// Data Accessor `getSystemSettings`: Retrieves or refreshes state to get system settings.
 function getSystemSettings() {
   return Object.assign({
     ai_enabled: true,
@@ -254,6 +267,7 @@ function getSystemSettings() {
     maintenance_message: "The website, application form, and account activation are currently under scheduled maintenance while we update our content. Please come back shortly."
   }, readSaved("pigem_system_settings", {}));
 }
+// Action Handler `saveSystemSettings` (params: settings): Validates user input and commits state changes to save system settings.
 function saveSystemSettings(settings) {
   writeSaved("pigem_system_settings", settings);
   if (typeof dbSaveLiveSystemSettings === "function") dbSaveLiveSystemSettings(settings);
@@ -267,16 +281,19 @@ function formatPeso(amount) {
   return "₱" + Number(amount).toLocaleString("en-US");
 }
 
+// Formatter/Utility `formatDate` (params: dateString): Transforms or sanitizes data (format date).
 function formatDate(dateString) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
+// Formatter/Utility `formatDay` (params: dateString): Transforms or sanitizes data (format day).
 function formatDay(dateString) {
   if (!dateString) return "-";
   return new Date(dateString).toLocaleDateString("en-US", { dateStyle: "medium" });
 }
 
+// Data Accessor `getPlanById` (params: planId): Retrieves or refreshes state to get plan by id.
 function getPlanById(planId) {
   var plans = getActivePlans();
   for (var i = 0; i < plans.length; i++) {
@@ -285,6 +302,7 @@ function getPlanById(planId) {
   return { id: planId, name: "Plan " + planId, speed: "-", price: planId };
 }
 
+// Data Accessor `getIdType` (params: name): Retrieves or refreshes state to get id type.
 function getIdType(name) {
   for (var i = 0; i < CONFIG.ID_TYPES.length; i++) {
     if (CONFIG.ID_TYPES[i].name === name) return CONFIG.ID_TYPES[i];
@@ -331,6 +349,7 @@ function getDefaultStatusInstruction(status, note) {
   return "We are reviewing your application. Please check your email for updates.";
 }
 
+// Helper function `makeBadge` (params: status): Executes portal workflow logic for `makeBadge`.
 function makeBadge(status) {
   var cssName = String(status || "Processing").toLowerCase().replace(/ /g, "-");
   return '<span class="badge status-' + cssName + '">' + status + "</span>";
@@ -350,6 +369,7 @@ function openPopup(htmlContent, isWide) {
   if (typeof initPasswordEyeToggles === "function") initPasswordEyeToggles(back);
 }
 
+// UI Interaction `closePopup`: Controls modal/panel visibility to close popup.
 function closePopup() {
   var existing = document.getElementById("popup-modal");
   if (existing) existing.remove();
@@ -384,6 +404,7 @@ function toggleMenu() {
 
 // Build a hero slider that changes picture every 5 seconds
 var sliderTimers = {};
+// Helper function `startSlider` (params: sliderId, slides): Executes portal workflow logic for `startSlider`.
 function startSlider(sliderId, slides) {
   var box = document.getElementById(sliderId);
   if (!box) return;
@@ -411,6 +432,7 @@ function startSlider(sliderId, slides) {
   sliderTimers[sliderId] = setInterval(function () { moveSlide(sliderId, 1); }, 5000);
 }
 
+// Helper function `goToSlide` (params: sliderId, index): Executes portal workflow logic for `goToSlide`.
 function goToSlide(sliderId, index) {
   var box = document.getElementById(sliderId);
   var slides = box.querySelectorAll(".slide");
@@ -425,6 +447,7 @@ function goToSlide(sliderId, index) {
   box.setAttribute("data-index", String(index));
 }
 
+// Helper function `moveSlide` (params: sliderId, step): Executes portal workflow logic for `moveSlide`.
 function moveSlide(sliderId, step) {
   var box = document.getElementById(sliderId);
   var current = Number(box.getAttribute("data-index") || 0);
@@ -637,6 +660,7 @@ class BaseFieldValidator {
   constructor() {
     this._emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     this._gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    this._usernameRegex = /^[a-zA-Z0-9._]{3,30}$/;
     this._mobileRegex = /^09\d{9}$/;
     this._stripSeparatorsRegex = /[\s\-]+/g;
   }
@@ -651,6 +675,12 @@ class BaseFieldValidator {
 }
 
 class ApplicantFormValidator extends BaseFieldValidator {
+  isValidUsername(username) {
+    var clean = String(username || "").trim();
+    if (!clean) return false;
+    return this._usernameRegex.test(clean);
+  }
+
   isValidEmail(email) {
     var clean = String(email || "").trim();
     if (!clean) return false;
@@ -714,12 +744,30 @@ class ApplicantFormValidator extends BaseFieldValidator {
 
 var FORM_VALIDATOR = new ApplicantFormValidator();
 
+// Validation/State check `isCustomerGmail` (params: email): Evaluates condition (is customer gmail) and returns status.
 function isCustomerGmail(email) {
   return FORM_VALIDATOR.isCustomerGmail(email);
 }
 
+// Validation/State check `isStaffBusinessEmail` (params: email): Evaluates condition (is staff business email) and returns status.
 function isStaffBusinessEmail(email) {
   return FORM_VALIDATOR.isStaffBusinessEmail(email);
+}
+
+// Validation/State check `isValidUsername` (params: username): Checks whether username is 3 to 30 characters using letters, numbers, dots, or underscores.
+function isValidUsername(username) {
+  return FORM_VALIDATOR.isValidUsername(username);
+}
+
+// Formatter/Utility `sanitizeUsernameSeed` (params: fullName, email): Builds a clean lowercase username base from an email prefix or full name.
+function sanitizeUsernameSeed(fullName, email) {
+  var emailPart = String(email || "").split("@")[0].toLowerCase().replace(/[^a-z0-9._]/g, "");
+  var namePart = String(fullName || "").toLowerCase().replace(/\s+/g, ".").replace(/[^a-z0-9._]/g, "");
+  var base = (emailPart.length >= 3 ? emailPart : namePart).replace(/^[._]+|[._]+$/g, "").replace(/[._]{2,}/g, "_");
+  if (base.length < 3) {
+    base = "user_" + String(Date.now()).slice(-4);
+  }
+  return base.slice(0, 24);
 }
 
 
@@ -832,6 +880,7 @@ var DEFAULT_POPUP_GUIDES = [
   }
 ];
 
+// Data Accessor `getPopupGuides`: Retrieves or refreshes state to get popup guides.
 function getPopupGuides() {
   var saved = readSaved("pigem_popup_guides", null);
   if (!Array.isArray(saved) || saved.length === 0) return DEFAULT_POPUP_GUIDES;
@@ -923,10 +972,12 @@ class PopupGuideManager {
 
 var POPUP_GUIDE_MANAGER = new PopupGuideManager();
 
+// UI Interaction `showPortalGuide` (params: guideId, onDone): Controls modal/panel visibility to show portal guide.
 function showPortalGuide(guideId, onDone) {
   POPUP_GUIDE_MANAGER.showGuide(guideId, onDone);
 }
 
+// Helper function `finishPortalGuide`: Executes portal workflow logic for `finishPortalGuide`.
 function finishPortalGuide() {
   var cb = window._activeGuideDoneCallback;
   window._activeGuideDoneCallback = null;
@@ -951,6 +1002,7 @@ function openConfirmPopup(title, messageHtml, confirmLabel, onConfirm, isDanger)
   );
 }
 
+// Helper function `runPendingConfirmAction`: Executes portal workflow logic for `runPendingConfirmAction`.
 function runPendingConfirmAction() {
   var fn = window._pendingConfirmAction;
   window._pendingConfirmAction = null;

@@ -12,7 +12,17 @@ except ImportError:
 
 class BaseImageProcessor:
 
-    def __init__(self, blur_limit: float = 60.0, dark_limit: float = 70.0, glare_limit: float = 200.0) -> None:
+    def __init__(
+
+        self,
+
+        blur_limit: float = 55.0,
+
+        dark_limit: float = 65.0,
+
+        glare_limit: float = 210.0,
+
+    ) -> None:
 
         self._blur_limit = blur_limit
 
@@ -52,23 +62,39 @@ class BaseImageProcessor:
 
         return rect
 
+    def _expand_quad_safely(self, rect: "np.ndarray", img_w: int, img_h: int, pad_ratio: float = 0.025) -> "np.ndarray":
+
+        center = rect.mean(axis=0)
+
+        expanded = center + (rect - center) * (1.0 + pad_ratio * 2.0)
+
+        expanded[:, 0] = np.clip(expanded[:, 0], 0, max(img_w - 1, 1))
+
+        expanded[:, 1] = np.clip(expanded[:, 1], 0, max(img_h - 1, 1))
+
+        return expanded.astype("float32")
+
     def _four_point_transform(self, image, pts):
+
+        h, w = image.shape[:2]
 
         rect = self._order_points(pts)
 
+        rect = self._expand_quad_safely(rect, w, h, pad_ratio=0.025)
+
         tl, tr, br, bl = rect
 
-        width_a = float(np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2)))
+        width_bottom = float(np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2)))
 
-        width_b = float(np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2)))
+        width_top = float(np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2)))
 
-        max_width = max(int(width_a), int(width_b), 1)
+        max_width = max(int(width_bottom), int(width_top), 1)
 
-        height_a = float(np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2)))
+        height_right = float(np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2)))
 
-        height_b = float(np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2)))
+        height_left = float(np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2)))
 
-        max_height = max(int(height_a), int(height_b), 1)
+        max_height = max(int(height_right), int(height_left), 1)
 
         dst = np.array(
 
@@ -98,7 +124,19 @@ class FastQualityScanner(BaseImageProcessor):
 
         if cv2 is None:
 
-            return {"available": False, "readable": False, "severe": False, "needs_enhancement": False, "issues": []}
+            return {
+
+                "available": False,
+
+                "readable": False,
+
+                "severe": False,
+
+                "needs_enhancement": False,
+
+                "issues": [],
+
+            }
 
         image = self._decode_bytes(image_bytes)
 
@@ -114,7 +152,7 @@ class FastQualityScanner(BaseImageProcessor):
 
                 "needs_enhancement": False,
 
-                "issues": ["The image file could not be read. Please upload a JPG or PNG photo."],
+                "issues": ["The image file could not be read. Please upload a clear JPG or PNG photo."],
 
             }
 
@@ -134,11 +172,13 @@ class FastQualityScanner(BaseImageProcessor):
 
         contrast = float(gray.std())
 
+        overexposed_ratio = float(np.mean(gray >= 248))
+
         if blur_score < self._blur_limit:
 
             issues.append("The ID photo is blurry.")
 
-            if blur_score < 42.0:
+            if blur_score < 36.0:
 
                 severe = True
 
@@ -152,17 +192,23 @@ class FastQualityScanner(BaseImageProcessor):
 
             needs_enhancement = True
 
-            if brightness < 45.0:
+            if brightness < 42.0:
 
                 severe = True
 
-        elif brightness > self._glare_limit:
+        elif brightness > self._glare_limit or overexposed_ratio > 0.22:
 
-            issues.append("The ID photo has strong lighting glare.")
+            issues.append("The ID photo has strong lighting or flash glare.")
 
-            severe = True
+            if brightness > 225.0 or overexposed_ratio > 0.35:
 
-        if contrast < 38.0:
+                severe = True
+
+            else:
+
+                needs_enhancement = True
+
+        if contrast < 34.0:
 
             issues.append("The ID photo has low contrast.")
 
@@ -198,6 +244,20 @@ class FastQualityScanner(BaseImageProcessor):
 
 class DocumentCropEnhancer(BaseImageProcessor):
 
+    def _is_valid_card_shape(self, w: int, h: int) -> bool:
+
+        if min(w, h) < 220:
+
+            return False
+
+        longer = float(max(w, h))
+
+        shorter = float(max(min(w, h), 1))
+
+        aspect = longer / shorter
+
+        return 1.12 <= aspect <= 2.20
+
     def _find_card_quad(self, gray):
 
         h, w = gray.shape
@@ -222,15 +282,19 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
                 area = cv2.contourArea(cnt)
 
-                if 0.16 * img_area <= area <= 0.94 * img_area:
+                if 0.32 * img_area <= area <= 0.95 * img_area:
 
                     peri = cv2.arcLength(cnt, True)
 
-                    approx = cv2.approxPolyDP(cnt, 0.025 * peri, True)
+                    approx = cv2.approxPolyDP(cnt, 0.022 * peri, True)
 
-                    if len(approx) == 4:
+                    if len(approx) == 4 and cv2.isContourConvex(approx):
 
-                        return approx.reshape(4, 2).astype("float32")
+                        _, _, bw, bh = cv2.boundingRect(approx)
+
+                        if self._is_valid_card_shape(bw, bh):
+
+                            return approx.reshape(4, 2).astype("float32")
 
         return None
 
@@ -258,11 +322,11 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             box_area = float(cw * ch)
 
-            if 0.18 * img_area <= box_area <= 0.88 * img_area:
+            if 0.35 * img_area <= box_area <= 0.92 * img_area and self._is_valid_card_shape(cw, ch):
 
-                pad_x = int(cw * 0.03)
+                pad_x = int(cw * 0.035)
 
-                pad_y = int(ch * 0.03)
+                pad_y = int(ch * 0.035)
 
                 x1 = max(0, x - pad_x)
 
@@ -282,7 +346,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         l_chan, a_chan, b_chan = cv2.split(lab)
 
-        clahe = cv2.createCLAHE(clipLimit=1.8, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
 
         l_enhanced = clahe.apply(l_chan)
 
@@ -290,15 +354,27 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         enhanced_bgr = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
-        gaussian = cv2.GaussianBlur(enhanced_bgr, (0, 0), 1.2)
+        gaussian = cv2.GaussianBlur(enhanced_bgr, (0, 0), 1.1)
 
-        return cv2.addWeighted(enhanced_bgr, 1.25, gaussian, -0.25, 0)
+        return cv2.addWeighted(enhanced_bgr, 1.18, gaussian, -0.18, 0)
 
     def process(self, image_bytes: bytes):
 
         if cv2 is None:
 
-            return {"available": False, "readable": False, "readability_label": "Unavailable", "cropped_applied": False, "issues": []}, None
+            return {
+
+                "available": False,
+
+                "readable": False,
+
+                "readability_label": "Unavailable",
+
+                "cropped_applied": False,
+
+                "issues": [],
+
+            }, None
 
         image = self._decode_bytes(image_bytes)
 
@@ -316,7 +392,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
                     "cropped_applied": False,
 
-                    "issues": ["The image file could not be read. Please upload a JPG or PNG photo."],
+                    "issues": ["The image file could not be read. Please upload a clear JPG or PNG photo."],
 
                 },
 
@@ -342,9 +418,9 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
                 warped = self._four_point_transform(image, quad)
 
-                if warped.shape[0] > 140 and warped.shape[1] > 140:
+                if self._is_valid_card_shape(warped.shape[1], warped.shape[0]):
 
-                    if warped.shape[0] > warped.shape[1] * 1.15:
+                    if warped.shape[0] > warped.shape[1] * 1.12:
 
                         warped = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE)
 
@@ -366,7 +442,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             if tight is not None:
 
-                if tight.shape[0] > tight.shape[1] * 1.2:
+                if tight.shape[0] > tight.shape[1] * 1.15:
 
                     tight = cv2.rotate(tight, cv2.ROTATE_90_CLOCKWISE)
 
@@ -386,21 +462,23 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         brightness = float(gray.mean())
 
+        overexposed_ratio = float(np.mean(gray >= 248))
+
         if brightness < self._dark_limit:
 
             issues.append("The ID photo is too dark. Please take the picture in a well-lit area.")
 
-        elif brightness > self._glare_limit:
+        elif brightness > self._glare_limit or overexposed_ratio > 0.25:
 
             issues.append("The ID photo has glare. Avoid using direct camera flash.")
 
         contrast = float(gray.std())
 
-        if contrast < 35.0:
+        if contrast < 32.0:
 
             issues.append("The ID photo has low contrast, making details harder to read.")
 
-        if min(cur_w, cur_h) < 400:
+        if min(cur_w, cur_h) < 360:
 
             issues.append("The image resolution is too low. Please upload a clearer photo.")
 
@@ -418,13 +496,25 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             ph, pw = polished_color.shape[:2]
 
-            if pw > 1400:
+            if pw > 1600:
 
-                scale = 1400.0 / float(pw)
+                scale = 1600.0 / float(pw)
 
-                polished_color = cv2.resize(polished_color, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+                polished_color = cv2.resize(
 
-            ok, buf = cv2.imencode(".jpg", polished_color, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+                    polished_color,
+
+                    None,
+
+                    fx=scale,
+
+                    fy=scale,
+
+                    interpolation=cv2.INTER_AREA,
+
+                )
+
+            ok, buf = cv2.imencode(".jpg", polished_color, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
 
             if ok:
 
@@ -438,7 +528,11 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
         if len(issues) > 0:
 
-            readability_label = "Blurry / Unclear" if blur_score < self._blur_limit else "Needs Lighting Check"
+            readability_label = (
+
+                "Blurry / Unclear" if blur_score < self._blur_limit else "Needs Lighting Check"
+
+            )
 
         quality_result = {
 
@@ -464,7 +558,7 @@ class DocumentCropEnhancer(BaseImageProcessor):
 
             "orientation": orientation,
 
-            "coverage": 1.0 if cropped_applied else 0.85,
+            "coverage": 1.0 if cropped_applied else 0.88,
 
             "deskew_applied": deskew_applied,
 

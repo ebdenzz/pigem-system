@@ -355,6 +355,7 @@ function renderAdminUsers() {
     html +=
       '<tr>' +
         '<td><b>' + escapeHtml(u.full_name) + '</b></td>' +
+        '<td><code>@' + escapeHtml(u.username || "-") + '</code></td>' +
         '<td>' + escapeHtml(u.email) + '</td>' +
         '<td>' + roleCell + '</td>' +
         '<td>' + (u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Disabled</span>') + '</td>' +
@@ -367,12 +368,21 @@ function renderAdminUsers() {
 async function adminCreateUser() {
   hideMsg("acc-msg");
   var name = document.getElementById("new-acc-name").value.trim();
+  var usernameInput = document.getElementById("new-acc-username");
+  var username = (usernameInput ? usernameInput.value : "").trim().toLowerCase();
   var email = document.getElementById("new-acc-email").value.trim().toLowerCase();
   var pw = (document.getElementById("new-acc-pw").value || "").trim();
   var role = document.getElementById("new-acc-role").value;
 
   if (!name || !email) {
-    showMsg("acc-msg", "error", "Please enter both Full Name and Business Account Email.");
+    showMsg("acc-msg", "error", "Please enter Full Name, Username, and Business Account Email.");
+    return;
+  }
+  if (!username && typeof sanitizeUsernameSeed === "function") {
+    username = sanitizeUsernameSeed(name, email);
+  }
+  if (typeof isValidUsername === "function" && !isValidUsername(username)) {
+    showMsg("acc-msg", "error", "Username must be 3 to 30 characters using letters, numbers, dots (.), or underscores (_).");
     return;
   }
   if (!isStaffBusinessEmail(email)) {
@@ -389,12 +399,13 @@ async function adminCreateUser() {
   }
 
   try {
-    await dbCreateUserAccount(name, email, pw, role);
-    await dbAddLog(currentAdmin.email, "Created " + role + " business account for " + email);
+    var created = await dbCreateUserAccount(name, email, pw, role, username);
+    await dbAddLog(currentAdmin.email, "Created " + role + " business account for @" + (created.username || username) + " (" + email + ")");
     document.getElementById("new-acc-name").value = "";
+    if (usernameInput) usernameInput.value = "";
     document.getElementById("new-acc-email").value = "";
     document.getElementById("new-acc-pw").value = "";
-    showMsg("acc-msg", "ok", "Business account created for " + email + " (" + role + ").");
+    showMsg("acc-msg", "ok", "Business account created for @" + (created.username || username) + " (" + email + " - " + role + ").");
     await refreshAdminData();
   } catch (err) {
     showMsg("acc-msg", "error", err.message);
@@ -458,7 +469,10 @@ async function renderAdminLogs() {
   if (logBody) {
     var h1 = "";
     for (var i = 0; i < Math.min(logs.length, 30); i++) {
-      h1 += '<tr><td>' + formatDate(logs[i].created_at) + '</td><td><b>' + escapeHtml(logs[i].actor_email) + '</b></td><td>' + escapeHtml(logs[i].action) + '</td></tr>';
+      var actorDisplay = logs[i].actor_username
+        ? ('@' + logs[i].actor_username + ' (' + logs[i].actor_email + ')')
+        : logs[i].actor_email;
+      h1 += '<tr><td>' + formatDate(logs[i].created_at) + '</td><td><b>' + escapeHtml(actorDisplay) + '</b></td><td>' + escapeHtml(logs[i].action) + '</td></tr>';
     }
     logBody.innerHTML = h1 || '<tr><td colspan="3" class="muted">No activity logs yet.</td></tr>';
   }
@@ -469,7 +483,10 @@ async function renderAdminLogs() {
     var h2 = "";
     for (var j = 0; j < Math.min(hist.length, 30); j++) {
       var ev = hist[j];
-      h2 += '<tr><td>' + formatDate(ev.created_at) + '</td><td><b>' + escapeHtml(ev.email) + '</b></td><td>' + escapeHtml(ev.role) + '</td><td><span class="badge ' + (ev.action === "login" ? "badge-green" : "badge-gray") + '">' + escapeHtml(ev.action) + '</span></td></tr>';
+      var userDisplay = ev.username
+        ? ('@' + ev.username + ' (' + ev.email + ')')
+        : ev.email;
+      h2 += '<tr><td>' + formatDate(ev.created_at) + '</td><td><b>' + escapeHtml(userDisplay) + '</b></td><td>' + escapeHtml(ev.role) + '</td><td><span class="badge ' + (ev.action === "login" ? "badge-green" : "badge-gray") + '">' + escapeHtml(ev.action) + '</span></td></tr>';
     }
     histBody.innerHTML = h2 || '<tr><td colspan="4" class="muted">No login events recorded yet.</td></tr>';
   }

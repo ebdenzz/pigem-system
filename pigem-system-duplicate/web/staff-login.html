@@ -1,15 +1,24 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: Staff Sign-In Portal for Agents & Managers (web/staff-login.html)
+     PURPOSE: Authenticates internal PIGEM Agents and Operational Managers with role-based routing and lockout protection.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" href="assets/images/logo.png">
   <title>Staff Business Login | Combined Facilities Support Services</title>
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css">
+  <!-- IMPORT: Google reCAPTCHA v2 client widget script for anti-bot form and sign-in protection -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 
+  <!-- SECTION: Top Navigation Header & Brand Identity Bar -->
   <header class="simple-bar">
     <div class="container" style="display:flex; align-items:center; gap:12px;">
       <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer; height:38px; width:auto;" title="Click logo to refresh page">
@@ -17,17 +26,19 @@
     </div>
   </header>
 
+  <!-- SECTION: Main Page Content Container -->
   <main class="auth-page">
     <div class="card auth-card">
       <div class="center">
         <h2>Internal Staff Login</h2>
-        <p class="small muted mt" style="margin-top:4px;">Sign in with your Agent or Manager business account</p>
+        <p class="small muted mt" style="margin-top:4px;">Sign in with your Agent or Manager username or business email</p>
       </div>
 
+      <!-- FORM: Interactive User Input Form -->
       <form class="mt-big" onsubmit="handleLogin(event)">
         <div>
-          <label for="email">Business Account Email</label>
-          <input id="email" type="email" placeholder="name@pigem.com" required>
+          <label for="email">Staff Username or Business Email</label>
+          <input id="email" type="text" autocomplete="username" placeholder="username or name@pigem.com" required>
         </div>
 
         <div class="mt">
@@ -51,11 +62,17 @@
     </div>
   </main>
 
+  <!-- INLINE SCRIPT: Page-specific portal configuration and startup logic -->
   <script>window.SYSTEM = "staff";</script>
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- IMPORT: Serverless Python FastAPI client (/api/*) for reCAPTCHA verification, ID screening, and Gmail SMTP emails -->
   <script src="js/api.js"></script>
+  <!-- IMPORT: Shared authentication controller handling role-based login, failed-attempt lockout, and OTP password reset -->
   <script src="js/login.js"></script>
 </body>
 </html>

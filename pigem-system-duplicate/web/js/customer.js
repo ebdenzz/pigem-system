@@ -1,15 +1,20 @@
-// ============================================================
-// CUSTOMER APPLICATION MONITORING LOGIC
-// Rules:
-// - Customers strictly see ONLY 3 main statuses: "Processing", "Approved", "Rejected".
-// - "Needs Correction" is a sub-branch inside "Processing" and ONLY appears when an update is needed.
-// - Zero technical or "AI" terminology is ever shown to the customer.
-// ============================================================
+// ============================================================================
+// FILE: web/js/customer.js
+// PURPOSE: Customer Self-Service Portal (Status Tracking & Targeted Corrections)
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. web/js/config.js  -> System maintenance checks and accessible alert modals
+//   2. web/js/db.js      -> `checkPageAccess(['customer'])`, `dbGetMyApplications()`,
+//                           `dbUploadIdPhoto()`, and `dbSubmitCustomerResubmission()`
+//   3. web/js/api.js     -> `apiStartBackgroundScreening()` to re-screen updated IDs/fields
+//   4. web/js/dash-ui.js -> Shared topbar, notifications bell, and account settings modal
+// ============================================================================
 
 var currentCustomer = null;
 var myApps = [];
 var selectedAppId = null;
 
+// Event Listener: Runs initialization or state sync when `DOMContentLoaded` fires
 window.addEventListener("DOMContentLoaded", async function () {
   currentCustomer = await requireLogin(["customer"]);
   if (!currentCustomer) return;
@@ -33,6 +38,7 @@ window.addEventListener("DOMContentLoaded", async function () {
   }, 8000);
 });
 
+// `loadMyApplications`: Fetches all fiber service applications belonging to the signed-in customer from Supabase.
 async function loadMyApplications() {
   myApps = await dbListApplicationsForCustomer(currentCustomer.email);
 
@@ -82,6 +88,7 @@ async function loadMyApplications() {
   renderSelectedApp();
 }
 
+// `findMyApp` (params: id): Looks up a specific customer application object in memory by its unique application ID.
 function findMyApp(id) {
   for (var i = 0; i < myApps.length; i++) {
     if (myApps[i].id === id) return myApps[i];
@@ -89,11 +96,13 @@ function findMyApp(id) {
   return null;
 }
 
+// `selectMyApp` (params: id): Sets the active application in the Customer Portal and refreshes the status detail view.
 function selectMyApp(id) {
   selectedAppId = id;
   renderSelectedApp();
 }
 
+// `renderSelectedApp`: Renders the simplified 3-stage progress tracker (Processing, Approved, Rejected) and any requested correction form.
 function renderSelectedApp() {
   var box = document.getElementById("cust-detail-box");
   var app = findMyApp(selectedAppId);
@@ -240,6 +249,7 @@ function renderSelectedApp() {
   box.innerHTML = html;
 }
 
+// `submitCustomerCorrection` (params: appId): Uploads updated customer fields or replacement Valid ID photos to Supabase and triggers fresh cloud re-screening.
 async function submitCustomerCorrection(appId) {
   var app = findMyApp(appId);
   if (!app) return;

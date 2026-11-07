@@ -1,10 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: Operational Manager Dashboard, Reports & Website Content Editor (web/manager.html)
+     PURPOSE: Provides KPI analytics, application oversight, fiber plan management, promotional broadcasts, and audit logs.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Application Monitoring Management - PIGEM Manager Dashboard</title>
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
@@ -486,12 +493,19 @@
     </div>
   </div>
 
+  <!-- INLINE SCRIPT: Page-specific portal configuration and startup logic -->
   <script>window.SYSTEM = "staff";</script>
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- IMPORT: Serverless Python FastAPI client (/api/*) for reCAPTCHA verification, ID screening, and Gmail SMTP emails -->
   <script src="js/api.js"></script>
+  <!-- IMPORT: Shared dashboard shell controller (sidebar navigation, theme toggle, notifications bell, and profile menu) -->
   <script src="js/dash-ui.js"></script>
+  <!-- IMPORT: Manager dashboard controller for KPI metrics, plan pricing updates, website content, and promo emails -->
   <script src="js/manager.js"></script>
 </body>
 </html>

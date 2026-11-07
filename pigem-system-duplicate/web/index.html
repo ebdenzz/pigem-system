@@ -1,11 +1,19 @@
-<!doctype html>
+<!DOCTYPE html>
+<!-- ==========================================================================
+     FILE OVERVIEW: Public Home & Fiber Plans Landing Page (web/index.html)
+     PURPOSE: Displays PIGEM Power Grids & Data Fiber Corp. plans, coverage overview, and reCAPTCHA-gated Apply buttons.
+     HOSTING: Deployed as static cloud frontend on Vercel with Supabase & /api/*
+     ========================================================================== -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORT: Browser tab favicon displaying the official PIGEM corporate logo -->
   <link rel="icon" href="assets/images/logo.png">
   <title>Combined Facilities Support Services</title>
+  <!-- IMPORT: Unified PIGEM corporate design system stylesheet (responsive layout, cards, forms, and dark mode) -->
   <link rel="stylesheet" href="assets/style.css">
+  <!-- IMPORT: Google reCAPTCHA v2 client widget script for anti-bot form and sign-in protection -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body class="public-page">
@@ -17,6 +25,7 @@
         <img data-img="logo.png" src="assets/images/logo.png" alt="Logo" onclick="window.location.reload();" style="cursor:pointer;" title="Click logo to refresh page">
         <span style="cursor:default; user-select:none;">Combined Facilities Support Services</span>
       </div>
+      <!-- SECTION: Primary Navigation Links -->
       <nav class="menu">
         <a href="index.html" class="active hide-phone">Home</a>
         <a href="about.html" class="hide-phone">About PIGEM</a>
@@ -33,6 +42,7 @@
 
   <!-- Phone Slide-Out Side Menu -->
   <div class="side-menu-back" onclick="toggleMenu()"></div>
+  <!-- SECTION: Left Dashboard Sidebar Navigation -->
   <aside class="side-menu">
     <div class="row between" style="padding-bottom:12px; border-bottom:1px solid var(--line); align-items:center;">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -47,6 +57,7 @@
     <a href="login.html" class="btn btn-red account-btn">Customer Login</a>
   </aside>
 
+  <!-- SECTION: Main Page Content Container -->
   <main>
     <!-- Optional Public Announcement Strip (Published from Manager Dashboard) -->
     <div id="site-announcement-bar" style="display:none; background:#101828; color:#ffffff; padding:10px 16px; font-size:13.5px; text-align:center;"></div>
@@ -134,9 +145,13 @@
     </div>
   </footer>
 
+  <!-- IMPORT: Official Supabase JavaScript SDK v2 for PostgreSQL database queries, Auth JWTs, and private ID Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- IMPORT: Global cloud configuration, Dasmarinas barangay directory, plan defaults, and UI popup helpers -->
   <script src="js/config.js"></script>
+  <!-- IMPORT: Cloud database & storage data-access layer wrapping Supabase Auth, RLS tables, and audit logging -->
   <script src="js/db.js"></script>
+  <!-- IMPORT: Public landing page controller rendering active Red Fiber plans and reCAPTCHA-protected Apply links -->
   <script src="js/home.js"></script>
 </body>
 </html>

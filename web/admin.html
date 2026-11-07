@@ -1,10 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Technical Management System - PIGEM Admin Console</title>
+
   <link rel="icon" type="image/png" href="assets/images/logo.png" />
+
   <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
@@ -207,12 +210,15 @@
         <div class="card" style="margin-bottom:18px">
           <h3 style="margin-bottom:6px">Provision Internal Business Account (Agent or Manager)</h3>
           <p class="muted" style="font-size:13px; margin-bottom:12px">
-            Internal staff sign in using business credentials (such as <code>agent1@pigem.com</code> or <code>manager@pigem.com</code>). Customer accounts use <code>@gmail.com</code> and are created automatically upon application submission. Only one System Administrator account exists in the system.
+            Internal staff sign in using their unique username or business email (such as <code>agent1@pigem.com</code> or <code>manager@pigem.com</code>). Customer accounts use <code>@gmail.com</code> with a unique username and are created automatically upon application submission. Only one System Administrator account exists in the system.
           </p>
           <div id="acc-msg" class="msg"></div>
-          <div class="grid-4">
+          <div class="grid-3">
             <div class="field"><label>Full Name</label><input id="new-acc-name" type="text" placeholder="Maria Santos" /></div>
+            <div class="field"><label>Username</label><input id="new-acc-username" type="text" minlength="3" maxlength="30" placeholder="maria.santos" /></div>
             <div class="field"><label>Business Account Email</label><input id="new-acc-email" type="email" placeholder="maria@pigem.com" /></div>
+          </div>
+          <div class="grid-2">
             <div class="field"><label>Initial Password</label><input id="new-acc-pw" type="password" placeholder="Min. 6 characters" /></div>
             <div class="field">
               <label>Internal Role</label>
@@ -232,6 +238,7 @@
               <thead>
                 <tr>
                   <th>Full Name</th>
+                  <th>Username</th>
                   <th>Email</th>
                   <th>Role</th>
                   <th>Status</th>
@@ -312,11 +319,17 @@
   <script>
 window.SYSTEM = "admin";
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script src="js/config.js"></script>
+
   <script src="js/db.js"></script>
+
   <script src="js/api.js"></script>
+
   <script src="js/dash-ui.js"></script>
+
   <script src="js/admin.js"></script>
 </body>
 </html>

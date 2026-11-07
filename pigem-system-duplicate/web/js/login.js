@@ -1,16 +1,21 @@
-// ============================================================
-// SHARED LOGIN & CUSTOMER PASSWORD RESET LOGIC
-// Rules:
-// - Customer Login (login.html): Strictly @gmail.com accounts; supports 6-digit Gmail OTP password reset.
-// - Staff Login (staff-login.html) & Admin Login (admin-login.html): Strictly internal business accounts
-//   (e.g. name@pigem.com); credentials are managed by the single provisioned System Administrator.
-// ============================================================
+// ============================================================================
+// FILE: web/js/login.js
+// PURPOSE: Unified Role-Based Sign-In, Lockout Defense & OTP Password Recovery
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. Inline Portal Config (`window.LOGIN_PORTAL_CONFIG`) -> Defines allowed roles per page
+//   2. Google reCAPTCHA v2 (`recaptcha/api.js`)            -> Anti-bot sign-in verification
+//   3. web/js/config.js -> Password validation rules & modal dialog helpers
+//   4. web/js/db.js     -> `dbSignIn()`, `dbSaveOtp()`, `dbVerifyOtp()`, `dbResetPasswordWithOtp()`
+//   5. web/js/api.js    -> `apiVerifyCaptcha()` and `apiSendOtpEmail()`
+// ============================================================================
 
 var resetTargetEmail = "";
 var loginCaptchaVerified = false;
 var loginAttempts = 0;
 var MAX_ATTEMPTS = 5;
 
+// `getHomeForRole` (params: role): Maps an authenticated user role (customer, agent, manager, admin) to its target dashboard URL.
 function getHomeForRole(role) {
   var r = String(role || "").toLowerCase();
   if (r === "admin") return (window.ROOT || "") + "admin.html";
@@ -34,6 +39,7 @@ window.onLoginCaptchaExpired = function () {
   loginCaptchaVerified = false;
 };
 
+// `renderLoginCaptchaBox`: Renders the Google reCAPTCHA v2 checkbox inside the sign-in form when the script is ready.
 function renderLoginCaptchaBox() {
   var box = document.getElementById("login-captcha-box");
   if (!box) return;
@@ -41,6 +47,7 @@ function renderLoginCaptchaBox() {
   var siteKey = CONFIG.RECAPTCHA_SITE_KEY;
   box.innerHTML = '<div id="g-login-recaptcha" class="g-recaptcha" data-sitekey="' + siteKey + '" data-callback="onLoginCaptchaVerified" data-expired-callback="onLoginCaptchaExpired"></div>';
 
+  // Helper function `tryRenderGoogle`: Executes portal workflow logic for `tryRenderGoogle`.
   function tryRenderGoogle() {
     if (typeof grecaptcha !== "undefined" && grecaptcha.render) {
       try {
@@ -74,6 +81,7 @@ function renderLoginCaptchaBox() {
   }
 }
 
+// `renderLoginCaptchaFallback` (params: box): Displays a retry notice if the Google reCAPTCHA widget is temporarily blocked by slow network.
 function renderLoginCaptchaFallback(box) {
   if (!box) return;
   box.innerHTML =
@@ -89,6 +97,7 @@ function renderLoginCaptchaFallback(box) {
     '</div>';
 }
 
+// `triggerLoginCaptcha`: Validates the sign-in reCAPTCHA response token before allowing credential submission.
 function triggerLoginCaptcha() {
   if (loginCaptchaVerified) return;
   var check = document.getElementById("login-captcha-check");
@@ -107,6 +116,7 @@ function triggerLoginCaptcha() {
   }, 450);
 }
 
+// `checkAdminProvisionState`: Checks whether the single System Administrator account has already been provisioned in Supabase.
 async function checkAdminProvisionState() {
   if (window.SYSTEM !== "admin" || typeof dbHasAdminAccount !== "function") return;
   var box = document.getElementById("admin-provision-box");
@@ -115,11 +125,13 @@ async function checkAdminProvisionState() {
   box.hidden = Boolean(hasAdmin);
 }
 
+// Event Listener: Runs initialization or state sync when `DOMContentLoaded` fires
 window.addEventListener("DOMContentLoaded", function () {
   renderLoginCaptchaBox();
   checkAdminProvisionState();
 });
 
+// `showLockoutPopup`: Displays a security cooldown alert when a user exceeds the maximum failed sign-in attempts.
 function showLockoutPopup() {
   var isCustomer = (window.SYSTEM === "customer");
   var msgHtml = isCustomer
@@ -139,6 +151,7 @@ function showLockoutPopup() {
   );
 }
 
+// `handleLogin` (params: event): Processes sign-in form submission: verifies captcha, authenticates via Supabase, enforces role access, and redirects.
 async function handleLogin(event) {
   event.preventDefault();
 
@@ -149,19 +162,26 @@ async function handleLogin(event) {
 
   var emailEl = document.getElementById("email");
   var pwEl = document.getElementById("password");
-  var email = (emailEl ? emailEl.value : "").trim().toLowerCase();
+  var identifier = (emailEl ? emailEl.value : "").trim().toLowerCase();
   var password = pwEl ? pwEl.value : "";
 
-  if (window.SYSTEM === "customer") {
-    if (typeof isCustomerGmail === "function" && !isCustomerGmail(email)) {
-      showAlert("Gmail Required", "Customer Login accepts @gmail.com accounts only. Internal business accounts must sign in on the Staff or Admin Login page.", "warn");
-      return;
+  // If the user typed an email address (contains @), validate domain before calling Supabase.
+  // If no @ is present, validate username format and allow dbSignIn() to resolve username -> email.
+  if (identifier.indexOf("@") !== -1) {
+    if (window.SYSTEM === "customer") {
+      if (typeof isCustomerGmail === "function" && !isCustomerGmail(identifier)) {
+        showAlert("Gmail or Username Required", "Customer Login accepts Customer usernames or @gmail.com email addresses only.", "warn");
+        return;
+      }
+    } else {
+      if (typeof isCustomerGmail === "function" && isCustomerGmail(identifier)) {
+        showAlert("Business Account Required", "Gmail accounts are reserved for Customers. Please enter your staff username or @pigem.com business email.", "warn");
+        return;
+      }
     }
-  } else {
-    if (typeof isCustomerGmail === "function" && isCustomerGmail(email)) {
-      showAlert("Business Account Required", "Gmail accounts are reserved for Customers. Please enter your @pigem.com business account credentials.", "warn");
-      return;
-    }
+  } else if (typeof isValidUsername === "function" && !isValidUsername(identifier)) {
+    showAlert("Invalid Username", "Please enter a valid username (3 to 30 characters: letters, numbers, dots, underscores) or email address.", "warn");
+    return;
   }
 
   if (!loginCaptchaVerified && typeof grecaptcha !== "undefined" && grecaptcha.getResponse) {
@@ -187,7 +207,7 @@ async function handleLogin(event) {
   btn.textContent = "Signing in...";
 
   try {
-    var user = await dbSignIn(email, password);
+    var user = await dbSignIn(identifier, password);
     loginAttempts = 0;
     window.location.href = getHomeForRole(user.role);
   } catch (err) {
@@ -228,6 +248,7 @@ function openForgotModal() {
   );
 }
 
+// `sendResetCode`: Generates a 6-digit recovery OTP, stores it in Supabase, and emails it via /api/notify.
 async function sendResetCode() {
   var email = document.getElementById("reset-email").value.trim().toLowerCase();
   if (!email || (typeof isCustomerGmail === "function" && !isCustomerGmail(email))) {
@@ -264,6 +285,7 @@ function openFinishResetModal() {
   );
 }
 
+// `confirmResetPassword`: Verifies the 6-digit OTP code and commits the user's new password in Supabase.
 async function confirmResetPassword() {
   var code = document.getElementById("reset-code").value.trim();
   var pw = document.getElementById("reset-pw").value;

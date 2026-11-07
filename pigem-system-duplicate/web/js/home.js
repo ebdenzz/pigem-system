@@ -1,9 +1,16 @@
-// ============================================================
-// HOME PAGE SCRIPT (Hero Slider, Plans, and Closed-by-Default FAQs)
-// ============================================================
+// ============================================================================
+// FILE: web/js/home.js
+// PURPOSE: Public Home Page Controller (Fiber Plan Cards & Apply Gatekeeper)
+// ----------------------------------------------------------------------------
+// SHARED SCRIPT IMPORTS (Loaded before this file via HTML <script> tags):
+//   1. Google reCAPTCHA v2 (`recaptcha/api.js`) -> Exposes global `grecaptcha`
+//   2. @supabase/supabase-js@2 + web/js/db.js   -> Loads live fiber plans & CMS text
+//   3. web/js/config.js                         -> `CONFIG.RECAPTCHA_SITE_KEY` & plan defaults
+// ============================================================================
 
 var pendingApplyPlanId = null;
 
+// `openApplyWithCaptcha` (params: planId): Saves the chosen fiber plan ID and prompts human verification before opening apply.html.
 function openApplyWithCaptcha(planId) {
   pendingApplyPlanId = planId || "";
   if (sessionStorage.getItem("pigem_captcha_verified") === "true") {
@@ -13,6 +20,7 @@ function openApplyWithCaptcha(planId) {
   showGoogleCaptchaPopup();
 }
 
+// `showGoogleCaptchaPopup`: Opens a modal containing the Google reCAPTCHA v2 challenge before starting an application.
 function showGoogleCaptchaPopup() {
   openPopup(
     '<div class="center" style="padding:10px 4px;">' +
@@ -60,6 +68,7 @@ function showGoogleCaptchaPopup() {
   }
 }
 
+// `onGoogleCaptchaPassed` (params: token): Callback fired by Google reCAPTCHA upon verification; redirects the visitor to the application wizard.
 async function onGoogleCaptchaPassed(token) {
   if (token && typeof apiVerifyCaptcha === "function") {
     var checkRes = await apiVerifyCaptcha(token);
@@ -74,6 +83,7 @@ async function onGoogleCaptchaPassed(token) {
   window.location.href = targetUrl;
 }
 
+// `triggerHomeCaptcha`: Verifies the landing-page reCAPTCHA state and navigates to apply.html with the selected plan.
 function triggerHomeCaptcha() {
   var check = document.getElementById("home-captcha-check");
   var card = document.getElementById("home-captcha-card");
@@ -179,4 +189,3 @@ function initHomePage() {
 
 window.onLiveContentSynced = initHomePage;
 initHomePage();
-
